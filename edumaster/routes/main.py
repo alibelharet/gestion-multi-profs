@@ -1,12 +1,17 @@
+import csv
 import json
+import os
 import re
 import unicodedata
-from io import BytesIO
+from datetime import datetime
+from io import BytesIO, TextIOWrapper
 
 import openpyxl
 import pandas as pd
 from flask import Blueprint, flash, redirect, render_template, request, send_file, session, url_for
 
+from core.audit import log_change
+from core.config import BASE_DIR
 from core.db import get_db
 from core.security import login_required
 from core.utils import clean_note, get_appreciation_dynamique
@@ -36,7 +41,22 @@ def _normalize_header(value):
     return text
 
 
-def _build_filters(user_id, trim, args):
+def _parse_date(value):
+    if not value:
+        return None
+    try:
+        return datetime.strptime(value, "%Y-%m-%d")
+    except Exception:
+        return None
+
+
+def _school_year(now):
+    if now.month >= 9:
+        return f"{now.year}/{now.year + 1}"
+    return f"{now.year - 1}/{now.year}"
+
+
+def _build_filters(user_id, trim, args, moy_expr_override=None):
     niveau = args.get("niveau", "")
     search = (args.get("recherche") or "").strip()
     sort = args.get("sort", "class")
@@ -50,15 +70,19 @@ def _build_filters(user_id, trim, args):
     if order not in ("asc", "desc"):
         order = "asc"
 
-    moy_expr = f"((devoir_t{trim} + activite_t{trim})/2.0 + (compo_t{trim}*2.0))/3.0"
-    where = "user_id = ?"
+    moy_expr = (
+        moy_expr_override
+        if moy_expr_override
+        else f"((devoir_t{trim} + activite_t{trim})/2.0 + (compo_t{trim}*2.0))/3.0"
+    )
+    where = "e.user_id = ?"
     params = [user_id]
 
     if niveau and niveau != "all":
-        where += " AND niveau = ?"
+        where += " AND e.niveau = ?"
         params.append(niveau)
     if search:
-        where += " AND nom_complet LIKE ?"
+        where += " AND e.nom_complet LIKE ?"
         params.append(f"%{search}%")
 
     if min_moy is not None:
@@ -89,29 +113,127 @@ def _build_filters(user_id, trim, args):
     }
 
 
+def _build_history_filters(user_id, args):
+    action = (args.get("action") or "").strip()
+    q = (args.get("q") or "").strip()
+    subject_val = (args.get("subject") or "").strip()
+    date_from_raw = (args.get("from") or "").strip()
+    date_to_raw = (args.get("to") or "").strip()
+
+    subject_id = None
+    try:
+        if subject_val:
+            subject_id = int(subject_val)
+    except Exception:
+        subject_id = None
+
+    date_from = _parse_date(date_from_raw)
+    date_to = _parse_date(date_to_raw)
+
+    where = "l.user_id = ?"
+    params = [user_id]
+
+    if action:
+        where += " AND l.action = ?"
+        params.append(action)
+    if subject_id:
+        where += " AND l.subject_id = ?"
+        params.append(subject_id)
+    if q:
+        where += " AND (l.details LIKE ? OR e.nom_complet LIKE ?)"
+        params.extend([f"%{q}%", f"%{q}%"])
+    if date_from:
+        where += " AND l.created_at >= ?"
+        params.append(int(date_from.timestamp()))
+    if date_to:
+        end = date_to.replace(hour=23, minute=59, second=59)
+        where += " AND l.created_at <= ?"
+        params.append(int(end.timestamp()))
+
+    return {
+        "where": where,
+        "params": params,
+        "action": action,
+        "q": q,
+        "subject_id": subject_id,
+        "date_from": date_from_raw,
+        "date_to": date_to_raw,
+    }
+
+
+def _get_subjects(db, user_id):
+    rows = db.execute(
+        "SELECT id, name FROM subjects WHERE user_id = ? ORDER BY name",
+        (user_id,),
+    ).fetchall()
+    if not rows:
+        db.execute(
+            "INSERT INTO subjects (user_id, name) VALUES (?, ?)",
+            (user_id, "Sciences"),
+        )
+        db.commit()
+        rows = db.execute(
+            "SELECT id, name FROM subjects WHERE user_id = ? ORDER BY name",
+            (user_id,),
+        ).fetchall()
+    return rows
+
+
+def _select_subject_id(subjects, value):
+    subject_map = {int(s["id"]): s for s in subjects}
+    try:
+        sid = int(value)
+    except Exception:
+        sid = None
+    if sid not in subject_map:
+        sid = int(subjects[0]["id"])
+    return sid
+
+
+def _note_expr(trim):
+    devoir = f"COALESCE(n.devoir, e.devoir_t{trim})"
+    activite = f"COALESCE(n.activite, e.activite_t{trim})"
+    compo = f"COALESCE(n.compo, e.compo_t{trim})"
+    remarques = f"COALESCE(n.remarques, e.remarques_t{trim})"
+    moy_expr = f"(({devoir} + {activite})/2.0 + ({compo}*2.0))/3.0"
+    return devoir, activite, compo, remarques, moy_expr
+
+
 @bp.route("/sauvegarder_tout", methods=["POST"])
 @login_required
 def sauvegarder_tout():
     user_id = session["user_id"]
     trim = request.form.get("trimestre_save")
+    db = get_db()
+    subjects = _get_subjects(db, user_id)
+    subject_id = _select_subject_id(subjects, request.form.get("subject"))
+
     ids = request.form.getlist("id_eleve")
     devs = request.form.getlist("devoir")
     acts = request.form.getlist("activite")
     comps = request.form.getlist("compo")
 
-    db = get_db()
+    updated = 0
     for i in range(len(ids)):
         try:
             d, a, c = clean_note(devs[i]), clean_note(acts[i]), clean_note(comps[i])
             moy = ((d + a) / 2 + (c * 2)) / 3
+            rem = get_appreciation_dynamique(moy, user_id)
             db.execute(
-                f"UPDATE eleves SET devoir_t{trim}=?, activite_t{trim}=?, compo_t{trim}=?, remarques_t{trim}=? WHERE id=? AND user_id=?",
-                (d, a, c, get_appreciation_dynamique(moy, user_id), ids[i], user_id),
+                """
+                INSERT INTO notes (user_id, eleve_id, subject_id, trimestre, activite, devoir, compo, remarques)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(user_id, eleve_id, subject_id, trimestre)
+                DO UPDATE SET activite=excluded.activite, devoir=excluded.devoir, compo=excluded.compo, remarques=excluded.remarques
+                """,
+                (user_id, ids[i], subject_id, int(trim), a, d, c, rem),
             )
+            updated += 1
         except Exception:
             continue
     db.commit()
-    flash("Notes enregistrées.", "success")
+    log_change("update_notes", user_id, details=f"{updated} lignes", subject_id=subject_id)
+    flash("Notes enregistrees.", "success")
     return redirect(request.referrer or url_for("main.index", trimestre=trim))
 
 
@@ -125,9 +247,15 @@ def ajouter_eleve():
     c = clean_note(request.form.get("compo"))
     moy = ((d + a) / 2 + (c * 2)) / 3
 
+    parent_phone = (request.form.get("parent_phone") or "").strip()
+    parent_email = (request.form.get("parent_email") or "").strip()
+
     db = get_db()
-    db.execute(
-        f"INSERT INTO eleves (user_id, nom_complet, niveau, remarques_t{trim}, devoir_t{trim}, activite_t{trim}, compo_t{trim}) VALUES (?, ?, ?, ?, ?, ?, ?)",
+    subjects = _get_subjects(db, user_id)
+    subject_id = _select_subject_id(subjects, request.form.get("subject"))
+
+    cur = db.execute(
+        f"INSERT INTO eleves (user_id, nom_complet, niveau, remarques_t{trim}, devoir_t{trim}, activite_t{trim}, compo_t{trim}, parent_phone, parent_email) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
         (
             user_id,
             request.form["nom_complet"],
@@ -136,9 +264,24 @@ def ajouter_eleve():
             d,
             a,
             c,
+            parent_phone,
+            parent_email,
         ),
     )
+    eleve_id = cur.lastrowid
+
+    db.execute(
+        """
+        INSERT INTO notes (user_id, eleve_id, subject_id, trimestre, activite, devoir, compo, remarques)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(user_id, eleve_id, subject_id, trimestre)
+        DO UPDATE SET activite=excluded.activite, devoir=excluded.devoir, compo=excluded.compo, remarques=excluded.remarques
+        """,
+        (user_id, eleve_id, subject_id, int(trim), a, d, c, get_appreciation_dynamique(moy, user_id)),
+    )
+
     db.commit()
+    log_change("add_student", user_id, details=request.form.get("nom_complet", ""), eleve_id=eleve_id, subject_id=subject_id)
     return redirect(request.referrer or url_for("main.index", trimestre=trim))
 
 
@@ -149,11 +292,16 @@ def supprimer_multi():
     if ids:
         db = get_db()
         db.execute(
+            f"DELETE FROM notes WHERE eleve_id IN ({','.join('?'*len(ids))}) AND user_id = ?",
+            ids + [session["user_id"]],
+        )
+        db.execute(
             f"DELETE FROM eleves WHERE id IN ({','.join('?'*len(ids))}) AND user_id = ?",
             ids + [session["user_id"]],
         )
         db.commit()
-        flash(f"Supprimés ({len(ids)})", "success")
+        log_change("delete_students", session["user_id"], details=f"{len(ids)} eleves")
+        flash(f"Supprimes ({len(ids)})", "success")
     return redirect(request.referrer or url_for("main.index"))
 
 
@@ -166,6 +314,9 @@ def import_excel():
     if file and file.filename:
         try:
             db = get_db()
+            subjects = _get_subjects(db, user_id)
+            subject_id = _select_subject_id(subjects, request.form.get("subject"))
+
             all_sheets = pd.read_excel(file, sheet_name=None, header=None)
             inserted = 0
             updated = 0
@@ -180,10 +331,10 @@ def import_excel():
                     joined = " ".join([str(v) for v in row.values])
                     cells = [_normalize_header(v) for v in row.values]
                     if (
-                        "Ø§Ù„Ù„Ù‚Ø¨" in joined
+                        "Ã˜Â§Ã™â€žÃ™â€žÃ™â€šÃ˜Â¨" in joined
                         or "Nom" in joined
-                        or "اللقب" in joined
-                        or "الاسم" in joined
+                        or "Ø§Ù„Ù„Ù‚Ø¨" in joined
+                        or "Ø§Ù„Ø§Ø³Ù…" in joined
                         or any(
                             c in {"nom", "prenom", "nomcomplet", "nomprenom", "fullname"}
                             for c in cells
@@ -207,6 +358,8 @@ def import_excel():
                 c_a = None
                 c_c = None
                 c_rem = None
+                c_phone = None
+                c_email = None
 
                 for col in df.columns:
                     raw = str(col).strip()
@@ -228,23 +381,31 @@ def import_excel():
                         c_c = col
                     elif norm in ("remarques", "appreciation", "rem", "obs", "commentaire"):
                         c_rem = col
-                    elif "اللقب" in raw:
+                    elif norm in ("telephone", "tel", "phone", "mobile"):
+                        c_phone = col
+                    elif norm in ("email", "mail", "e-mail"):
+                        c_email = col
+                    elif "Ø§Ù„Ù„Ù‚Ø¨" in raw:
                         c_nom = c_nom or col
-                    elif "الاسم" in raw:
+                    elif "Ø§Ù„Ø§Ø³Ù…" in raw:
                         c_prenom = c_prenom or col
-                    elif "القسم" in raw or "المستوى" in raw:
+                    elif "Ø§Ù„Ù‚Ø³Ù…" in raw or "Ø§Ù„Ù…Ø³ØªÙˆÙ‰" in raw:
                         c_niveau = c_niveau or col
-                    elif "الفرض" in raw:
+                    elif "Ø§Ù„ÙØ±Ø¶" in raw:
                         c_d = c_d or col
-                    elif "النشاط" in raw:
+                    elif "Ø§Ù„Ù†Ø´Ø§Ø·" in raw:
                         c_a = c_a or col
-                    elif "الاختبار" in raw:
+                    elif "Ø§Ù„Ø§Ø®ØªØ¨Ø§Ø±" in raw:
                         c_c = c_c or col
-                    elif "التقدير" in raw:
+                    elif "Ø§Ù„ØªÙ‚Ø¯ÙŠØ±" in raw:
                         c_rem = c_rem or col
-                    elif "Ø§Ù„Ù„Ù‚Ø¨" in raw or "Nom" in raw:
+                    elif "Ù‡Ø§ØªÙ" in raw or "Ø¬ÙˆØ§Ù„" in raw:
+                        c_phone = c_phone or col
+                    elif "Ø¨Ø±ÙŠØ¯" in raw:
+                        c_email = c_email or col
+                    elif "Ã˜Â§Ã™â€žÃ™â€žÃ™â€šÃ˜Â¨" in raw or "Nom" in raw:
                         c_nom = c_nom or col
-                    elif "PrÃ©nom" in raw or "Prenom" in raw:
+                    elif "PrÃƒÂ©nom" in raw or "Prenom" in raw:
                         c_prenom = c_prenom or col
                     elif "Dev" in raw:
                         c_d = c_d or col
@@ -275,6 +436,9 @@ def import_excel():
                     if not niveau:
                         niveau = str(nom_onglet).strip() or "Global"
 
+                    phone = str(_val(c_phone) or "").strip() if c_phone else ""
+                    email = str(_val(c_email) or "").strip() if c_email else ""
+
                     d = clean_note(_val(c_d)) if c_d else 0
                     a = clean_note(_val(c_a)) if c_a else 0
                     c = clean_note(_val(c_c)) if c_c else 0
@@ -289,23 +453,44 @@ def import_excel():
                         "SELECT id FROM eleves WHERE nom_complet = ? AND niveau = ? AND user_id = ?",
                         (full, niveau, user_id),
                     ).fetchone()
+
                     if ex:
                         db.execute(
-                            f"UPDATE eleves SET remarques_t{trim}=?, devoir_t{trim}=?, activite_t{trim}=?, compo_t{trim}=? WHERE id=?",
-                            (rem, d, a, c, ex["id"]),
+                            "UPDATE eleves SET parent_phone = COALESCE(?, parent_phone), parent_email = COALESCE(?, parent_email) WHERE id = ?",
+                            (phone or None, email or None, ex["id"]),
+                        )
+                        db.execute(
+                            """
+                            INSERT INTO notes (user_id, eleve_id, subject_id, trimestre, activite, devoir, compo, remarques)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                            ON CONFLICT(user_id, eleve_id, subject_id, trimestre)
+                            DO UPDATE SET activite=excluded.activite, devoir=excluded.devoir, compo=excluded.compo, remarques=excluded.remarques
+                            """,
+                            (user_id, ex["id"], subject_id, int(trim), a, d, c, rem),
                         )
                         updated += 1
                     else:
+                        cur = db.execute(
+                            f"INSERT INTO eleves (user_id, nom_complet, niveau, remarques_t{trim}, devoir_t{trim}, activite_t{trim}, compo_t{trim}, parent_phone, parent_email) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                            (user_id, full, niveau, rem, d, a, c, phone, email),
+                        )
+                        eleve_id = cur.lastrowid
                         db.execute(
-                            f"INSERT INTO eleves (user_id, nom_complet, niveau, remarques_t{trim}, devoir_t{trim}, activite_t{trim}, compo_t{trim}) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                            (user_id, full, niveau, rem, d, a, c),
+                            """
+                            INSERT INTO notes (user_id, eleve_id, subject_id, trimestre, activite, devoir, compo, remarques)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                            ON CONFLICT(user_id, eleve_id, subject_id, trimestre)
+                            DO UPDATE SET activite=excluded.activite, devoir=excluded.devoir, compo=excluded.compo, remarques=excluded.remarques
+                            """,
+                            (user_id, eleve_id, subject_id, int(trim), a, d, c, rem),
                         )
                         inserted += 1
 
             db.commit()
             total = inserted + updated
+            log_change("import_excel", user_id, details=f"{total} lignes (new {inserted}, upd {updated}, skip {skipped})", subject_id=subject_id)
             flash(
-                f"Import OK: {total} lignes (nouveaux {inserted}, mis Ã  jour {updated}, onglets ignorÃ©s {skipped})",
+                f"Import OK: {total} lignes (nouveaux {inserted}, mis a jour {updated}, onglets ignores {skipped})",
                 "success",
             )
         except Exception as e:
@@ -404,7 +589,13 @@ def index():
     if trim not in ("1", "2", "3"):
         trim = "1"
 
-    filters = _build_filters(user_id, trim, request.args)
+    db = get_db()
+    subjects = _get_subjects(db, user_id)
+    subject_id = _select_subject_id(subjects, request.args.get("subject"))
+    subject_name = next(s["name"] for s in subjects if int(s["id"]) == subject_id)
+
+    devoir_expr, activite_expr, compo_expr, remarques_expr, moy_expr = _note_expr(trim)
+    filters = _build_filters(user_id, trim, request.args, moy_expr)
     niveau = filters["niveau"]
     search = filters["search"]
     sort = filters["sort"]
@@ -424,7 +615,6 @@ def index():
 
     page = max(1, page)
     per_page = min(200, max(10, per_page))
-    db = get_db()
 
     classes = [
         r["niveau"]
@@ -435,8 +625,9 @@ def index():
     ]
 
     where = filters["where"]
-    params: list = filters["params"]
-    moy_expr = filters["moy_expr"]
+    params = filters["params"]
+
+    join_params = [subject_id, int(trim)]
 
     stats_row = db.execute(
         f"""
@@ -447,10 +638,11 @@ def index():
           AVG(CASE WHEN {moy_expr} > 0 THEN {moy_expr} END) AS moyenne_generale,
           MAX(CASE WHEN {moy_expr} > 0 THEN {moy_expr} END) AS meilleure_note,
           MIN(CASE WHEN {moy_expr} > 0 THEN {moy_expr} END) AS pire_note
-        FROM eleves
+        FROM eleves e
+        LEFT JOIN notes n ON n.user_id = e.user_id AND n.eleve_id = e.id AND n.subject_id = ? AND n.trimestre = ?
         WHERE {where}
         """,
-        params,
+        join_params + params,
     ).fetchone()
 
     total = int(stats_row["nb_total"] or 0)
@@ -461,31 +653,32 @@ def index():
 
     direction = "DESC" if order == "desc" else "ASC"
     if sort == "name":
-        order_clause = f"nom_complet COLLATE NOCASE {direction}, id ASC"
+        order_clause = f"e.nom_complet COLLATE NOCASE {direction}, e.id ASC"
     elif sort == "moy":
-        order_clause = f"moyenne {direction}, nom_complet COLLATE NOCASE ASC, id ASC"
+        order_clause = f"moyenne {direction}, e.nom_complet COLLATE NOCASE ASC, e.id ASC"
     elif sort == "id":
-        order_clause = f"id {direction}"
+        order_clause = f"e.id {direction}"
     else:
-        order_clause = f"niveau COLLATE NOCASE {direction}, id ASC"
+        order_clause = f"e.niveau COLLATE NOCASE {direction}, e.id ASC"
 
     rows = db.execute(
         f"""
         SELECT
-          id,
-          nom_complet,
-          niveau,
-          devoir_t{trim} AS devoir,
-          activite_t{trim} AS activite,
-          compo_t{trim} AS compo,
-          remarques_t{trim} AS remarques,
+          e.id,
+          e.nom_complet,
+          e.niveau,
+          {devoir_expr} AS devoir,
+          {activite_expr} AS activite,
+          {compo_expr} AS compo,
+          {remarques_expr} AS remarques,
           ROUND({moy_expr}, 2) AS moyenne
-        FROM eleves
+        FROM eleves e
+        LEFT JOIN notes n ON n.user_id = e.user_id AND n.eleve_id = e.id AND n.subject_id = ? AND n.trimestre = ?
         WHERE {where}
         ORDER BY {order_clause}
         LIMIT ? OFFSET ?
         """,
-        params + [per_page, offset],
+        join_params + params + [per_page, offset],
     ).fetchall()
 
     eleves_list = [
@@ -518,15 +711,16 @@ def index():
     class_rows = db.execute(
         f"""
         SELECT
-          niveau,
+          e.niveau,
           COUNT(*) AS total,
           AVG(CASE WHEN {moy_expr} > 0 THEN {moy_expr} END) AS avg_moy
-        FROM eleves
+        FROM eleves e
+        LEFT JOIN notes n ON n.user_id = e.user_id AND n.eleve_id = e.id AND n.subject_id = ? AND n.trimestre = ?
         WHERE {where}
-        GROUP BY niveau
-        ORDER BY avg_moy DESC, niveau ASC
+        GROUP BY e.niveau
+        ORDER BY avg_moy DESC, e.niveau ASC
         """,
-        params,
+        join_params + params,
     ).fetchall()
 
     class_labels = [str(r["niveau"]) for r in class_rows]
@@ -538,10 +732,11 @@ def index():
           SUM(CASE WHEN {moy_expr} >= 10 THEN 1 ELSE 0 END) AS admis,
           SUM(CASE WHEN {moy_expr} > 0 AND {moy_expr} < 10 THEN 1 ELSE 0 END) AS echec,
           SUM(CASE WHEN {moy_expr} <= 0 THEN 1 ELSE 0 END) AS non_saisi
-        FROM eleves
+        FROM eleves e
+        LEFT JOIN notes n ON n.user_id = e.user_id AND n.eleve_id = e.id AND n.subject_id = ? AND n.trimestre = ?
         WHERE {where}
         """,
-        params,
+        join_params + params,
     ).fetchone()
 
     dist_values = [
@@ -553,33 +748,27 @@ def index():
     top_rows = db.execute(
         f"""
         SELECT
-          nom_complet,
-          niveau,
+          e.nom_complet,
+          e.niveau,
           ROUND({moy_expr}, 2) AS moyenne
-        FROM eleves
+        FROM eleves e
+        LEFT JOIN notes n ON n.user_id = e.user_id AND n.eleve_id = e.id AND n.subject_id = ? AND n.trimestre = ?
         WHERE {where}
-        ORDER BY moyenne DESC, nom_complet ASC
+        ORDER BY moyenne DESC, e.nom_complet ASC
         LIMIT 10
         """,
-        params,
+        join_params + params,
     ).fetchall()
 
     top_eleves = [
-        {
-            "nom": r["nom_complet"],
-            "niveau": r["niveau"],
-            "moyenne": float(r["moyenne"] or 0),
-        }
+        {"nom": r["nom_complet"], "niveau": r["niveau"], "moyenne": float(r["moyenne"] or 0)}
         for r in top_rows
     ]
 
     chart_data = json.dumps(
         {
             "classes": {"labels": class_labels, "values": class_avgs},
-            "distribution": {
-                "labels": ["Admis", "Echec", "Non saisi"],
-                "values": dist_values,
-            },
+            "distribution": {"labels": ["Admis", "Echec", "Non saisi"], "values": dist_values},
         }
     )
 
@@ -607,57 +796,11 @@ def index():
         etat=etat,
         chart_data=chart_data,
         top_eleves=top_eleves,
+        subjects=subjects,
+        subject_id=subject_id,
+        subject_name=subject_name,
+        school_year=_school_year(datetime.now()),
     )
-
-
-@bp.route("/settings", methods=["GET", "POST"])
-@login_required
-def settings():
-    user_id = session["user_id"]
-    db = get_db()
-
-    if request.method == "POST":
-        mins = request.form.getlist("min_val")
-        maxs = request.form.getlist("max_val")
-        msgs = request.form.getlist("message")
-
-        db.execute("DELETE FROM appreciations WHERE user_id = ?", (user_id,))
-        for i in range(len(mins)):
-            if not mins[i]:
-                continue
-            try:
-                min_v = float(mins[i])
-                max_v = float(maxs[i]) if maxs[i] else min_v
-            except ValueError:
-                continue
-            db.execute(
-                "INSERT INTO appreciations (user_id, min_val, max_val, message) VALUES (?, ?, ?, ?)",
-                (user_id, min_v, max_v, msgs[i]),
-            )
-        db.commit()
-
-        # Recalcul rapide des remarques
-        for el in db.execute(
-            "SELECT * FROM eleves WHERE user_id = ?",
-            (user_id,),
-        ).fetchall():
-            for t in range(1, 4):
-                moy = (
-                    (el[f"devoir_t{t}"] + el[f"activite_t{t}"]) / 2
-                    + (el[f"compo_t{t}"] * 2)
-                ) / 3
-                db.execute(
-                    f"UPDATE eleves SET remarques_t{t} = ? WHERE id = ?",
-                    (get_appreciation_dynamique(moy, user_id), el["id"]),
-                )
-        db.commit()
-        flash("Sauvegarde", "success")
-
-    rules = db.execute(
-        "SELECT * FROM appreciations WHERE user_id = ? ORDER BY min_val",
-        (user_id,),
-    ).fetchall()
-    return render_template("settings.html", rules=rules)
 
 
 @bp.route("/bulletin/<int:id>")
@@ -669,25 +812,45 @@ def bulletin(id: int):
         trim = "1"
 
     db = get_db()
+    subjects = _get_subjects(db, user_id)
+    subject_id = _select_subject_id(subjects, request.args.get("subject"))
+    subject_name = next(s["name"] for s in subjects if int(s["id"]) == subject_id)
+
+    devoir_expr, activite_expr, compo_expr, remarques_expr, moy_expr = _note_expr(trim)
+
     eleve = db.execute(
-        "SELECT * FROM eleves WHERE id = ? AND user_id = ?",
-        (id, user_id),
+        f"""
+        SELECT
+          e.*,
+          {devoir_expr} AS devoir,
+          {activite_expr} AS activite,
+          {compo_expr} AS compo,
+          {remarques_expr} AS remarques,
+          ROUND({moy_expr}, 2) AS moyenne
+        FROM eleves e
+        LEFT JOIN notes n ON n.user_id = e.user_id AND n.eleve_id = e.id AND n.subject_id = ? AND n.trimestre = ?
+        WHERE e.id = ? AND e.user_id = ?
+        """,
+        (subject_id, int(trim), id, user_id),
     ).fetchone()
     if not eleve:
-        return "Élève introuvable"
+        return "Eleve introuvable"
 
     camarades = db.execute(
-        "SELECT * FROM eleves WHERE user_id = ? AND niveau = ?",
-        (user_id, eleve["niveau"]),
+        f"""
+        SELECT e.id, ROUND({moy_expr}, 2) AS moyenne
+        FROM eleves e
+        LEFT JOIN notes n ON n.user_id = e.user_id AND n.eleve_id = e.id AND n.subject_id = ? AND n.trimestre = ?
+        WHERE e.user_id = ? AND e.niveau = ?
+        """,
+        (subject_id, int(trim), user_id, eleve["niveau"]),
     ).fetchall()
-    scores = []
-    for c in camarades:
-        moy = ((c[f"devoir_t{trim}"] + c[f"activite_t{trim}"]) / 2 + (c[f"compo_t{trim}"] * 2)) / 3
-        scores.append((c["id"], moy))
+
+    scores = [(c["id"], float(c["moyenne"] or 0)) for c in camarades]
     scores.sort(key=lambda x: x[1], reverse=True)
 
     rank = next((i + 1 for i, s in enumerate(scores) if s[0] == id), 1)
-    moy_eleve = next(s[1] for s in scores if s[0] == id)
+    moy_eleve = float(eleve["moyenne"] or 0)
     moy_classe = sum(s[1] for s in scores) / len(scores) if scores else 0
 
     return render_template(
@@ -699,6 +862,8 @@ def bulletin(id: int):
         moyenne_classe=round(moy_classe, 2),
         trimestre=trim,
         nom_prof=session.get("nom_affichage"),
+        subject_name=subject_name,
+        subject_id=subject_id,
     )
 
 
@@ -721,32 +886,52 @@ def bulletin_pdf(id: int):
         return redirect(url_for("main.bulletin", id=id, trimestre=trim))
 
     db = get_db()
+    subjects = _get_subjects(db, user_id)
+    subject_id = _select_subject_id(subjects, request.args.get("subject"))
+    subject_name = next(s["name"] for s in subjects if int(s["id"]) == subject_id)
+
+    devoir_expr, activite_expr, compo_expr, remarques_expr, moy_expr = _note_expr(trim)
+
     eleve = db.execute(
-        "SELECT * FROM eleves WHERE id = ? AND user_id = ?",
-        (id, user_id),
+        f"""
+        SELECT
+          e.*,
+          {devoir_expr} AS devoir,
+          {activite_expr} AS activite,
+          {compo_expr} AS compo,
+          {remarques_expr} AS remarques,
+          ROUND({moy_expr}, 2) AS moyenne
+        FROM eleves e
+        LEFT JOIN notes n ON n.user_id = e.user_id AND n.eleve_id = e.id AND n.subject_id = ? AND n.trimestre = ?
+        WHERE e.id = ? AND e.user_id = ?
+        """,
+        (subject_id, int(trim), id, user_id),
     ).fetchone()
     if not eleve:
         return "Eleve introuvable"
 
     camarades = db.execute(
-        "SELECT * FROM eleves WHERE user_id = ? AND niveau = ?",
-        (user_id, eleve["niveau"]),
+        f"""
+        SELECT e.id, ROUND({moy_expr}, 2) AS moyenne
+        FROM eleves e
+        LEFT JOIN notes n ON n.user_id = e.user_id AND n.eleve_id = e.id AND n.subject_id = ? AND n.trimestre = ?
+        WHERE e.user_id = ? AND e.niveau = ?
+        """,
+        (subject_id, int(trim), user_id, eleve["niveau"]),
     ).fetchall()
-    scores = []
-    for c in camarades:
-        moy = ((c[f"devoir_t{trim}"] + c[f"activite_t{trim}"]) / 2 + (c[f"compo_t{trim}"] * 2)) / 3
-        scores.append((c["id"], moy))
+
+    scores = [(c["id"], float(c["moyenne"] or 0)) for c in camarades]
     scores.sort(key=lambda x: x[1], reverse=True)
 
     rank = next((i + 1 for i, s in enumerate(scores) if s[0] == id), 1)
-    moy_eleve = next(s[1] for s in scores if s[0] == id)
+    moy_eleve = float(eleve["moyenne"] or 0)
     moy_classe = sum(s[1] for s in scores) / len(scores) if scores else 0
 
-    activite = eleve[f"activite_t{trim}"]
-    devoir = eleve[f"devoir_t{trim}"]
-    compo = eleve[f"compo_t{trim}"]
+    activite = eleve["activite"]
+    devoir = eleve["devoir"]
+    compo = eleve["compo"]
     moyenne = round(moy_eleve, 2)
-    remarques = eleve[f"remarques_t{trim}"] or ""
+    remarques = eleve["remarques"] or ""
 
     buffer = BytesIO()
     doc = SimpleDocTemplate(
@@ -760,15 +945,58 @@ def bulletin_pdf(id: int):
     styles = getSampleStyleSheet()
 
     story = []
-    story.append(Paragraph("Bulletin de notes", styles["Title"]))
-    story.append(Paragraph(f"Eleve: <b>{eleve['nom_complet']}</b>", styles["Normal"]))
-    story.append(Paragraph(f"Classe: {eleve['niveau']} &nbsp;&nbsp; Trimestre: {trim}", styles["Normal"]))
-    story.append(Paragraph(f"Prof: {session.get('nom_affichage', '')}", styles["Normal"]))
+    school_name = os.environ.get("SCHOOL_NAME", "Etablissement")
+    school_year = _school_year(datetime.now())
+    logo_path = os.path.join(BASE_DIR, "static", "logo.png")
+    stamp_path = os.path.join(BASE_DIR, "static", "stamp.png")
+
+    header_right = Paragraph(
+        f"<b>{school_name}</b><br/>Bulletin de notes<br/>Annee {school_year}",
+        styles["Heading2"],
+    )
+    header_left = ""
+    if os.path.exists(logo_path):
+        from reportlab.platypus import Image
+
+        header_left = Image(logo_path, width=28 * mm, height=28 * mm)
+
+    header_table = Table([[header_left, header_right]], colWidths=[32 * mm, 150 * mm])
+    header_table.setStyle(
+        TableStyle(
+            [
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("ALIGN", (1, 0), (1, 0), "CENTER"),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+            ]
+        )
+    )
+    story.append(header_table)
+    story.append(Spacer(1, 6))
+
+    info_data = [
+        ["Eleve", eleve["nom_complet"]],
+        ["Classe", eleve["niveau"]],
+        ["Trimestre", trim],
+        ["Matiere", subject_name],
+        ["Prof", session.get("nom_affichage", "")],
+    ]
+    info_table = Table(info_data, colWidths=[28 * mm, 120 * mm])
+    info_table.setStyle(
+        TableStyle(
+            [
+                ("GRID", (0, 0), (-1, -1), 0.3, colors.black),
+                ("BACKGROUND", (0, 0), (0, -1), colors.whitesmoke),
+                ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ]
+        )
+    )
+    story.append(info_table)
     story.append(Spacer(1, 10))
 
     table_data = [
         ["Matiere", "Activite", "Devoir", "Compo", "Moyenne", "Remarques"],
-        ["Sciences", activite, devoir, compo, moyenne, remarques],
+        [subject_name, activite, devoir, compo, moyenne, remarques],
     ]
     table = Table(
         table_data,
@@ -806,6 +1034,14 @@ def bulletin_pdf(id: int):
         )
     )
     story.append(summary)
+    story.append(Spacer(1, 12))
+    story.append(Paragraph("Cachet et signature", styles["Normal"]))
+    if os.path.exists(stamp_path):
+        from reportlab.platypus import Image
+
+        stamp = Image(stamp_path, width=28 * mm, height=28 * mm)
+        stamp.hAlign = "RIGHT"
+        story.append(stamp)
 
     doc.build(story)
     buffer.seek(0)
@@ -827,43 +1063,49 @@ def print_list():
     trim = request.args.get("trimestre", "1")
     if trim not in ("1", "2", "3"):
         trim = "1"
-    filters = _build_filters(user_id, trim, request.args)
-    niveau = filters["niveau"]
 
     db = get_db()
-    where = filters["where"]
-    params: list = filters["params"]
-    moy_expr = filters["moy_expr"]
+    subjects = _get_subjects(db, user_id)
+    subject_id = _select_subject_id(subjects, request.args.get("subject"))
+    subject_name = next(s["name"] for s in subjects if int(s["id"]) == subject_id)
 
-    eleves_db = db.execute(
+    devoir_expr, activite_expr, compo_expr, remarques_expr, moy_expr = _note_expr(trim)
+    filters = _build_filters(user_id, trim, request.args, moy_expr)
+    niveau = filters["niveau"]
+
+    where = filters["where"]
+    params = filters["params"]
+
+    rows = db.execute(
         f"""
         SELECT
-          nom_complet,
-          niveau,
-          devoir_t{trim} AS devoir,
-          activite_t{trim} AS activite,
-          compo_t{trim} AS compo,
-          remarques_t{trim} AS remarques,
-          ROUND({moy_expr}, 2) AS moyenne
-        FROM eleves
+          e.nom_complet,
+          e.niveau,
+          {activite_expr} AS activite,
+          {devoir_expr} AS devoir,
+          {compo_expr} AS compo,
+          ROUND({moy_expr}, 2) AS moyenne,
+          {remarques_expr} AS remarques
+        FROM eleves e
+        LEFT JOIN notes n ON n.user_id = e.user_id AND n.eleve_id = e.id AND n.subject_id = ? AND n.trimestre = ?
         WHERE {where}
-        ORDER BY niveau, id
+        ORDER BY e.niveau, e.id
         """,
-        params,
+        [subject_id, int(trim)] + params,
     ).fetchall()
-    eleves_list = []
-    for el in eleves_db:
-        eleves_list.append(
-            {
-                "nom_complet": el["nom_complet"],
-                "niveau": el["niveau"],
-                "activite": el["activite"],
-                "devoir": el["devoir"],
-                "compo": el["compo"],
-                "moyenne": float(el["moyenne"] or 0),
-                "remarques": el["remarques"],
-            }
-        )
+
+    eleves_list = [
+        {
+            "nom_complet": r["nom_complet"],
+            "niveau": r["niveau"],
+            "activite": r["activite"],
+            "devoir": r["devoir"],
+            "compo": r["compo"],
+            "moyenne": float(r["moyenne"] or 0),
+            "remarques": r["remarques"],
+        }
+        for r in rows
+    ]
 
     return render_template(
         "print_template.html",
@@ -871,7 +1113,113 @@ def print_list():
         nom_prof=session.get("nom_affichage"),
         trimestre=trim,
         niveau=niveau,
+        subject_name=subject_name,
     )
+
+
+@bp.route("/export_list_pdf")
+@login_required
+def export_list_pdf():
+    user_id = session["user_id"]
+    trim = request.args.get("trimestre", "1")
+    if trim not in ("1", "2", "3"):
+        trim = "1"
+
+    try:
+        from reportlab.lib import colors
+        from reportlab.lib.pagesizes import A4, landscape
+        from reportlab.lib.styles import getSampleStyleSheet
+        from reportlab.lib.units import mm
+        from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+    except Exception:
+        flash("PDF indisponible. Installez reportlab (pip install reportlab).", "danger")
+        return redirect(request.referrer or url_for("main.index", trimestre=trim))
+
+    db = get_db()
+    subjects = _get_subjects(db, user_id)
+    subject_id = _select_subject_id(subjects, request.args.get("subject"))
+    subject_name = next(s["name"] for s in subjects if int(s["id"]) == subject_id)
+
+    devoir_expr, activite_expr, compo_expr, remarques_expr, moy_expr = _note_expr(trim)
+    filters = _build_filters(user_id, trim, request.args, moy_expr)
+
+    where = filters["where"]
+    params = filters["params"]
+
+    rows = db.execute(
+        f"""
+        SELECT
+          e.nom_complet,
+          e.niveau,
+          {activite_expr} AS activite,
+          {devoir_expr} AS devoir,
+          {compo_expr} AS compo,
+          ROUND({moy_expr}, 2) AS moyenne,
+          {remarques_expr} AS remarques
+        FROM eleves e
+        LEFT JOIN notes n ON n.user_id = e.user_id AND n.eleve_id = e.id AND n.subject_id = ? AND n.trimestre = ?
+        WHERE {where}
+        ORDER BY e.niveau, e.id
+        """,
+        [subject_id, int(trim)] + params,
+    ).fetchall()
+
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=landscape(A4),
+        rightMargin=12 * mm,
+        leftMargin=12 * mm,
+        topMargin=12 * mm,
+        bottomMargin=12 * mm,
+    )
+    styles = getSampleStyleSheet()
+
+    story = []
+    title = f"Liste des eleves - T{trim} - {subject_name}"
+    story.append(Paragraph(title, styles["Title"]))
+    story.append(Spacer(1, 6))
+
+    table_data = [["#", "Nom", "Classe", "Activite", "Devoir", "Compo", "Moyenne", "Remarques"]]
+    for i, r in enumerate(rows, 1):
+        table_data.append(
+            [
+                i,
+                r["nom_complet"],
+                r["niveau"],
+                r["activite"],
+                r["devoir"],
+                r["compo"],
+                r["moyenne"],
+                r["remarques"] or "",
+            ]
+        )
+
+    table = Table(
+        table_data,
+        repeatRows=1,
+        colWidths=[10 * mm, 55 * mm, 26 * mm, 22 * mm, 22 * mm, 22 * mm, 22 * mm, 80 * mm],
+    )
+    table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
+                ("GRID", (0, 0), (-1, -1), 0.4, colors.black),
+                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("ALIGN", (0, 0), (0, -1), "CENTER"),
+                ("ALIGN", (3, 1), (6, -1), "CENTER"),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ]
+        )
+    )
+    story.append(table)
+
+    doc.build(story)
+    buffer.seek(0)
+
+    safe_subject = re.sub(r"[^A-Za-z0-9_-]+", "_", subject_name)
+    filename = f"liste_eleves_T{trim}_{safe_subject}.pdf"
+    return send_file(buffer, as_attachment=True, download_name=filename, mimetype="application/pdf")
 
 
 @bp.route("/export_excel")
@@ -882,40 +1230,44 @@ def export_excel():
     if trim not in ("1", "2", "3"):
         trim = "1"
 
-    filters = _build_filters(user_id, trim, request.args)
+    db = get_db()
+    subjects = _get_subjects(db, user_id)
+    subject_id = _select_subject_id(subjects, request.args.get("subject"))
+
+    devoir_expr, activite_expr, compo_expr, remarques_expr, moy_expr = _note_expr(trim)
+    filters = _build_filters(user_id, trim, request.args, moy_expr)
     where = filters["where"]
     params = filters["params"]
-    moy_expr = filters["moy_expr"]
     sort = filters["sort"]
     order = filters["order"]
 
     direction = "DESC" if order == "desc" else "ASC"
     if sort == "name":
-        order_clause = f"nom_complet COLLATE NOCASE {direction}, id ASC"
+        order_clause = f"e.nom_complet COLLATE NOCASE {direction}, e.id ASC"
     elif sort == "moy":
-        order_clause = f"moyenne {direction}, nom_complet COLLATE NOCASE ASC, id ASC"
+        order_clause = f"moyenne {direction}, e.nom_complet COLLATE NOCASE ASC, e.id ASC"
     elif sort == "id":
-        order_clause = f"id {direction}"
+        order_clause = f"e.id {direction}"
     else:
-        order_clause = f"niveau COLLATE NOCASE {direction}, id ASC"
+        order_clause = f"e.niveau COLLATE NOCASE {direction}, e.id ASC"
 
-    db = get_db()
     rows = db.execute(
         f"""
         SELECT
-          id,
-          nom_complet,
-          niveau,
-          devoir_t{trim} AS devoir,
-          activite_t{trim} AS activite,
-          compo_t{trim} AS compo,
-          remarques_t{trim} AS remarques,
+          e.id,
+          e.nom_complet,
+          e.niveau,
+          {devoir_expr} AS devoir,
+          {activite_expr} AS activite,
+          {compo_expr} AS compo,
+          {remarques_expr} AS remarques,
           ROUND({moy_expr}, 2) AS moyenne
-        FROM eleves
+        FROM eleves e
+        LEFT JOIN notes n ON n.user_id = e.user_id AND n.eleve_id = e.id AND n.subject_id = ? AND n.trimestre = ?
         WHERE {where}
         ORDER BY {order_clause}
         """,
-        params,
+        [subject_id, int(trim)] + params,
     ).fetchall()
 
     data = []
@@ -954,5 +1306,367 @@ def export_excel():
         download_name=filename,
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
+
+
+@bp.route("/export_parents")
+@login_required
+def export_parents():
+    user_id = session["user_id"]
+    trim = request.args.get("trimestre", "1")
+    if trim not in ("1", "2", "3"):
+        trim = "1"
+
+    db = get_db()
+    subjects = _get_subjects(db, user_id)
+    subject_id = _select_subject_id(subjects, request.args.get("subject"))
+
+    devoir_expr, activite_expr, compo_expr, remarques_expr, moy_expr = _note_expr(trim)
+    filters = _build_filters(user_id, trim, request.args, moy_expr)
+    where = filters["where"]
+    params = filters["params"]
+
+    rows = db.execute(
+        f"""
+        SELECT
+          e.nom_complet,
+          e.niveau,
+          e.parent_phone,
+          e.parent_email,
+          ROUND({moy_expr}, 2) AS moyenne,
+          {remarques_expr} AS remarques
+        FROM eleves e
+        LEFT JOIN notes n ON n.user_id = e.user_id AND n.eleve_id = e.id AND n.subject_id = ? AND n.trimestre = ?
+        WHERE {where}
+        ORDER BY e.niveau, e.nom_complet
+        """,
+        [subject_id, int(trim)] + params,
+    ).fetchall()
+
+    data = []
+    for r in rows:
+        moy = float(r["moyenne"] or 0)
+        if moy >= 10:
+            etat = "Admis"
+        elif moy > 0:
+            etat = "Echec"
+        else:
+            etat = "Non saisi"
+        data.append(
+            {
+                "Eleve": r["nom_complet"],
+                "Classe": r["niveau"],
+                "Tel parent": r["parent_phone"] or "",
+                "Email parent": r["parent_email"] or "",
+                "Moyenne": moy,
+                "Etat": etat,
+                "Remarques": r["remarques"],
+                "Message": "",
+            }
+        )
+
+    df = pd.DataFrame(data)
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
+        df.to_excel(writer, index=False, sheet_name=f"Parents_T{trim}")
+    output.seek(0)
+
+    filename = f"export_parents_T{trim}.xlsx"
+    return send_file(
+        output,
+        as_attachment=True,
+        download_name=filename,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+
+
+@bp.route("/settings", methods=["GET", "POST"])
+@login_required
+def settings():
+    user_id = session["user_id"]
+    db = get_db()
+
+    if request.method == "POST":
+        mins = request.form.getlist("min_val")
+        maxs = request.form.getlist("max_val")
+        msgs = request.form.getlist("message")
+
+        db.execute("DELETE FROM appreciations WHERE user_id = ?", (user_id,))
+        for i in range(len(mins)):
+            if not mins[i]:
+                continue
+            try:
+                min_v = float(mins[i])
+                max_v = float(maxs[i]) if maxs[i] else min_v
+            except ValueError:
+                continue
+            db.execute(
+                "INSERT INTO appreciations (user_id, min_val, max_val, message) VALUES (?, ?, ?, ?)",
+                (user_id, min_v, max_v, msgs[i]),
+            )
+        db.commit()
+
+        # Recalcul rapide des remarques (notes)
+        notes = db.execute(
+            "SELECT id, activite, devoir, compo FROM notes WHERE user_id = ?",
+            (user_id,),
+        ).fetchall()
+        for n in notes:
+            moy = ((n["devoir"] + n["activite"]) / 2 + (n["compo"] * 2)) / 3
+            db.execute(
+                "UPDATE notes SET remarques = ? WHERE id = ?",
+                (get_appreciation_dynamique(moy, user_id), n["id"]),
+            )
+
+        # Legacy recalcul (old columns)
+        for el in db.execute(
+            "SELECT * FROM eleves WHERE user_id = ?",
+            (user_id,),
+        ).fetchall():
+            for t in range(1, 4):
+                moy = ((el[f"devoir_t{t}"] + el[f"activite_t{t}"]) / 2 + (el[f"compo_t{t}"] * 2)) / 3
+                db.execute(
+                    f"UPDATE eleves SET remarques_t{t} = ? WHERE id = ?",
+                    (get_appreciation_dynamique(moy, user_id), el["id"]),
+                )
+        db.commit()
+        flash("Sauvegarde", "success")
+
+    rules = db.execute(
+        "SELECT * FROM appreciations WHERE user_id = ? ORDER BY min_val",
+        (user_id,),
+    ).fetchall()
+    return render_template("settings.html", rules=rules)
+
+
+@bp.route("/timetable", methods=["GET", "POST"])
+@login_required
+def timetable():
+    user_id = session["user_id"]
+    db = get_db()
+
+    classes = [
+        r["niveau"]
+        for r in db.execute(
+            "SELECT DISTINCT niveau FROM eleves WHERE user_id = ? ORDER BY niveau",
+            (user_id,),
+        ).fetchall()
+    ]
+
+    niveau = request.values.get("niveau", "")
+    days = [
+        {"key": "mon", "label": "Lundi"},
+        {"key": "tue", "label": "Mardi"},
+        {"key": "wed", "label": "Mercredi"},
+        {"key": "thu", "label": "Jeudi"},
+        {"key": "fri", "label": "Vendredi"},
+        {"key": "sat", "label": "Samedi"},
+    ]
+    slots = [
+        {"key": "s1", "label": "08:00-09:00"},
+        {"key": "s2", "label": "09:00-10:00"},
+        {"key": "s3", "label": "10:00-11:00"},
+        {"key": "s4", "label": "11:00-12:00"},
+        {"key": "s5", "label": "13:00-14:00"},
+        {"key": "s6", "label": "14:00-15:00"},
+    ]
+
+    if request.method == "POST" and niveau:
+        updated = 0
+        for d in days:
+            for s in slots:
+                key = f"cell_{d['key']}_{s['key']}"
+                value = (request.form.get(key) or "").strip()
+                if value:
+                    db.execute(
+                        """
+                        INSERT INTO timetable (user_id, niveau, day, slot, label)
+                        VALUES (?, ?, ?, ?, ?)
+                        ON CONFLICT(user_id, niveau, day, slot)
+                        DO UPDATE SET label=excluded.label
+                        """,
+                        (user_id, niveau, d["key"], s["key"], value),
+                    )
+                    updated += 1
+                else:
+                    db.execute(
+                        "DELETE FROM timetable WHERE user_id = ? AND niveau = ? AND day = ? AND slot = ?",
+                        (user_id, niveau, d["key"], s["key"]),
+                    )
+        db.commit()
+        log_change("update_timetable", user_id, details=f"{niveau} ({updated} cases)")
+        flash("Emploi du temps enregistre.", "success")
+        return redirect(url_for("main.timetable", niveau=niveau))
+
+    grid = {}
+    if niveau:
+        rows = db.execute(
+            "SELECT day, slot, label FROM timetable WHERE user_id = ? AND niveau = ?",
+            (user_id, niveau),
+        ).fetchall()
+        for r in rows:
+            grid.setdefault(r["day"], {})[r["slot"]] = r["label"]
+
+    return render_template(
+        "timetable.html",
+        liste_classes=classes,
+        niveau_actuel=niveau,
+        days=days,
+        slots=slots,
+        grid=grid,
+    )
+
+
+@bp.route("/subjects", methods=["GET", "POST"])
+@login_required
+def subjects():
+    user_id = session["user_id"]
+    db = get_db()
+    if request.method == "POST":
+        name = (request.form.get("name") or "").strip()
+        if not name:
+            flash("Nom manquant", "danger")
+        else:
+            try:
+                db.execute(
+                    "INSERT INTO subjects (user_id, name) VALUES (?, ?)",
+                    (user_id, name),
+                )
+                db.commit()
+                log_change("add_subject", user_id, details=name)
+                flash("Matiere ajoutee", "success")
+            except Exception:
+                flash("Matiere existe deja", "warning")
+
+    subjects_list = db.execute(
+        "SELECT id, name FROM subjects WHERE user_id = ? ORDER BY name",
+        (user_id,),
+    ).fetchall()
+    return render_template("subjects.html", subjects=subjects_list)
+
+
+@bp.route("/subjects/delete/<int:subject_id>", methods=["POST"])
+@login_required
+def delete_subject(subject_id: int):
+    user_id = session["user_id"]
+    db = get_db()
+    count = db.execute(
+        "SELECT COUNT(*) as c FROM subjects WHERE user_id = ?",
+        (user_id,),
+    ).fetchone()["c"]
+    if count <= 1:
+        flash("Impossible de supprimer la derniere matiere", "warning")
+        return redirect(url_for("main.subjects"))
+
+    db.execute(
+        "DELETE FROM notes WHERE user_id = ? AND subject_id = ?",
+        (user_id, subject_id),
+    )
+    db.execute(
+        "DELETE FROM subjects WHERE user_id = ? AND id = ?",
+        (user_id, subject_id),
+    )
+    db.commit()
+    log_change("delete_subject", user_id, details=str(subject_id), subject_id=subject_id)
+    flash("Matiere supprimee", "success")
+    return redirect(url_for("main.subjects"))
+
+
+@bp.route("/history")
+@login_required
+def history():
+    user_id = session["user_id"]
+    db = get_db()
+    actions = [
+        r["action"]
+        for r in db.execute(
+            "SELECT DISTINCT action FROM change_log WHERE user_id = ? ORDER BY action",
+            (user_id,),
+        ).fetchall()
+    ]
+    subjects = _get_subjects(db, user_id)
+
+    filters = _build_history_filters(user_id, request.args)
+    where = filters["where"]
+    params = filters["params"]
+
+    rows = db.execute(
+        f"""
+        SELECT l.*, e.nom_complet AS eleve_name, s.name AS subject_name
+        FROM change_log l
+        LEFT JOIN eleves e ON e.id = l.eleve_id
+        LEFT JOIN subjects s ON s.id = l.subject_id
+        WHERE {where}
+        ORDER BY l.created_at DESC
+        LIMIT 200
+        """,
+        params,
+    ).fetchall()
+
+    logs = []
+    for r in rows:
+        item = dict(r)
+        try:
+            item["time"] = datetime.fromtimestamp(item["created_at"]).strftime("%Y-%m-%d %H:%M")
+        except Exception:
+            item["time"] = str(item.get("created_at", ""))
+        logs.append(item)
+
+    export_url = url_for("main.history_export", **dict(request.args))
+    return render_template(
+        "history.html",
+        logs=logs,
+        actions=actions,
+        subjects=subjects,
+        filters=filters,
+        export_url=export_url,
+        total=len(logs),
+    )
+
+
+@bp.route("/history/export")
+@login_required
+def history_export():
+    user_id = session["user_id"]
+    db = get_db()
+
+    filters = _build_history_filters(user_id, request.args)
+    where = filters["where"]
+    params = filters["params"]
+
+    rows = db.execute(
+        f"""
+        SELECT l.*, e.nom_complet AS eleve_name, s.name AS subject_name
+        FROM change_log l
+        LEFT JOIN eleves e ON e.id = l.eleve_id
+        LEFT JOIN subjects s ON s.id = l.subject_id
+        WHERE {where}
+        ORDER BY l.created_at DESC
+        """,
+        params,
+    ).fetchall()
+
+    output = BytesIO()
+    wrapper = TextIOWrapper(output, encoding="utf-8", newline="")
+    writer = csv.writer(wrapper)
+    writer.writerow(["Date", "Action", "Eleve", "Matiere", "Details"])
+    for r in rows:
+        try:
+            date_val = datetime.fromtimestamp(r["created_at"]).strftime("%Y-%m-%d %H:%M")
+        except Exception:
+            date_val = str(r.get("created_at", ""))
+        writer.writerow(
+            [
+                date_val,
+                r["action"],
+                r["eleve_name"] or "",
+                r["subject_name"] or "",
+                r["details"] or "",
+            ]
+        )
+    wrapper.flush()
+    output.seek(0)
+
+    filename = f"historique_{datetime.now().strftime('%Y%m%d_%H%M')}.csv"
+    return send_file(output, as_attachment=True, download_name=filename, mimetype="text/csv")
 
 

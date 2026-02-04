@@ -1,0 +1,66 @@
+﻿{% extends 'base.html' %}
+
+{% block content %}
+<div class="app-card mb-4">
+  <div class="card-header app-card-header d-flex justify-content-between align-items-center">
+    <h6 class="mb-0 text-body">Emploi du temps</h6>
+  </div>
+  <div class="card-body">
+    <form method="get" class="row g-2 align-items-end">
+      <div class="col-12 col-md-4">
+        <label class="small text-muted">Classe</label>
+        <select name="niveau" class="form-select form-select-sm" onchange="this.form.submit()">
+          <option value="">Choisir une classe</option>
+          {% for classe in liste_classes %}
+          <option value="{{ classe }}" {% if niveau_actuel == classe %}selected{% endif %}>{{ classe }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-12 col-md-4">
+        <label class="small text-muted">Astuce</label>
+        <div class="small text-muted">Tapez directement le cours (ex: Maths - Salle 2)</div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="app-card">
+  <div class="card-body">
+    {% if not niveau_actuel %}
+    <div class="text-muted">Choisissez une classe pour afficher l'emploi du temps.</div>
+    {% else %}
+    <form method="post">
+      {{ csrf_field() }}
+      <input type="hidden" name="niveau" value="{{ niveau_actuel }}">
+      <div class="table-responsive">
+        <table class="table table-sm align-middle mb-0">
+          <thead>
+            <tr>
+              <th style="width: 140px;">Horaire</th>
+              {% for d in days %}
+              <th>{{ d.label }}</th>
+              {% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for s in slots %}
+            <tr>
+              <td class="fw-bold">{{ s.label }}</td>
+              {% for d in days %}
+              <td>
+                <input type="text" name="cell_{{ d.key }}_{{ s.key }}" value="{{ grid.get(d.key, {}).get(s.key, '') }}" class="form-control form-control-sm" placeholder="-">
+              </td>
+              {% endfor %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div class="d-flex justify-content-end mt-3">
+        <button type="submit" class="btn btn-primary">Sauver emploi du temps</button>
+      </div>
+    </form>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

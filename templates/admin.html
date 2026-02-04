@@ -24,10 +24,46 @@
         <div class="small text-muted mt-2">
             Conseil: après une restauration sur serveur, faites un « Reload » de l'application.
         </div>
+    
+</div>
+</div>
+
+<div class="card shadow mb-4 border-0">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0">Ajouter professeur</h5>
+    </div>
+    <div class="card-body">
+        <form action="/admin/create_user" method="POST" class="row g-2 align-items-end">
+            {{ csrf_field() }}
+            <div class="col-12 col-md-3">
+                <label class="form-label small text-muted">Username</label>
+                <input type="text" name="username" class="form-control" required>
+            </div>
+            <div class="col-12 col-md-3">
+                <label class="form-label small text-muted">Nom affiche</label>
+                <input type="text" name="display_name" class="form-control" required>
+            </div>
+            <div class="col-12 col-md-3">
+                <label class="form-label small text-muted">Mot de passe</label>
+                <input type="password" name="password" class="form-control" required>
+            </div>
+            <div class="col-12 col-md-2">
+                <label class="form-label small text-muted">Role</label>
+                <select name="role" class="form-select">
+                    <option value="prof" selected>Prof</option>
+                    <option value="admin">Admin</option>
+                </select>
+            </div>
+            <div class="col-12 col-md-1 d-grid">
+                <button type="submit" class="btn btn-primary">Ajouter</button>
+            </div>
+        </form>
+        <div class="small text-muted mt-2">Astuce: vous pouvez changer le role plus tard dans la liste.</div>
     </div>
 </div>
 
 <div class="card shadow mb-5">
+
     <div class="card-header bg-dark text-white">
         <h5 class="mb-0">قائمة الأساتذة (Liste des utilisateurs)</h5>
     </div>
@@ -56,32 +92,44 @@
                         {% endif %}
                     </td>
                     <td class="text-center">
-                        {% if not user.is_admin %}
-                        
+                        {% if user.id != session.get('user_id') %}
                         <a href="/admin/voir_eleves/{{ user.id }}" class="btn btn-info btn-sm text-white me-1">
-                            👁 Voir classe
+                            ???? Voir classe
                         </a>
 
+                        {% if not user.is_admin %}
                         <form action="/admin/reset_password/{{ user.id }}" method="POST" style="display:inline;">
                 {{ csrf_field() }}
-                            <button type="submit" class="btn btn-warning btn-sm" onclick="return confirm('هل تريد إعادة تعيين كلمة المرور إلى 123456؟');">
-                                🔄 Reset
+                            <button type="submit" class="btn btn-warning btn-sm" onclick="return confirm('???? ???????? ???????????? ?????????? ???????? ???????????? ?????? 123456??');">
+                                ???? Reset
                             </button>
                         </form>
-                        
-                                                <form action="/admin/reset_link/{{ user.id }}" method="POST" style="display:inline;">
+                        {% endif %}
+
+                        <form action="/admin/reset_link/{{ user.id }}" method="POST" style="display:inline;">
                 {{ csrf_field() }}
                             <button type="submit" class="btn btn-outline-secondary btn-sm" title="Generer un lien temporaire">
                                 Lien reset
                             </button>
                         </form>
 
-<form action="/admin/delete_user/{{ user.id }}" method="POST" style="display:inline;">
+                        <form action="/admin/toggle_role/{{ user.id }}" method="POST" style="display:inline;">
+                {{ csrf_field() }}
+                            {% if user.is_admin %}
+                            <button type="submit" class="btn btn-outline-warning btn-sm" onclick="return confirm('Passer ce compte en Prof ?');">Passer Prof</button>
+                            {% else %}
+                            <button type="submit" class="btn btn-outline-primary btn-sm" onclick="return confirm('Passer ce compte en Admin ?');">Passer Admin</button>
+                            {% endif %}
+                        </form>
+
+                        {% if not user.is_admin %}
+                        <form action="/admin/delete_user/{{ user.id }}" method="POST" style="display:inline;">
                 {{ csrf_field() }}
                             <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('ATTENTION: Tout supprimer pour ce prof ?');">
-                                🗑 Supprimer
+                                ???? Supprimer
                             </button>
                         </form>
+                        {% endif %}
                         {% else %}
                         <span class="text-muted">--</span>
                         {% endif %}

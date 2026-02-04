@@ -2,9 +2,10 @@ import os
 import tempfile
 from datetime import datetime
 
-from flask import Blueprint, abort, current_app, flash, redirect, render_template, request, send_file, url_for
+from flask import Blueprint, abort, current_app, flash, redirect, render_template, request, send_file, session, url_for
 from werkzeug.security import generate_password_hash
 
+from core.audit import log_change
 from core.backup import create_backup_zip, restore_from_backup_zip
 from core.db import close_db, get_db
 from core.password_reset import create_reset_token
@@ -30,6 +31,67 @@ def admin():
         """
     ).fetchall()
     return render_template("admin.html", users=users, all_docs=all_docs)
+
+
+@bp.route("/admin/create_user", methods=["POST"])
+@login_required
+@admin_required
+def admin_create_user():
+    username = (request.form.get("username") or "").strip()
+    display = (request.form.get("display_name") or "").strip()
+    password = (request.form.get("password") or "").strip()
+    role = (request.form.get("role") or "prof").strip()
+
+    if not username or not display or not password:
+        flash("Champs manquants.", "warning")
+        return redirect(url_for("admin.admin"))
+
+    is_admin = 1 if role == "admin" else 0
+    db = get_db()
+    existing = db.execute(
+        "SELECT id FROM users WHERE username = ?",
+        (username,),
+    ).fetchone()
+    if existing:
+        flash("Username deja utilise.", "danger")
+        return redirect(url_for("admin.admin"))
+
+    db.execute(
+        "INSERT INTO users (username, password, nom_affichage, is_admin) VALUES (?, ?, ?, ?)",
+        (username, generate_password_hash(password), display, is_admin),
+    )
+    db.commit()
+    log_change("create_user", session["user_id"], details=username)
+    flash("Utilisateur cree.", "success")
+    return redirect(url_for("admin.admin"))
+
+
+@bp.route("/admin/toggle_role/<int:user_id>", methods=["POST"])
+@login_required
+@admin_required
+def admin_toggle_role(user_id: int):
+    if session.get("user_id") == user_id:
+        flash("Action interdite sur votre compte.", "warning")
+        return redirect(url_for("admin.admin"))
+
+    db = get_db()
+    user = db.execute(
+        "SELECT id, username, is_admin FROM users WHERE id = ?",
+        (user_id,),
+    ).fetchone()
+    if not user:
+        abort(404)
+
+    new_role = 0 if int(user["is_admin"] or 0) == 1 else 1
+    db.execute(
+        "UPDATE users SET is_admin = ? WHERE id = ?",
+        (new_role, user_id),
+    )
+    db.commit()
+    role_label = "admin" if new_role == 1 else "prof"
+    log_change("toggle_role", session["user_id"], details=f"{user['username']} -> {role_label}")
+    flash("Role mis a jour.", "success")
+    return redirect(url_for("admin.admin"))
 
 
 @bp.route("/admin/backup")
