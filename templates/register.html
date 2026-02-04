@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="row justify-content-center mt-5">
+    <div class="col-md-6 col-lg-4">
+        <div class="card shadow-lg border-0">
+            <div class="card-header bg-success text-white text-center py-4">
+                <h4 class="mb-0 fw-bold">إنشاء حساب جديد</h4>
+            </div>
+            <div class="card-body p-4">
+                <form method="POST">
+                {{ csrf_field() }}
+                    <div class="mb-3">
+                        <label class="form-label">Nom d'utilisateur (Login)</label>
+                        <input type="text" name="username" class="form-control" autocomplete="username" placeholder="ex: prof.maths" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Nom affiché (ex: الأستاذ محمد)</label>
+                        <input type="text" name="nom_affichage" class="form-control" required>
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label">Mot de passe</label>
+                        <input type="password" name="password" class="form-control" autocomplete="new-password" required>
+                    </div>
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-success btn-lg">S'inscrire</button>
+                    </div>
+                </form>
+            </div>
+            <div class="card-footer text-center bg-light">
+                <p class="mb-0">لديك حساب؟ <a href="/login" class="text-success fw-bold">Se connecter</a></p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

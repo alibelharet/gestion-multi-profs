@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        
+        <div class="mb-3">
+            <a href="/" class="btn btn-outline-light">← Retour à l'accueil (الرجوع للرئيسية)</a>
+        </div>
+
+        <div class="card shadow border-0" style="background-color: #252525;">
+            <div class="card-header bg-primary text-white py-3">
+                <h4 class="mb-0 text-center fw-bold">الملف الشخصي (Mon Profil)</h4>
+            </div>
+            
+            <div class="card-body p-4 text-white">
+                
+                <div class="alert alert-dark border-secondary mb-4">
+                    <h5 class="text-primary mb-3">💎 حالة الرخصة (Licence)</h5>
+                    <div class="d-flex justify-content-between border-bottom border-secondary pb-2 mb-2">
+                        <span>الحالة (Statut) :</span>
+                        <span class="badge bg-success">ACTIVÉ & VEROUILLÉ SUR CE PC</span>
+                    </div>
+                    <div class="d-flex justify-content-between border-bottom border-secondary pb-2 mb-2">
+                        <span>تاريخ الانتهاء (Expire le) :</span>
+                        <span class="text-white fw-bold">{{ date_fin }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span>الأيام المتبقية (Jours restants) :</span>
+                        <span class="badge {% if jours_restants|int < 30 %}bg-danger{% else %}bg-info{% endif %} fs-6">
+                            {{ jours_restants }} يوم
+                        </span>
+                    </div>
+                </div>
+
+                <hr class="border-secondary my-4">
+
+                <h5 class="text-white mb-3">تغيير كلمة المرور (Modifier le mot de passe)</h5>
+                
+                <form method="POST">
+                {{ csrf_field() }}
+                    <div class="mb-3">
+                        <label class="form-label text-white small">كلمة المرور الحالية</label>
+                        <input type="password" name="old_password" class="form-control bg-dark text-white border-secondary" autocomplete="current-password" required>
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label text-white small">كلمة المرور الجديدة</label>
+                        <input type="password" name="new_password" class="form-control bg-dark text-white border-secondary" autocomplete="new-password" required>
+                    </div>
+                    <button type="submit" class="btn btn-success w-100 py-2 fw-bold">Enregistrer</button>
+                </form>
+
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

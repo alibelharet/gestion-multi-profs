@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<div class="container mt-4">
+    <div class="card shadow border-0 mb-4" style="background-color: #252525;">
+        <div class="card-body p-3">
+            <h5 class="text-white mb-3">📂 Upload</h5>
+            <form action="/upload" method="POST" enctype="multipart/form-data" class="row g-2">
+                {{ csrf_field() }}
+                <div class="col-md-4"><input type="text" name="titre" class="form-control bg-dark text-white" placeholder="Titre" required></div>
+                <div class="col-md-3">
+                    <select name="type_doc" class="form-select bg-dark text-white">
+                        <option value="cour">Cours</option>
+                        <option value="exam">Examen</option>
+                        <option value="devoir">Devoir</option>
+                    </select>
+                </div>
+                <div class="col-md-3"><input type="file" name="fichier" accept=".pdf,.doc,.docx,.xlsx,.xls,.ppt,.pptx,.png,.jpg,.jpeg" class="form-control bg-dark text-white" required></div>
+                <div class="col-md-2"><button type="submit" class="btn btn-primary w-100">Upload</button></div>
+            </form>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        {% for doc in docs %}
+        <div class="col-md-4">
+            <div class="card bg-dark border-secondary h-100">
+                <div class="card-body">
+                    <h5 class="text-white">{{ doc.titre }}</h5>
+                    <span class="badge bg-secondary">{{ doc.type_doc }}</span>
+                    <p class="text-white-50 small mt-2">{{ doc.filename }}</p>
+                    <a href="{{ url_for('static', filename='uploads/' + doc.filename) }}" class="btn btn-success btn-sm w-100 mb-1" download>Télécharger</a>
+                    <form action="/supprimer_document/{{ doc.id }}" method="POST">
+                {{ csrf_field() }}
+                        <button type="submit" class="btn btn-outline-danger btn-sm w-100">Supprimer</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <p class="text-white-50 text-center">Aucun fichier.</p>
+        {% endfor %}
+    </div>
+</div>
+
+{% endblock %}

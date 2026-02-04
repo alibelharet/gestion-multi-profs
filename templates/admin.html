@@ -1,0 +1,131 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="text-danger fw-bold">لوحة التحكم (Panneau Admin)</h2>
+    <a href="/" class="btn btn-secondary">عودة للرئيسية</a>
+</div>
+
+<div class="card shadow mb-4 border-0">
+    <div class="card-header bg-success text-white">
+        <h5 class="mb-0">🧰 Outils (Sauvegarde / Restauration)</h5>
+    </div>
+    <div class="card-body">
+        <div class="d-flex flex-wrap gap-2 align-items-center">
+            <a href="/admin/backup" class="btn btn-success">⬇ Télécharger sauvegarde (.zip)</a>
+            <form action="/admin/restore" method="POST" enctype="multipart/form-data" class="d-flex gap-2 align-items-center">
+                {{ csrf_field() }}
+                <input type="file" name="backup_zip" class="form-control" accept=".zip" required>
+                <button type="submit" class="btn btn-danger" onclick="return confirm('ATTENTION: Restaurer écrase la base et les uploads. Continuer ?');">
+                    ♻ Restaurer
+                </button>
+            </form>
+        </div>
+        <div class="small text-muted mt-2">
+            Conseil: après une restauration sur serveur, faites un « Reload » de l'application.
+        </div>
+    </div>
+</div>
+
+<div class="card shadow mb-5">
+    <div class="card-header bg-dark text-white">
+        <h5 class="mb-0">قائمة الأساتذة (Liste des utilisateurs)</h5>
+    </div>
+    <div class="card-body">
+        <table class="table table-bordered table-hover align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>ID</th>
+                    <th>Nom d'utilisateur</th>
+                    <th>Nom Affiché</th>
+                    <th>Statut</th>
+                    <th class="text-center">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in users %}
+                <tr>
+                    <td>{{ user.id }}</td>
+                    <td class="fw-bold">{{ user.username }}</td>
+                    <td>{{ user.nom_affichage }}</td>
+                    <td>
+                        {% if user.is_admin %}
+                        <span class="badge bg-danger">ADMIN</span>
+                        {% else %}
+                        <span class="badge bg-primary">Prof</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-center">
+                        {% if not user.is_admin %}
+                        
+                        <a href="/admin/voir_eleves/{{ user.id }}" class="btn btn-info btn-sm text-white me-1">
+                            👁 Voir classe
+                        </a>
+
+                        <form action="/admin/reset_password/{{ user.id }}" method="POST" style="display:inline;">
+                {{ csrf_field() }}
+                            <button type="submit" class="btn btn-warning btn-sm" onclick="return confirm('هل تريد إعادة تعيين كلمة المرور إلى 123456؟');">
+                                🔄 Reset
+                            </button>
+                        </form>
+                        
+                                                <form action="/admin/reset_link/{{ user.id }}" method="POST" style="display:inline;">
+                {{ csrf_field() }}
+                            <button type="submit" class="btn btn-outline-secondary btn-sm" title="Generer un lien temporaire">
+                                Lien reset
+                            </button>
+                        </form>
+
+<form action="/admin/delete_user/{{ user.id }}" method="POST" style="display:inline;">
+                {{ csrf_field() }}
+                            <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('ATTENTION: Tout supprimer pour ce prof ?');">
+                                🗑 Supprimer
+                            </button>
+                        </form>
+                        {% else %}
+                        <span class="text-muted">--</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card shadow">
+    <div class="card-header bg-info text-white">
+        <h5 class="mb-0">📂 جميع ملفات الأساتذة (Tous les documents du serveur)</h5>
+    </div>
+    <div class="card-body">
+        <table class="table table-striped table-hover align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>Professeur (الأستاذ)</th>
+                    <th>Titre</th>
+                    <th>Fichier</th>
+                    <th class="text-center">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for doc in all_docs %}
+                <tr>
+                    <td class="fw-bold text-primary">{{ doc.nom_affichage }}</td>
+                    <td>{{ doc.titre }} <span class="badge bg-secondary ms-1">{{ doc.type_doc }}</span></td>
+                    <td>{{ doc.filename }}</td>
+                    <td class="text-center">
+                        <a href="/static/uploads/{{ doc.filename }}" class="btn btn-sm btn-outline-primary" target="_blank">⬇ Voir</a>
+                        <form action="/supprimer_document/{{ doc.id }}" method="POST" style="display:inline;">
+                {{ csrf_field() }}
+                             <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('ADMIN: Supprimer définitivement ce fichier ?')">X</button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="4" class="text-center text-muted">Aucun fichier sur le serveur.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

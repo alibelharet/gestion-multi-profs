@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>Impression - {{ nom_prof }}</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css">
+    <style>
+        body { background-color: white; color: black; font-family: 'Times New Roman', serif; }
+        .header-print { text-align: center; margin-bottom: 30px; border-bottom: 2px solid black; padding-bottom: 20px; }
+        .table-print { width: 100%; border-collapse: collapse; }
+        .table-print th, .table-print td { border: 1px solid black; padding: 8px; text-align: center; }
+        .table-print th { background-color: #f0f0f0; font-weight: bold; }
+        .text-start { text-align: right !important; }
+        
+        /* Cacher le bouton lors de l'impression */
+        @media print {
+            .no-print { display: none; }
+        }
+    </style>
+</head>
+<body onload="window.print()"> <div class="container mt-4">
+        <div class="no-print mb-4">
+            <a href="/" class="btn btn-secondary">Retour au logiciel</a>
+            <div class="alert alert-info mt-2">
+                ℹ️ La fenêtre d'impression s'est ouverte. Choisissez <strong>"Enregistrer au format PDF"</strong> dans la destination.
+            </div>
+        </div>
+
+        <div class="header-print">
+            <h3>الجمهورية الجزائرية الديمقراطية الشعبية</h3>
+            <h4>وزارة التربية الوطنية</h4>
+            <br>
+            <div class="d-flex justify-content-between px-5">
+                <span><strong>الأستاذ:</strong> {{ nom_prof }}</span>
+                <span><strong>الموسم الدراسي:</strong> 2025/2026</span>
+            </div>
+            <div class="d-flex justify-content-between px-5 mt-2">
+                <span><strong>الثلاثي:</strong> {{ trimestre }}</span>
+                <span><strong>القسم:</strong> {% if niveau == 'all' or not niveau %}الكل{% else %}{{ niveau }}{% endif %}</span>
+            </div>
+        </div>
+
+        <table class="table-print">
+            <thead>
+                <tr>
+                    <th style="width: 5%;">#</th>
+                    <th style="width: 25%;" class="text-start">اللقب و الاسم</th>
+                    <th style="width: 10%;">القسم</th>
+                    <th style="width: 10%;">النشاطات</th>
+                    <th style="width: 10%;">الفرض</th>
+                    <th style="width: 10%;">الإختبار</th>
+                    <th style="width: 10%;">المعدل</th>
+                    <th style="width: 20%;">التقديرات</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for eleve in eleves %}
+                <tr>
+                    <td>{{ loop.index }}</td>
+                    <td class="text-start fw-bold">{{ eleve.nom_complet }}</td>
+                    <td>{{ eleve.niveau }}</td>
+                    <td>{{ eleve.activite }}</td>
+                    <td>{{ eleve.devoir }}</td>
+                    <td>{{ eleve.compo }}</td>
+                    <td><strong>{{ eleve.moyenne }}</strong></td>
+                    <td style="font-size: 0.9em;">{{ eleve.remarques }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        
+        <div class="mt-5 d-flex justify-content-between">
+            <div>توقيع الأستاذ:</div>
+            <div>توقيع المدير:</div>
+        </div>
+    </div>
+
+</body>
+</html>

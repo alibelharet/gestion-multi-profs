@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="row justify-content-center mt-5">
+    <div class="col-md-6 col-lg-4">
+        <div class="card shadow-lg border-0">
+            <div class="card-header bg-primary text-white text-center py-4">
+                <h4 class="mb-0 fw-bold">تسجيل الدخول</h4>
+            </div>
+            <div class="card-body p-4">
+                <form method="POST">
+                {{ csrf_field() }}
+                    <div class="mb-3">
+                        <label class="form-label">Nom d'utilisateur</label>
+                        <input type="text" name="username" class="form-control" autocomplete="username" required autofocus>
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label">Mot de passe</label>
+                        <input type="password" name="password" class="form-control" autocomplete="current-password" required>
+                    </div>
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary btn-lg">Connexion</button>
+                    </div>
+                    <div class="text-center mt-3">
+                        <a href="/forgot" class="small fw-bold">Mot de passe oublié ?</a>
+                    </div>
+                </form>
+            </div>
+            <div class="card-footer text-center bg-light">
+                <p class="mb-0">ليس لديك حساب؟ <a href="/register" class="text-primary fw-bold">إنشاء حساب (S'inscrire)</a></p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
