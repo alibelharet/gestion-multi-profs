@@ -29,8 +29,10 @@ def register():
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "")
         nom_affichage = request.form.get("nom_affichage", "").strip()
+        subject_name = request.form.get("subject_name", "").strip()
+        school_name = request.form.get("school_name", "").strip()
 
-        if not username or not password or not nom_affichage:
+        if not username or not password or not nom_affichage or not subject_name or not school_name:
             flash("Champs manquants.", "danger")
             return render_template("register.html")
 
@@ -38,13 +40,19 @@ def register():
             flash("Utilisateur existe déjà.", "danger")
         else:
             db.execute(
-                "INSERT INTO users (username, password, nom_affichage) VALUES (?, ?, ?)",
-                (username, generate_password_hash(password), nom_affichage),
+                "INSERT INTO users (username, password, nom_affichage, school_name, default_subject, lock_subject) VALUES (?, ?, ?, ?, ?, ?)",
+                (username, generate_password_hash(password), nom_affichage, school_name, subject_name, 1),
             )
             db.commit()
             user_id = db.execute("SELECT id FROM users WHERE username = ?", (username,)).fetchone()[
                 "id"
             ]
+            if subject_name:
+                db.execute(
+                    "INSERT OR IGNORE INTO subjects (user_id, name) VALUES (?, ?)",
+                    (int(user_id), subject_name),
+                )
+                db.commit()
             init_default_rules(int(user_id))
             return redirect(url_for("auth.login"))
     return render_template("register.html")
@@ -78,6 +86,9 @@ def login():
             session["user_id"] = user["id"]
             session["nom_affichage"] = user["nom_affichage"]
             session["is_admin"] = user["is_admin"]
+            session["school_name"] = user["school_name"] if "school_name" in user.keys() else ""
+            session["lock_subject"] = user["lock_subject"] if "lock_subject" in user.keys() else 0
+            session["default_subject"] = user["default_subject"] if "default_subject" in user.keys() else ""
             return redirect(url_for("main.index"))
 
         flash("Utilisateur ou mot de passe incorrect.", "danger")
@@ -160,4 +171,3 @@ def profile():
         date_fin=date_fin,
         jours_restants=jours_restants,
     )
-

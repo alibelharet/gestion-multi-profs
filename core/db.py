@@ -32,7 +32,10 @@ def init_db():
         username TEXT UNIQUE NOT NULL,
         password TEXT NOT NULL,
         nom_affichage TEXT NOT NULL,
-        is_admin INTEGER DEFAULT 0
+        is_admin INTEGER DEFAULT 0,
+        school_name TEXT DEFAULT '',
+        default_subject TEXT DEFAULT '',
+        lock_subject INTEGER DEFAULT 0
     )''')
     db.execute('''CREATE TABLE IF NOT EXISTS eleves (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -150,6 +153,18 @@ def init_db():
         pass
     try:
         db.execute('ALTER TABLE eleves ADD COLUMN parent_email TEXT')
+    except sqlite3.OperationalError:
+        pass
+    try:
+        db.execute('ALTER TABLE users ADD COLUMN school_name TEXT')
+    except sqlite3.OperationalError:
+        pass
+    try:
+        db.execute('ALTER TABLE users ADD COLUMN default_subject TEXT')
+    except sqlite3.OperationalError:
+        pass
+    try:
+        db.execute('ALTER TABLE users ADD COLUMN lock_subject INTEGER DEFAULT 0')
     except sqlite3.OperationalError:
         pass
     db.commit()

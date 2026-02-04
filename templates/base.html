@@ -180,9 +180,11 @@ a { text-decoration: none; }
                     <li class="nav-item">
                         <a class="nav-link" href="/settings">التقديرات (Paramètres)</a>
                     </li>
+                    {% if session.get('is_admin') or not session.get('lock_subject') %}
                     <li class="nav-item">
                         <a class="nav-link" href="/subjects">Matieres</a>
                     </li>
+                    {% endif %}
                     <li class="nav-item">
                         <a class="nav-link" href="/timetable">Emploi du temps</a>
                     </li>

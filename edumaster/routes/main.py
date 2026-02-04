@@ -162,6 +162,18 @@ def _build_history_filters(user_id, args):
 
 
 def _get_subjects(db, user_id):
+    default_subject = ""
+    lock_subject = 0
+    try:
+        user = db.execute(
+            "SELECT default_subject, lock_subject FROM users WHERE id = ?",
+            (user_id,),
+        ).fetchone()
+        default_subject = (user["default_subject"] or "").strip() if user else ""
+        lock_subject = int(user["lock_subject"] or 0) if user else 0
+    except Exception:
+        pass
+
     rows = db.execute(
         "SELECT id, name FROM subjects WHERE user_id = ? ORDER BY name",
         (user_id,),
@@ -169,13 +181,36 @@ def _get_subjects(db, user_id):
     if not rows:
         db.execute(
             "INSERT INTO subjects (user_id, name) VALUES (?, ?)",
-            (user_id, "Sciences"),
+            (user_id, default_subject or "Sciences"),
         )
         db.commit()
         rows = db.execute(
             "SELECT id, name FROM subjects WHERE user_id = ? ORDER BY name",
             (user_id,),
         ).fetchall()
+
+    if lock_subject and default_subject:
+        match = None
+        for r in rows:
+            if (r["name"] or "").strip().lower() == default_subject.lower():
+                match = r
+                break
+        if not match:
+            db.execute(
+                "INSERT OR IGNORE INTO subjects (user_id, name) VALUES (?, ?)",
+                (user_id, default_subject),
+            )
+            db.commit()
+            rows = db.execute(
+                "SELECT id, name FROM subjects WHERE user_id = ? ORDER BY name",
+                (user_id,),
+            ).fetchall()
+            for r in rows:
+                if (r["name"] or "").strip().lower() == default_subject.lower():
+                    match = r
+                    break
+        if match:
+            rows = [match]
     return rows
 
 
@@ -800,6 +835,7 @@ def index():
         subject_id=subject_id,
         subject_name=subject_name,
         school_year=_school_year(datetime.now()),
+        school_name=session.get("school_name"),
     )
 
 
@@ -945,7 +981,7 @@ def bulletin_pdf(id: int):
     styles = getSampleStyleSheet()
 
     story = []
-    school_name = os.environ.get("SCHOOL_NAME", "Etablissement")
+    school_name = session.get("school_name") or os.environ.get("SCHOOL_NAME", "Etablissement")
     school_year = _school_year(datetime.now())
     logo_path = os.path.join(BASE_DIR, "static", "logo.png")
     stamp_path = os.path.join(BASE_DIR, "static", "stamp.png")
@@ -1521,6 +1557,17 @@ def timetable():
 def subjects():
     user_id = session["user_id"]
     db = get_db()
+    if not session.get("is_admin"):
+        try:
+            row = db.execute(
+                "SELECT lock_subject FROM users WHERE id = ?",
+                (user_id,),
+            ).fetchone()
+            if row and int(row["lock_subject"] or 0) == 1:
+                flash("Acces reserve a l'administration.", "warning")
+                return redirect(url_for("main.index"))
+        except Exception:
+            pass
     if request.method == "POST":
         name = (request.form.get("name") or "").strip()
         if not name:

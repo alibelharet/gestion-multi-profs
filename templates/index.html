@@ -20,6 +20,9 @@
             <div class="text-muted small">Suivi des notes et statistiques par matiere</div>
         </div>
         <div class="d-flex flex-wrap gap-2">
+            {% if school_name %}
+            <span class="badge meta-badge px-3 py-2">{{ school_name }}</span>
+            {% endif %}
             <span class="badge meta-badge px-3 py-2">Annee {{ school_year }}</span>
             <span class="badge meta-badge px-3 py-2">T{{ trimestre }}</span>
             <span class="badge meta-badge px-3 py-2">{{ subject_name }}</span>

@@ -10,6 +10,7 @@ from core.backup import create_backup_zip, restore_from_backup_zip
 from core.db import close_db, get_db
 from core.password_reset import create_reset_token
 from core.security import admin_required, login_required
+from core.utils import init_default_rules
 
 bp = Blueprint("admin", __name__)
 
@@ -41,12 +42,17 @@ def admin_create_user():
     display = (request.form.get("display_name") or "").strip()
     password = (request.form.get("password") or "").strip()
     role = (request.form.get("role") or "prof").strip()
+    school_name = (request.form.get("school_name") or "").strip()
+    subject_name = (request.form.get("subject_name") or "").strip()
+    lock_subject = 1 if (request.form.get("lock_subject") or "1") == "1" else 0
 
-    if not username or not display or not password:
+    if not username or not display or not password or not school_name or not subject_name:
         flash("Champs manquants.", "warning")
         return redirect(url_for("admin.admin"))
 
     is_admin = 1 if role == "admin" else 0
+    if is_admin:
+        lock_subject = 0
     db = get_db()
     existing = db.execute(
         "SELECT id FROM users WHERE username = ?",
@@ -56,11 +62,19 @@ def admin_create_user():
         flash("Username deja utilise.", "danger")
         return redirect(url_for("admin.admin"))
 
-    db.execute(
-        "INSERT INTO users (username, password, nom_affichage, is_admin) VALUES (?, ?, ?, ?)",
-        (username, generate_password_hash(password), display, is_admin),
+    cur = db.execute(
+        "INSERT INTO users (username, password, nom_affichage, is_admin, school_name, default_subject, lock_subject) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (username, generate_password_hash(password), display, is_admin, school_name, subject_name, lock_subject),
     )
     db.commit()
+    user_id = cur.lastrowid
+    if subject_name:
+        db.execute(
+            "INSERT OR IGNORE INTO subjects (user_id, name) VALUES (?, ?)",
+            (int(user_id), subject_name),
+        )
+        db.commit()
+    init_default_rules(int(user_id))
     log_change("create_user", session["user_id"], details=username)
     flash("Utilisateur cree.", "success")
     return redirect(url_for("admin.admin"))
