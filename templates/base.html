@@ -129,19 +129,18 @@ body {
 
 a { text-decoration: none; }
 
-.table { color: var(--text); border-color: var(--border); }
-.table thead { background: var(--surface-2); }
-.table > :not(caption) > * > * {
-    background-color: var(--surface);
+.table {
     color: var(--text);
     border-color: var(--border);
+    --bs-table-color: var(--text);
+    --bs-table-bg: var(--surface);
+    --bs-table-border-color: var(--border);
+    --bs-table-striped-bg: var(--surface-2);
+    --bs-table-hover-bg: var(--bg-soft);
+    --bs-table-hover-color: var(--text);
 }
-.table-striped > tbody > tr:nth-of-type(odd) > * {
-    background-color: var(--surface-2);
-}
-.table-hover > tbody > tr:hover > * {
-    background-color: var(--bg-soft);
-}
+.table thead { background: var(--surface-2); }
+.table td, .table th { color: var(--text); }
 
 .navbar-toggler { border-color: var(--border); }
 
