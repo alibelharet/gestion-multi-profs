@@ -137,6 +137,17 @@ a { text-decoration: none; }
 
 .navbar-toggler { border-color: var(--border); }
 
+/* Bootstrap text helpers to match theme */
+.text-body,
+.text-body-emphasis,
+.text-white {
+    color: var(--text) !important;
+}
+.text-muted,
+.text-secondary {
+    color: var(--muted) !important;
+}
+
 @media (max-width: 768px) {
     .container { padding-left: 8px; padding-right: 8px; }
     .navbar-brand { font-size: 1.05rem; }

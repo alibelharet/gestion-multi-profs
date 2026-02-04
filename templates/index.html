@@ -346,6 +346,10 @@
         const data = {{ chart_data|safe }};
         const ctxClasses = document.getElementById('chartClasses');
         const ctxDist = document.getElementById('chartDist');
+        const css = getComputedStyle(document.documentElement);
+        const textColor = (css.getPropertyValue('--text') || '#f2f5f9').trim();
+        const gridColor = (css.getPropertyValue('--border') || '#283446').trim();
+        Chart.defaults.color = textColor;
 
         if (ctxClasses) {
             new Chart(ctxClasses, {
@@ -354,7 +358,14 @@
                     labels: data.classes.labels,
                     datasets: [{ label: 'Moyenne', data: data.classes.values, backgroundColor: '#0d6efd' }]
                 },
-                options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, max: 20 } } }
+                options: {
+                    responsive: true,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true, max: 20, ticks: { color: textColor }, grid: { color: gridColor } },
+                        x: { ticks: { color: textColor }, grid: { color: gridColor } }
+                    }
+                }
             });
         }
 
@@ -362,7 +373,7 @@
             new Chart(ctxDist, {
                 type: 'doughnut',
                 data: { labels: data.distribution.labels, datasets: [{ data: data.distribution.values, backgroundColor: ['#198754', '#dc3545', '#6c757d'] }] },
-                options: { responsive: true }
+                options: { responsive: true, plugins: { legend: { labels: { color: textColor } } } }
             });
         }
     })();
