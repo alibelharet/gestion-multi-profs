@@ -27,8 +27,8 @@
                     </div>
                     <div class="d-flex justify-content-between">
                         <span>الأيام المتبقية (Jours restants) :</span>
-                        <span class="badge {% if jours_restants|int < 30 %}bg-danger{% else %}bg-info{% endif %} fs-6">
-                            {{ jours_restants }} يوم
+                        <span class="badge {% if (jours_restants|default(0)|int) < 30 %}bg-danger{% else %}bg-info{% endif %} fs-6">
+                            {{ jours_restants|default(0) }} يوم
                         </span>
                     </div>
                 </div>
