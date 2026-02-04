@@ -515,6 +515,74 @@ def index():
         "nb_saisis": int(stats_row["nb_saisis"] or 0),
     }
 
+    class_rows = db.execute(
+        f"""
+        SELECT
+          niveau,
+          COUNT(*) AS total,
+          AVG(CASE WHEN {moy_expr} > 0 THEN {moy_expr} END) AS avg_moy
+        FROM eleves
+        WHERE {where}
+        GROUP BY niveau
+        ORDER BY avg_moy DESC, niveau ASC
+        """,
+        params,
+    ).fetchall()
+
+    class_labels = [str(r["niveau"]) for r in class_rows]
+    class_avgs = [round(float(r["avg_moy"] or 0), 2) for r in class_rows]
+
+    dist_row = db.execute(
+        f"""
+        SELECT
+          SUM(CASE WHEN {moy_expr} >= 10 THEN 1 ELSE 0 END) AS admis,
+          SUM(CASE WHEN {moy_expr} > 0 AND {moy_expr} < 10 THEN 1 ELSE 0 END) AS echec,
+          SUM(CASE WHEN {moy_expr} <= 0 THEN 1 ELSE 0 END) AS non_saisi
+        FROM eleves
+        WHERE {where}
+        """,
+        params,
+    ).fetchone()
+
+    dist_values = [
+        int(dist_row["admis"] or 0),
+        int(dist_row["echec"] or 0),
+        int(dist_row["non_saisi"] or 0),
+    ]
+
+    top_rows = db.execute(
+        f"""
+        SELECT
+          nom_complet,
+          niveau,
+          ROUND({moy_expr}, 2) AS moyenne
+        FROM eleves
+        WHERE {where}
+        ORDER BY moyenne DESC, nom_complet ASC
+        LIMIT 10
+        """,
+        params,
+    ).fetchall()
+
+    top_eleves = [
+        {
+            "nom": r["nom_complet"],
+            "niveau": r["niveau"],
+            "moyenne": float(r["moyenne"] or 0),
+        }
+        for r in top_rows
+    ]
+
+    chart_data = json.dumps(
+        {
+            "classes": {"labels": class_labels, "values": class_avgs},
+            "distribution": {
+                "labels": ["Admis", "Echec", "Non saisi"],
+                "values": dist_values,
+            },
+        }
+    )
+
     base_args = dict(request.args)
     base_args.pop("page", None)
 
@@ -537,6 +605,8 @@ def index():
         min_moy=min_moy,
         max_moy=max_moy,
         etat=etat,
+        chart_data=chart_data,
+        top_eleves=top_eleves,
     )
 
 
@@ -629,6 +699,124 @@ def bulletin(id: int):
         moyenne_classe=round(moy_classe, 2),
         trimestre=trim,
         nom_prof=session.get("nom_affichage"),
+    )
+
+
+@bp.route("/bulletin_pdf/<int:id>")
+@login_required
+def bulletin_pdf(id: int):
+    user_id = session["user_id"]
+    trim = request.args.get("trimestre", "1")
+    if trim not in ("1", "2", "3"):
+        trim = "1"
+
+    try:
+        from reportlab.lib import colors
+        from reportlab.lib.pagesizes import A4
+        from reportlab.lib.styles import getSampleStyleSheet
+        from reportlab.lib.units import mm
+        from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+    except Exception:
+        flash("PDF indisponible. Installez reportlab (pip install reportlab).", "danger")
+        return redirect(url_for("main.bulletin", id=id, trimestre=trim))
+
+    db = get_db()
+    eleve = db.execute(
+        "SELECT * FROM eleves WHERE id = ? AND user_id = ?",
+        (id, user_id),
+    ).fetchone()
+    if not eleve:
+        return "Eleve introuvable"
+
+    camarades = db.execute(
+        "SELECT * FROM eleves WHERE user_id = ? AND niveau = ?",
+        (user_id, eleve["niveau"]),
+    ).fetchall()
+    scores = []
+    for c in camarades:
+        moy = ((c[f"devoir_t{trim}"] + c[f"activite_t{trim}"]) / 2 + (c[f"compo_t{trim}"] * 2)) / 3
+        scores.append((c["id"], moy))
+    scores.sort(key=lambda x: x[1], reverse=True)
+
+    rank = next((i + 1 for i, s in enumerate(scores) if s[0] == id), 1)
+    moy_eleve = next(s[1] for s in scores if s[0] == id)
+    moy_classe = sum(s[1] for s in scores) / len(scores) if scores else 0
+
+    activite = eleve[f"activite_t{trim}"]
+    devoir = eleve[f"devoir_t{trim}"]
+    compo = eleve[f"compo_t{trim}"]
+    moyenne = round(moy_eleve, 2)
+    remarques = eleve[f"remarques_t{trim}"] or ""
+
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        rightMargin=18 * mm,
+        leftMargin=18 * mm,
+        topMargin=18 * mm,
+        bottomMargin=18 * mm,
+    )
+    styles = getSampleStyleSheet()
+
+    story = []
+    story.append(Paragraph("Bulletin de notes", styles["Title"]))
+    story.append(Paragraph(f"Eleve: <b>{eleve['nom_complet']}</b>", styles["Normal"]))
+    story.append(Paragraph(f"Classe: {eleve['niveau']} &nbsp;&nbsp; Trimestre: {trim}", styles["Normal"]))
+    story.append(Paragraph(f"Prof: {session.get('nom_affichage', '')}", styles["Normal"]))
+    story.append(Spacer(1, 10))
+
+    table_data = [
+        ["Matiere", "Activite", "Devoir", "Compo", "Moyenne", "Remarques"],
+        ["Sciences", activite, devoir, compo, moyenne, remarques],
+    ]
+    table = Table(
+        table_data,
+        colWidths=[35 * mm, 22 * mm, 22 * mm, 22 * mm, 22 * mm, 51 * mm],
+    )
+    table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.black),
+                ("GRID", (0, 0), (-1, -1), 0.5, colors.black),
+                ("ALIGN", (1, 1), (4, 1), "CENTER"),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ]
+        )
+    )
+    story.append(table)
+    story.append(Spacer(1, 14))
+
+    summary_data = [
+        ["Moyenne classe", round(moy_classe, 2)],
+        ["Rang", f"{rank} / {len(scores)}"],
+        ["Moyenne eleve", moyenne],
+    ]
+    summary = Table(summary_data, colWidths=[60 * mm, 40 * mm])
+    summary.setStyle(
+        TableStyle(
+            [
+                ("GRID", (0, 0), (-1, -1), 0.5, colors.black),
+                ("BACKGROUND", (0, 0), (-1, 0), colors.whitesmoke),
+                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("ALIGN", (1, 0), (1, -1), "CENTER"),
+            ]
+        )
+    )
+    story.append(summary)
+
+    doc.build(story)
+    buffer.seek(0)
+
+    safe_name = re.sub(r"[^A-Za-z0-9_-]+", "_", eleve["nom_complet"])
+    filename = f"bulletin_{safe_name}_T{trim}.pdf"
+    return send_file(
+        buffer,
+        as_attachment=True,
+        download_name=filename,
+        mimetype="application/pdf",
     )
 
 
