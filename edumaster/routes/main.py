@@ -1,4 +1,6 @@
 import json
+import re
+import unicodedata
 from io import BytesIO
 
 import openpyxl
@@ -10,6 +12,81 @@ from core.security import login_required
 from core.utils import clean_note, get_appreciation_dynamique
 
 bp = Blueprint("main", __name__)
+
+
+def _parse_float(value):
+    try:
+        if value is None or value == "":
+            return None
+        return float(value)
+    except Exception:
+        return None
+
+
+def _normalize_header(value):
+    if value is None:
+        return ""
+    text = str(value).strip()
+    if not text:
+        return ""
+    text = unicodedata.normalize("NFKD", text)
+    text = "".join(c for c in text if not unicodedata.combining(c))
+    text = text.lower()
+    text = re.sub(r"[\s\-_]+", "", text)
+    return text
+
+
+def _build_filters(user_id, trim, args):
+    niveau = args.get("niveau", "")
+    search = (args.get("recherche") or "").strip()
+    sort = args.get("sort", "class")
+    order = args.get("order", "asc")
+    etat = args.get("etat", "all")
+    min_moy = _parse_float(args.get("min_moy", ""))
+    max_moy = _parse_float(args.get("max_moy", ""))
+    if min_moy is not None and max_moy is not None and min_moy > max_moy:
+        min_moy, max_moy = max_moy, min_moy
+
+    if order not in ("asc", "desc"):
+        order = "asc"
+
+    moy_expr = f"((devoir_t{trim} + activite_t{trim})/2.0 + (compo_t{trim}*2.0))/3.0"
+    where = "user_id = ?"
+    params = [user_id]
+
+    if niveau and niveau != "all":
+        where += " AND niveau = ?"
+        params.append(niveau)
+    if search:
+        where += " AND nom_complet LIKE ?"
+        params.append(f"%{search}%")
+
+    if min_moy is not None:
+        where += f" AND {moy_expr} >= ?"
+        params.append(min_moy)
+    if max_moy is not None:
+        where += f" AND {moy_expr} <= ?"
+        params.append(max_moy)
+
+    if etat == "admis":
+        where += f" AND {moy_expr} >= 10"
+    elif etat == "echec":
+        where += f" AND {moy_expr} > 0 AND {moy_expr} < 10"
+    elif etat == "non_saisi":
+        where += f" AND {moy_expr} <= 0"
+
+    return {
+        "niveau": niveau,
+        "search": search,
+        "sort": sort,
+        "order": order,
+        "etat": etat,
+        "min_moy": min_moy,
+        "max_moy": max_moy,
+        "moy_expr": moy_expr,
+        "where": where,
+        "params": params,
+    }
 
 
 @bp.route("/sauvegarder_tout", methods=["POST"])
@@ -90,65 +167,147 @@ def import_excel():
         try:
             db = get_db()
             all_sheets = pd.read_excel(file, sheet_name=None, header=None)
-            count = 0
+            inserted = 0
+            updated = 0
+            skipped = 0
+
             for nom_onglet, df in all_sheets.items():
+                if df is None or df.empty:
+                    continue
+
                 header_row = -1
-                for i, row in df.head(20).iterrows():
+                for i, row in df.head(30).iterrows():
                     joined = " ".join([str(v) for v in row.values])
-                    if "اللقب" in joined or "Nom" in joined:
+                    cells = [_normalize_header(v) for v in row.values]
+                    if (
+                        "Ø§Ù„Ù„Ù‚Ø¨" in joined
+                        or "Nom" in joined
+                        or "اللقب" in joined
+                        or "الاسم" in joined
+                        or any(
+                            c in {"nom", "prenom", "nomcomplet", "nomprenom", "fullname"}
+                            for c in cells
+                        )
+                    ):
                         header_row = i
                         break
+
                 if header_row == -1:
+                    skipped += 1
                     continue
+
                 df.columns = df.iloc[header_row]
                 df = df.iloc[header_row + 1 :]
-                c_nom, c_prenom, c_d, c_a, c_c = None, None, None, None, None
-                for c in df.columns:
-                    cs = str(c).strip()
-                    if cs in ["4", "04"] or "Dev" in cs:
-                        c_d = c
-                    elif cs in ["1", "01"] or "Act" in cs:
-                        c_a = c
-                    elif cs in ["9", "09"] or "Compo" in cs:
-                        c_c = c
-                    elif "الفرض" in cs:
-                        c_d = c
-                    elif "التقويم" in cs or "النشاط" in cs:
-                        c_a = c
-                    elif "الاختبار" in cs:
-                        c_c = c
-                    elif "اللقب" in cs or "Nom" in cs:
-                        c_nom = c
-                    elif "Prénom" in cs or "Prenom" in cs:
-                        c_prenom = c
 
-                if c_nom:
-                    for _, row in df.iterrows():
-                        if str(row[c_nom]) == "nan":
-                            continue
-                        nom = f"{row[c_nom]} {str(row[c_prenom]) if c_prenom and str(row[c_prenom]) != 'nan' else ''}".strip()
-                        d = clean_note(row[c_d]) if c_d else 0
-                        a = clean_note(row[c_a]) if c_a else 0
-                        c = clean_note(row[c_c]) if c_c else 0
-                        moy = ((d + a) / 2 + (c * 2)) / 3
-                        rem = get_appreciation_dynamique(moy, user_id)
-                        ex = db.execute(
-                            "SELECT id FROM eleves WHERE nom_complet = ? AND niveau = ? AND user_id = ?",
-                            (nom, nom_onglet.strip(), user_id),
-                        ).fetchone()
-                        if ex:
-                            db.execute(
-                                f"UPDATE eleves SET remarques_t{trim}=?, devoir_t{trim}=?, activite_t{trim}=?, compo_t{trim}=? WHERE id=?",
-                                (rem, d, a, c, ex["id"]),
-                            )
-                        else:
-                            db.execute(
-                                f"INSERT INTO eleves (user_id, nom_complet, niveau, remarques_t{trim}, devoir_t{trim}, activite_t{trim}, compo_t{trim}) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                                (user_id, nom, nom_onglet.strip(), rem, d, a, c),
-                            )
-                        count += 1
+                c_full = None
+                c_nom = None
+                c_prenom = None
+                c_niveau = None
+                c_d = None
+                c_a = None
+                c_c = None
+                c_rem = None
+
+                for col in df.columns:
+                    raw = str(col).strip()
+                    norm = _normalize_header(col)
+
+                    if norm in ("nomcomplet", "nomprenom", "fullname"):
+                        c_full = col
+                    elif norm in ("nom", "lastname", "surname"):
+                        c_nom = col
+                    elif norm in ("prenom", "firstname"):
+                        c_prenom = col
+                    elif norm in ("classe", "niveau", "class"):
+                        c_niveau = col
+                    elif norm in ("devoir", "dev", "homework", "04", "4"):
+                        c_d = col
+                    elif norm in ("activite", "activite", "act", "activity", "01", "1"):
+                        c_a = col
+                    elif norm in ("compo", "composition", "exam", "test", "09", "9"):
+                        c_c = col
+                    elif norm in ("remarques", "appreciation", "rem", "obs", "commentaire"):
+                        c_rem = col
+                    elif "اللقب" in raw:
+                        c_nom = c_nom or col
+                    elif "الاسم" in raw:
+                        c_prenom = c_prenom or col
+                    elif "القسم" in raw or "المستوى" in raw:
+                        c_niveau = c_niveau or col
+                    elif "الفرض" in raw:
+                        c_d = c_d or col
+                    elif "النشاط" in raw:
+                        c_a = c_a or col
+                    elif "الاختبار" in raw:
+                        c_c = c_c or col
+                    elif "التقدير" in raw:
+                        c_rem = c_rem or col
+                    elif "Ø§Ù„Ù„Ù‚Ø¨" in raw or "Nom" in raw:
+                        c_nom = c_nom or col
+                    elif "PrÃ©nom" in raw or "Prenom" in raw:
+                        c_prenom = c_prenom or col
+                    elif "Dev" in raw:
+                        c_d = c_d or col
+                    elif "Act" in raw:
+                        c_a = c_a or col
+                    elif "Compo" in raw:
+                        c_c = c_c or col
+
+                for _, row in df.iterrows():
+                    def _val(c):
+                        if c is None:
+                            return None
+                        v = row.get(c, None)
+                        return None if pd.isna(v) else v
+
+                    full = ""
+                    if c_full:
+                        full = str(_val(c_full) or "").strip()
+                    else:
+                        nom = str(_val(c_nom) or "").strip()
+                        prenom = str(_val(c_prenom) or "").strip()
+                        full = f"{nom} {prenom}".strip()
+
+                    if not full:
+                        continue
+
+                    niveau = str(_val(c_niveau) or "").strip() if c_niveau else ""
+                    if not niveau:
+                        niveau = str(nom_onglet).strip() or "Global"
+
+                    d = clean_note(_val(c_d)) if c_d else 0
+                    a = clean_note(_val(c_a)) if c_a else 0
+                    c = clean_note(_val(c_c)) if c_c else 0
+                    moy = ((d + a) / 2 + (c * 2)) / 3
+                    rem = get_appreciation_dynamique(moy, user_id)
+                    if c_rem:
+                        custom_rem = _val(c_rem)
+                        if custom_rem is not None and str(custom_rem).strip():
+                            rem = str(custom_rem).strip()
+
+                    ex = db.execute(
+                        "SELECT id FROM eleves WHERE nom_complet = ? AND niveau = ? AND user_id = ?",
+                        (full, niveau, user_id),
+                    ).fetchone()
+                    if ex:
+                        db.execute(
+                            f"UPDATE eleves SET remarques_t{trim}=?, devoir_t{trim}=?, activite_t{trim}=?, compo_t{trim}=? WHERE id=?",
+                            (rem, d, a, c, ex["id"]),
+                        )
+                        updated += 1
+                    else:
+                        db.execute(
+                            f"INSERT INTO eleves (user_id, nom_complet, niveau, remarques_t{trim}, devoir_t{trim}, activite_t{trim}, compo_t{trim}) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                            (user_id, full, niveau, rem, d, a, c),
+                        )
+                        inserted += 1
+
             db.commit()
-            flash(f"Import réussi ({count} élèves)", "success")
+            total = inserted + updated
+            flash(
+                f"Import OK: {total} lignes (nouveaux {inserted}, mis Ã  jour {updated}, onglets ignorÃ©s {skipped})",
+                "success",
+            )
         except Exception as e:
             flash(f"Erreur: {e}", "danger")
     return redirect(request.referrer or url_for("main.index", trimestre=trim))
@@ -245,10 +404,14 @@ def index():
     if trim not in ("1", "2", "3"):
         trim = "1"
 
-    niveau = request.args.get("niveau", "")
-    search = (request.args.get("recherche") or "").strip()
-    sort = request.args.get("sort", "class")
-    order = request.args.get("order", "asc")
+    filters = _build_filters(user_id, trim, request.args)
+    niveau = filters["niveau"]
+    search = filters["search"]
+    sort = filters["sort"]
+    order = filters["order"]
+    etat = filters["etat"]
+    min_moy = filters["min_moy"]
+    max_moy = filters["max_moy"]
 
     try:
         page = int(request.args.get("page", "1") or 1)
@@ -261,9 +424,6 @@ def index():
 
     page = max(1, page)
     per_page = min(200, max(10, per_page))
-    if order not in ("asc", "desc"):
-        order = "asc"
-
     db = get_db()
 
     classes = [
@@ -274,16 +434,9 @@ def index():
         ).fetchall()
     ]
 
-    where = "user_id = ?"
-    params: list = [user_id]
-    if niveau and niveau != "all":
-        where += " AND niveau = ?"
-        params.append(niveau)
-    if search:
-        where += " AND nom_complet LIKE ?"
-        params.append(f"%{search}%")
-
-    moy_expr = f"((devoir_t{trim} + activite_t{trim})/2.0 + (compo_t{trim}*2.0))/3.0"
+    where = filters["where"]
+    params: list = filters["params"]
+    moy_expr = filters["moy_expr"]
 
     stats_row = db.execute(
         f"""
@@ -381,6 +534,9 @@ def index():
         per_page=per_page,
         total=total,
         base_args=base_args,
+        min_moy=min_moy,
+        max_moy=max_moy,
+        etat=etat,
     )
 
 
@@ -483,30 +639,41 @@ def print_list():
     trim = request.args.get("trimestre", "1")
     if trim not in ("1", "2", "3"):
         trim = "1"
-    niveau = request.args.get("niveau", "all")
+    filters = _build_filters(user_id, trim, request.args)
+    niveau = filters["niveau"]
 
     db = get_db()
-    query = "SELECT * FROM eleves WHERE user_id = ?"
-    params: list = [user_id]
-    if niveau and niveau != "all":
-        query += " AND niveau = ?"
-        params.append(niveau)
-    query += " ORDER BY niveau, id"
+    where = filters["where"]
+    params: list = filters["params"]
+    moy_expr = filters["moy_expr"]
 
-    eleves_db = db.execute(query, params).fetchall()
+    eleves_db = db.execute(
+        f"""
+        SELECT
+          nom_complet,
+          niveau,
+          devoir_t{trim} AS devoir,
+          activite_t{trim} AS activite,
+          compo_t{trim} AS compo,
+          remarques_t{trim} AS remarques,
+          ROUND({moy_expr}, 2) AS moyenne
+        FROM eleves
+        WHERE {where}
+        ORDER BY niveau, id
+        """,
+        params,
+    ).fetchall()
     eleves_list = []
     for el in eleves_db:
-        d, a, c = el[f"devoir_t{trim}"], el[f"activite_t{trim}"], el[f"compo_t{trim}"]
-        moy = round(((d + a) / 2 + (c * 2)) / 3, 2)
         eleves_list.append(
             {
                 "nom_complet": el["nom_complet"],
                 "niveau": el["niveau"],
-                "activite": a,
-                "devoir": d,
-                "compo": c,
-                "moyenne": moy,
-                "remarques": el[f"remarques_t{trim}"],
+                "activite": el["activite"],
+                "devoir": el["devoir"],
+                "compo": el["compo"],
+                "moyenne": float(el["moyenne"] or 0),
+                "remarques": el["remarques"],
             }
         )
 
@@ -522,4 +689,82 @@ def print_list():
 @bp.route("/export_excel")
 @login_required
 def export_excel():
-    return "Export Excel: à implémenter"
+    user_id = session["user_id"]
+    trim = request.args.get("trimestre", "1")
+    if trim not in ("1", "2", "3"):
+        trim = "1"
+
+    filters = _build_filters(user_id, trim, request.args)
+    where = filters["where"]
+    params = filters["params"]
+    moy_expr = filters["moy_expr"]
+    sort = filters["sort"]
+    order = filters["order"]
+
+    direction = "DESC" if order == "desc" else "ASC"
+    if sort == "name":
+        order_clause = f"nom_complet COLLATE NOCASE {direction}, id ASC"
+    elif sort == "moy":
+        order_clause = f"moyenne {direction}, nom_complet COLLATE NOCASE ASC, id ASC"
+    elif sort == "id":
+        order_clause = f"id {direction}"
+    else:
+        order_clause = f"niveau COLLATE NOCASE {direction}, id ASC"
+
+    db = get_db()
+    rows = db.execute(
+        f"""
+        SELECT
+          id,
+          nom_complet,
+          niveau,
+          devoir_t{trim} AS devoir,
+          activite_t{trim} AS activite,
+          compo_t{trim} AS compo,
+          remarques_t{trim} AS remarques,
+          ROUND({moy_expr}, 2) AS moyenne
+        FROM eleves
+        WHERE {where}
+        ORDER BY {order_clause}
+        """,
+        params,
+    ).fetchall()
+
+    data = []
+    for r in rows:
+        moy = float(r["moyenne"] or 0)
+        if moy >= 10:
+            etat = "Admis"
+        elif moy > 0:
+            etat = "Echec"
+        else:
+            etat = "Non saisi"
+        data.append(
+            {
+                "ID": r["id"],
+                "Nom complet": r["nom_complet"],
+                "Classe": r["niveau"],
+                "Activite": r["activite"],
+                "Devoir": r["devoir"],
+                "Compo": r["compo"],
+                "Moyenne": moy,
+                "Etat": etat,
+                "Remarques": r["remarques"],
+            }
+        )
+
+    df = pd.DataFrame(data)
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
+        df.to_excel(writer, index=False, sheet_name=f"T{trim}")
+    output.seek(0)
+
+    filename = f"export_eleves_T{trim}.xlsx"
+    return send_file(
+        output,
+        as_attachment=True,
+        download_name=filename,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+
+

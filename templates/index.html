@@ -68,30 +68,50 @@
 
     <div class="row g-2 align-items-end mt-2">
         <div class="col-12 col-md-4">
-            <label class="small text-white-50">ترتيب</label>
+            <label class="small text-white-50">Tri</label>
             <select name="sort" class="form-select form-select-sm bg-dark text-white border-secondary" onchange="this.form.submit()">
-                <option value="class" {% if sort == 'class' %}selected{% endif %}>القسم</option>
-                <option value="name" {% if sort == 'name' %}selected{% endif %}>الاسم</option>
-                <option value="moy" {% if sort == 'moy' %}selected{% endif %}>المعدل</option>
+                <option value="class" {% if sort == 'class' %}selected{% endif %}>Classe</option>
+                <option value="name" {% if sort == 'name' %}selected{% endif %}>Nom</option>
+                <option value="moy" {% if sort == 'moy' %}selected{% endif %}>Moyenne</option>
                 <option value="id" {% if sort == 'id' %}selected{% endif %}>ID</option>
             </select>
         </div>
         <div class="col-6 col-md-2">
-            <label class="small text-white-50">اتجاه</label>
+            <label class="small text-white-50">Ordre</label>
             <select name="order" class="form-select form-select-sm bg-dark text-white border-secondary" onchange="this.form.submit()">
-                <option value="asc" {% if order == 'asc' %}selected{% endif %}>تصاعدي</option>
-                <option value="desc" {% if order == 'desc' %}selected{% endif %}>تنازلي</option>
+                <option value="asc" {% if order == 'asc' %}selected{% endif %}>Asc</option>
+                <option value="desc" {% if order == 'desc' %}selected{% endif %}>Desc</option>
             </select>
         </div>
         <div class="col-6 col-md-2">
-            <label class="small text-white-50">عدد/صفحة</label>
+            <label class="small text-white-50">Par page</label>
             <select name="per_page" class="form-select form-select-sm bg-dark text-white border-secondary" onchange="this.form.submit()">
                 <option value="25" {% if per_page == 25 %}selected{% endif %}>25</option>
                 <option value="50" {% if per_page == 50 %}selected{% endif %}>50</option>
                 <option value="100" {% if per_page == 100 %}selected{% endif %}>100</option>
             </select>
         </div>
-        <div class="col-12 col-md-4 d-flex justify-content-end">
+        <div class="col-12 col-md-4">
+            <label class="small text-white-50">Etat</label>
+            <select name="etat" class="form-select form-select-sm bg-dark text-white border-secondary" onchange="this.form.submit()">
+                <option value="all" {% if etat == 'all' %}selected{% endif %}>Tous</option>
+                <option value="admis" {% if etat == 'admis' %}selected{% endif %}>Admis (>=10)</option>
+                <option value="echec" {% if etat == 'echec' %}selected{% endif %}>Echec (<10)</option>
+                <option value="non_saisi" {% if etat == 'non_saisi' %}selected{% endif %}>Non saisi</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="row g-2 align-items-end mt-2">
+        <div class="col-6 col-md-2">
+            <label class="small text-white-50">Min moy</label>
+            <input type="number" step="0.01" name="min_moy" value="{{ min_moy if min_moy is not none else '' }}" class="form-control form-control-sm bg-dark text-white border-secondary" onchange="this.form.submit()">
+        </div>
+        <div class="col-6 col-md-2">
+            <label class="small text-white-50">Max moy</label>
+            <input type="number" step="0.01" name="max_moy" value="{{ max_moy if max_moy is not none else '' }}" class="form-control form-control-sm bg-dark text-white border-secondary" onchange="this.form.submit()">
+        </div>
+        <div class="col-12 col-md-8 d-flex justify-content-end">
             <div class="text-white-50 small mt-2 mt-md-0">Total: {{ total }}</div>
         </div>
     </div>
@@ -122,8 +142,8 @@
                 <div class="dropdown">
                     <button class="btn btn-sm btn-secondary dropdown-toggle px-2" type="button" data-bs-toggle="dropdown">⚙️</button>
                     <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark shadow">
-                        <li><a class="dropdown-item" href="/print_list?trimestre={{ trimestre }}&niveau={{ niveau_actuel }}" target="_blank">🖨️ طباعة (PDF)</a></li>
-                        <li><a class="dropdown-item" href="/export_excel?trimestre={{ trimestre }}">⬇ تحميل Excel</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('main.print_list', trimestre=trimestre, niveau=niveau_actuel, recherche=recherche_actuelle, sort=sort, order=order, min_moy=min_moy, max_moy=max_moy, etat=etat) }}" target="_blank">🖨️ طباعة (PDF)</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('main.export_excel', trimestre=trimestre, niveau=niveau_actuel, recherche=recherche_actuelle, sort=sort, order=order, min_moy=min_moy, max_moy=max_moy, etat=etat) }}">⬇ تحميل Excel</a></li>
                         <li><hr class="dropdown-divider"></li>
                         <li><a class="dropdown-item text-danger" href="#" onclick="submitDelete()">🗑 حذف المحددين</a></li>
                     </ul>
@@ -176,19 +196,19 @@
             <nav aria-label="Pagination">
                 <ul class="pagination pagination-sm mb-0">
                     <li class="page-item {% if page <= 1 %}disabled{% endif %}">
-                        <a class="page-link" href="{{ url_for('main.index', trimestre=trimestre, niveau=niveau_actuel, recherche=recherche_actuelle, sort=sort, order=order, per_page=per_page, page=page-1) }}">«</a>
+                        <a class="page-link" href="{{ url_for('main.index', trimestre=trimestre, niveau=niveau_actuel, recherche=recherche_actuelle, sort=sort, order=order, per_page=per_page, min_moy=min_moy, max_moy=max_moy, etat=etat, page=page-1) }}">«</a>
                     </li>
 
                     {% set start = 1 if page - 2 < 1 else page - 2 %}
                     {% set end = pages if page + 2 > pages else page + 2 %}
                     {% for p in range(start, end + 1) %}
                         <li class="page-item {% if p == page %}active{% endif %}">
-                            <a class="page-link" href="{{ url_for('main.index', trimestre=trimestre, niveau=niveau_actuel, recherche=recherche_actuelle, sort=sort, order=order, per_page=per_page, page=p) }}">{{ p }}</a>
+                            <a class="page-link" href="{{ url_for('main.index', trimestre=trimestre, niveau=niveau_actuel, recherche=recherche_actuelle, sort=sort, order=order, per_page=per_page, min_moy=min_moy, max_moy=max_moy, etat=etat, page=p) }}">{{ p }}</a>
                         </li>
                     {% endfor %}
 
                     <li class="page-item {% if page >= pages %}disabled{% endif %}">
-                        <a class="page-link" href="{{ url_for('main.index', trimestre=trimestre, niveau=niveau_actuel, recherche=recherche_actuelle, sort=sort, order=order, per_page=per_page, page=page+1) }}">»</a>
+                        <a class="page-link" href="{{ url_for('main.index', trimestre=trimestre, niveau=niveau_actuel, recherche=recherche_actuelle, sort=sort, order=order, per_page=per_page, min_moy=min_moy, max_moy=max_moy, etat=etat, page=page+1) }}">»</a>
                     </li>
                 </ul>
             </nav>
