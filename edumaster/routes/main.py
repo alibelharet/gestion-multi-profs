@@ -1218,13 +1218,18 @@ def export_list_pdf():
     from reportlab.pdfbase.ttfonts import TTFont
 
     font_name = "Helvetica"
-    font_path = os.path.join(BASE_DIR, "static", "fonts", "Amiri-Regular.ttf")
-    if os.path.exists(font_path):
+    font_bold = "Helvetica-Bold"
+    font_path = os.path.join(BASE_DIR, "static", "fonts", "CairoPlay-Regular.ttf")
+    font_bold_path = os.path.join(BASE_DIR, "static", "fonts", "CairoPlay-Bold.ttf")
+    if os.path.exists(font_path) and os.path.exists(font_bold_path):
         try:
             pdfmetrics.registerFont(TTFont("Arabic", font_path))
+            pdfmetrics.registerFont(TTFont("ArabicBold", font_bold_path))
             font_name = "Arabic"
+            font_bold = "ArabicBold"
         except Exception:
             font_name = "Helvetica"
+            font_bold = "Helvetica-Bold"
 
     buffer = BytesIO()
     doc = SimpleDocTemplate(
@@ -1243,16 +1248,24 @@ def export_list_pdf():
     class_suffix = f" - {class_label}" if class_label and class_label != "all" else ""
     title = _arabize(f"\u0642\u0627\u0626\u0645\u0629 \u0627\u0644\u062a\u0644\u0627\u0645\u064a\u0630{class_suffix} - T{trim} - {subject_name}")
     title_style = styles["Title"].clone("ArabicTitle")
-    title_style.fontName = font_name
+    title_style.fontName = font_bold
     title_style.alignment = 1
     if school_name:
         school_style = styles["Normal"].clone("ArabicSchool")
-        school_style.fontName = font_name
+        school_style.fontName = font_bold
         school_style.alignment = 1
         story.append(Paragraph(_arabize(school_name), school_style))
         story.append(Spacer(1, 4))
     story.append(Paragraph(title, title_style))
     story.append(Spacer(1, 6))
+
+    prof_name = session.get("nom_affichage")
+    if prof_name:
+        prof_style = styles["Normal"].clone("ArabicProf")
+        prof_style.fontName = font_name
+        prof_style.alignment = 1
+        story.append(Paragraph(_arabize(f"الأستاذ: {prof_name}"), prof_style))
+        story.append(Spacer(1, 6))
 
     table_data = [[
         _arabize("\u0627\u0644\u0631\u0642\u0645"),
@@ -1294,6 +1307,7 @@ def export_list_pdf():
                 ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
                 ("GRID", (0, 0), (-1, -1), 0.4, colors.black),
                 ("FONTNAME", (0, 0), (-1, -1), font_name),
+                ("FONTNAME", (0, 0), (-1, 0), font_bold),
                 ("ALIGN", (0, 0), (-1, -1), "CENTER"),
                 ("ALIGN", (0, 1), (0, -1), "RIGHT"),
                 ("ALIGN", (1, 1), (1, -1), "CENTER"),
