@@ -1238,7 +1238,7 @@ def export_list_pdf():
     styles = getSampleStyleSheet()
 
     story = []
-    title = _arabize(f"قائمة التلاميذ - T{trim} - {subject_name}")
+    title = _arabize(f"\u0642\u0627\u0626\u0645\u0629 \u0627\u0644\u062a\u0644\u0627\u0645\u064a\u0630 - T{trim} - {subject_name}")
     title_style = styles["Title"].clone("ArabicTitle")
     title_style.fontName = font_name
     title_style.alignment = 1
@@ -1246,14 +1246,14 @@ def export_list_pdf():
     story.append(Spacer(1, 6))
 
     table_data = [[
-        _arabize("?????"),
-        _arabize("????? ? ?????"),
-        _arabize("?????"),
-        _arabize("??????"),
-        _arabize("??????"),
-        _arabize("????????"),
-        _arabize("??????"),
-        _arabize("?????????"),
+        _arabize("\u0627\u0644\u0631\u0642\u0645"),
+        _arabize("\u0627\u0644\u0627\u0633\u0645 \u0648 \u0627\u0644\u0644\u0642\u0628"),
+        _arabize("\u0627\u0644\u0642\u0633\u0645"),
+        _arabize("\u0627\u0644\u0646\u0634\u0627\u0637"),
+        _arabize("\u0627\u0644\u0648\u0627\u062c\u0628"),
+        _arabize("\u0627\u0644\u0627\u062e\u062a\u0628\u0627\u0631"),
+        _arabize("\u0627\u0644\u0645\u0639\u062f\u0644"),
+        _arabize("\u0627\u0644\u0645\u0644\u0627\u062d\u0638\u0627\u062a"),
     ]]
     for i, r in enumerate(rows, 1):
         table_data.append(
