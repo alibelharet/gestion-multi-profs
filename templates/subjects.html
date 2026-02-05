@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="card shadow-sm border-0" style="background-color: #1e1e1e; border-radius: 10px;">
+  <div class="card-header bg-dark border-bottom border-secondary d-flex justify-content-between align-items-center">
+    <h6 class="mb-0 text-white">Matieres</h6>
+  </div>
+  <div class="card-body">
+    <form method="post" class="d-flex gap-2 mb-3">
+      {{ csrf_field() }}
+      <input type="text" name="name" class="form-control bg-dark text-white border-secondary" placeholder="Nouvelle matiere">
+      <button class="btn btn-success">Ajouter</button>
+    </form>
+
+    <div class="table-responsive">
+      <table class="table table-dark table-sm mb-0 align-middle">
+        <thead>
+          <tr>
+            <th>Nom</th>
+            <th style="width: 120px;"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in subjects %}
+          <tr>
+            <td>{{ s.name }}</td>
+            <td class="text-end">
+              <form action="/subjects/delete/{{ s.id }}" method="post">
+                {{ csrf_field() }}
+                <button class="btn btn-sm btn-outline-danger" onclick="return confirm('Supprimer cette matiere ?')">Supprimer</button>
+              </form>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="2" class="text-center text-white-50 py-3">Aucune matiere</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

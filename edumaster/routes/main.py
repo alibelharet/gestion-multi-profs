@@ -56,6 +56,20 @@ def _school_year(now):
     return f"{now.year - 1}/{now.year}"
 
 
+def _arabize(value):
+    if value is None:
+        return ""
+    text = str(value)
+    try:
+        import arabic_reshaper
+        from bidi.algorithm import get_display
+
+        reshaped = arabic_reshaper.reshape(text)
+        return get_display(reshaped)
+    except Exception:
+        return text
+
+
 def _build_filters(user_id, trim, args, moy_expr_override=None):
     niveau = args.get("niveau", "")
     search = (args.get("recherche") or "").strip()
@@ -1200,6 +1214,18 @@ def export_list_pdf():
         [subject_id, int(trim)] + params,
     ).fetchall()
 
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
+
+    font_name = "Helvetica"
+    font_path = os.path.join(BASE_DIR, "static", "fonts", "Amiri-Regular.ttf")
+    if os.path.exists(font_path):
+        try:
+            pdfmetrics.registerFont(TTFont("Arabic", font_path))
+            font_name = "Arabic"
+        except Exception:
+            font_name = "Helvetica"
+
     buffer = BytesIO()
     doc = SimpleDocTemplate(
         buffer,
@@ -1212,22 +1238,34 @@ def export_list_pdf():
     styles = getSampleStyleSheet()
 
     story = []
-    title = f"Liste des eleves - T{trim} - {subject_name}"
-    story.append(Paragraph(title, styles["Title"]))
+    title = _arabize(f"قائمة التلاميذ - T{trim} - {subject_name}")
+    title_style = styles["Title"].clone("ArabicTitle")
+    title_style.fontName = font_name
+    title_style.alignment = 1
+    story.append(Paragraph(title, title_style))
     story.append(Spacer(1, 6))
 
-    table_data = [["#", "Nom", "Classe", "Activite", "Devoir", "Compo", "Moyenne", "Remarques"]]
+    table_data = [[
+        "#",
+        _arabize("الاسم"),
+        _arabize("القسم"),
+        _arabize("النشاط"),
+        _arabize("الواجب"),
+        _arabize("الاختبار"),
+        _arabize("المعدل"),
+        _arabize("الملاحظات"),
+    ]]
     for i, r in enumerate(rows, 1):
         table_data.append(
             [
                 i,
-                r["nom_complet"],
-                r["niveau"],
+                _arabize(r["nom_complet"]),
+                _arabize(r["niveau"]),
                 r["activite"],
                 r["devoir"],
                 r["compo"],
                 r["moyenne"],
-                r["remarques"] or "",
+                _arabize(r["remarques"] or ""),
             ]
         )
 
@@ -1241,8 +1279,12 @@ def export_list_pdf():
             [
                 ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
                 ("GRID", (0, 0), (-1, -1), 0.4, colors.black),
-                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("FONTNAME", (0, 0), (-1, -1), font_name),
+                ("FONTNAME", (0, 0), (-1, 0), font_name),
                 ("ALIGN", (0, 0), (0, -1), "CENTER"),
+                ("ALIGN", (1, 1), (1, -1), "RIGHT"),
+                ("ALIGN", (2, 1), (2, -1), "RIGHT"),
+                ("ALIGN", (7, 1), (7, -1), "RIGHT"),
                 ("ALIGN", (3, 1), (6, -1), "CENTER"),
                 ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
             ]
