@@ -1246,14 +1246,14 @@ def export_list_pdf():
     story.append(Spacer(1, 6))
 
     table_data = [[
-        "#",
-        _arabize("الاسم"),
-        _arabize("القسم"),
-        _arabize("النشاط"),
-        _arabize("الواجب"),
-        _arabize("الاختبار"),
-        _arabize("المعدل"),
-        _arabize("الملاحظات"),
+        _arabize("?????"),
+        _arabize("????? ? ?????"),
+        _arabize("?????"),
+        _arabize("??????"),
+        _arabize("??????"),
+        _arabize("????????"),
+        _arabize("??????"),
+        _arabize("?????????"),
     ]]
     for i, r in enumerate(rows, 1):
         table_data.append(
@@ -1269,10 +1269,15 @@ def export_list_pdf():
             ]
         )
 
+    # RTL: invert column order so first column is on the right
+    table_data = [list(reversed(row)) for row in table_data]
+    col_widths = [10 * mm, 55 * mm, 26 * mm, 22 * mm, 22 * mm, 22 * mm, 22 * mm, 80 * mm]
+    col_widths = list(reversed(col_widths))
+
     table = Table(
         table_data,
         repeatRows=1,
-        colWidths=[10 * mm, 55 * mm, 26 * mm, 22 * mm, 22 * mm, 22 * mm, 22 * mm, 80 * mm],
+        colWidths=col_widths,
     )
     table.setStyle(
         TableStyle(
@@ -1280,12 +1285,15 @@ def export_list_pdf():
                 ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
                 ("GRID", (0, 0), (-1, -1), 0.4, colors.black),
                 ("FONTNAME", (0, 0), (-1, -1), font_name),
-                ("FONTNAME", (0, 0), (-1, 0), font_name),
-                ("ALIGN", (0, 0), (0, -1), "CENTER"),
-                ("ALIGN", (1, 1), (1, -1), "RIGHT"),
-                ("ALIGN", (2, 1), (2, -1), "RIGHT"),
-                ("ALIGN", (7, 1), (7, -1), "RIGHT"),
-                ("ALIGN", (3, 1), (6, -1), "CENTER"),
+                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                ("ALIGN", (0, 1), (0, -1), "RIGHT"),
+                ("ALIGN", (1, 1), (1, -1), "CENTER"),
+                ("ALIGN", (2, 1), (2, -1), "CENTER"),
+                ("ALIGN", (3, 1), (3, -1), "CENTER"),
+                ("ALIGN", (4, 1), (4, -1), "CENTER"),
+                ("ALIGN", (5, 1), (5, -1), "CENTER"),
+                ("ALIGN", (6, 1), (6, -1), "RIGHT"),
+                ("ALIGN", (7, 1), (7, -1), "CENTER"),
                 ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
             ]
         )
