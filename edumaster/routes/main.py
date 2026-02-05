@@ -1238,10 +1238,19 @@ def export_list_pdf():
     styles = getSampleStyleSheet()
 
     story = []
-    title = _arabize(f"\u0642\u0627\u0626\u0645\u0629 \u0627\u0644\u062a\u0644\u0627\u0645\u064a\u0630 - T{trim} - {subject_name}")
+    school_name = session.get("school_name") or os.environ.get("SCHOOL_NAME", "")
+    class_label = filters.get("niveau") if "filters" in locals() else ""
+    class_suffix = f" - {class_label}" if class_label and class_label != "all" else ""
+    title = _arabize(f"\u0642\u0627\u0626\u0645\u0629 \u0627\u0644\u062a\u0644\u0627\u0645\u064a\u0630{class_suffix} - T{trim} - {subject_name}")
     title_style = styles["Title"].clone("ArabicTitle")
     title_style.fontName = font_name
     title_style.alignment = 1
+    if school_name:
+        school_style = styles["Normal"].clone("ArabicSchool")
+        school_style.fontName = font_name
+        school_style.alignment = 1
+        story.append(Paragraph(_arabize(school_name), school_style))
+        story.append(Spacer(1, 4))
     story.append(Paragraph(title, title_style))
     story.append(Spacer(1, 6))
 
@@ -1250,7 +1259,7 @@ def export_list_pdf():
         _arabize("\u0627\u0644\u0627\u0633\u0645 \u0648 \u0627\u0644\u0644\u0642\u0628"),
         _arabize("\u0627\u0644\u0642\u0633\u0645"),
         _arabize("\u0627\u0644\u0646\u0634\u0627\u0637"),
-        _arabize("\u0627\u0644\u0648\u0627\u062c\u0628"),
+        _arabize("\u0627\u0644\u0641\u0631\u0636"),
         _arabize("\u0627\u0644\u0627\u062e\u062a\u0628\u0627\u0631"),
         _arabize("\u0627\u0644\u0645\u0639\u062f\u0644"),
         _arabize("\u0627\u0644\u0645\u0644\u0627\u062d\u0638\u0627\u062a"),
