@@ -1219,8 +1219,8 @@ def export_list_pdf():
 
     font_name = "Helvetica"
     font_bold = "Helvetica-Bold"
-    font_path = os.path.join(BASE_DIR, "static", "fonts", "CairoPlay-Regular.ttf")
-    font_bold_path = os.path.join(BASE_DIR, "static", "fonts", "CairoPlay-Bold.ttf")
+    font_path = os.path.join(BASE_DIR, "static", "fonts", "TimesNewRoman-Regular.ttf")
+    font_bold_path = os.path.join(BASE_DIR, "static", "fonts", "TimesNewRoman-Bold.ttf")
     if os.path.exists(font_path) and os.path.exists(font_bold_path):
         try:
             pdfmetrics.registerFont(TTFont("Arabic", font_path))
