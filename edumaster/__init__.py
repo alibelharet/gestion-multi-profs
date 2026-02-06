@@ -4,6 +4,7 @@ from flask import Flask
 
 from core.config import BASE_DIR, MAX_CONTENT_LENGTH, UPLOAD_FOLDER
 from core.db import bootstrap_admin, close_db, init_db
+from core.i18n import get_lang, get_text_dir, tr
 from core.security import init_security
 
 
@@ -36,6 +37,15 @@ def create_app() -> Flask:
         init_db()
         bootstrap_admin()
 
+    @app.context_processor
+    def inject_i18n():
+        lang = get_lang()
+        return {
+            "tr": tr,
+            "current_lang": lang,
+            "text_dir": get_text_dir(lang),
+        }
+
     # --- ROUTES ---
     from .routes.admin import bp as admin_bp
     from .routes.auth import bp as auth_bp
@@ -50,4 +60,3 @@ def create_app() -> Flask:
     app.register_blueprint(admin_bp)
 
     return app
-

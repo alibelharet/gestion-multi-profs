@@ -1,16 +1,20 @@
 <!doctype html>
-<html lang="ar" dir="rtl" data-theme="dark">
+<html lang="{{ current_lang }}" dir="{{ text_dir }}" data-theme="dark">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    
+
     <title>EduMaster Pro</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
-    
+
+    {% if text_dir == 'rtl' %}
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css">
+    {% else %}
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    {% endif %}
 
     <style>
 :root {
@@ -144,7 +148,6 @@ a { text-decoration: none; }
 
 .navbar-toggler { border-color: var(--border); }
 
-/* Bootstrap text helpers to match theme */
 .text-body,
 .text-body-emphasis,
 .text-white {
@@ -163,55 +166,53 @@ a { text-decoration: none; }
     .input-note { min-width: 44px; height: 32px; font-size: 0.85rem; }
     .filters-sticky { top: 66px; }
 }
-</style>
+    </style>
   </head>
   <body>
 
     <nav class="navbar navbar-expand-lg navbar-dark sticky-top">
       <div class="container-fluid">
-        <a class="navbar-brand" href="/">🎓 EduMaster</a>
-        
+        <a class="navbar-brand" href="/">EduMaster</a>
+
         {% if session.get('user_id') %}
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
-            
+
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                     <li class="nav-item">
-                        <a class="nav-link active fw-bold" href="/">الرئيسية (Tableau)</a>
+                        <a class="nav-link active fw-bold" href="/">{{ tr('menu.dashboard', 'Tableau') }}</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="/ressources">الموارد (Ressources)</a>
+                        <a class="nav-link" href="/ressources">{{ tr('menu.resources', 'Ressources') }}</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="/settings">التقديرات (Paramètres)</a>
+                        <a class="nav-link" href="/settings">{{ tr('menu.settings', 'Parametres') }}</a>
                     </li>
                     {% if session.get('is_admin') or not session.get('lock_subject') %}
                     <li class="nav-item">
-                        <a class="nav-link" href="/subjects">Matieres</a>
+                        <a class="nav-link" href="/subjects">{{ tr('menu.subjects', 'Matieres') }}</a>
                     </li>
                     {% endif %}
                     <li class="nav-item">
-                        <a class="nav-link" href="/timetable">Emploi du temps</a>
+                        <a class="nav-link" href="/timetable">{{ tr('menu.timetable', 'Emploi du temps') }}</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="/attendance">Absences</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/history">Historique</a>
+                        <a class="nav-link" href="/history">{{ tr('menu.history', 'Historique') }}</a>
                     </li>
                     {% if session.get('is_admin') %}
                     <li class="nav-item">
-                        <a class="nav-link text-warning" href="/admin">Admin</a>
+                        <a class="nav-link text-warning" href="/admin">{{ tr('menu.admin', 'Admin') }}</a>
                     </li>
                     {% endif %}
                 </ul>
-                
+
                 <div class="d-flex gap-2 align-items-center">
-                    <button type="button" id="themeToggle" class="btn btn-outline-info btn-sm px-3">Mode clair</button>
-                    <a href="/profile" class="btn btn-outline-light btn-sm px-3">الملف الشخصي</a>
-                    <a href="/logout" class="btn btn-danger btn-sm px-3">خروج</a>
+                    <a href="{{ url_for('main.set_lang', lang='ar' if current_lang == 'fr' else 'fr') }}" class="btn btn-outline-secondary btn-sm px-3">{{ tr('lang.switch', 'AR') }}</a>
+                    <button type="button" id="themeToggle" class="btn btn-outline-info btn-sm px-3">{{ tr('theme.light', 'Mode clair') }}</button>
+                    <a href="/profile" class="btn btn-outline-light btn-sm px-3">{{ tr('menu.profile', 'Profil') }}</a>
+                    <a href="/logout" class="btn btn-danger btn-sm px-3">{{ tr('menu.logout', 'Logout') }}</a>
                 </div>
             </div>
         {% endif %}
@@ -219,7 +220,7 @@ a { text-decoration: none; }
     </nav>
 
     <div class="container">
-        
+
         {% with messages = get_flashed_messages(with_categories=true) %}
           {% if messages %}
             {% for category, message in messages %}
@@ -232,7 +233,7 @@ a { text-decoration: none; }
         {% endwith %}
 
         {% block content %}{% endblock %}
-        
+
     </div>
 
     <script>
@@ -244,9 +245,11 @@ a { text-decoration: none; }
             root.setAttribute("data-theme", initial);
 
             const toggleBtn = document.getElementById("themeToggle");
+            const labelLight = "{{ tr('theme.light', 'Mode clair') }}";
+            const labelDark = "{{ tr('theme.dark', 'Mode sombre') }}";
             const setLabel = (mode) => {
                 if (!toggleBtn) return;
-                toggleBtn.textContent = mode === "dark" ? "Mode clair" : "Mode sombre";
+                toggleBtn.textContent = mode === "dark" ? labelLight : labelDark;
             };
             setLabel(initial);
 
@@ -264,4 +267,3 @@ a { text-decoration: none; }
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   </body>
 </html>
-

@@ -74,6 +74,10 @@
                 <div class="text-muted small mb-2">Repartition</div>
                 <canvas id="chartDist" height="180"></canvas>
             </div>
+            <div class="col-12">
+                <div class="text-muted small mb-2">Progression T1 / T2 / T3 par classe</div>
+                <canvas id="chartProgress" height="120"></canvas>
+            </div>
         </div>
 
         <div class="table-responsive mt-4">
@@ -104,6 +108,50 @@
 </div>
 {% endif %}
 
+{% if risk_count > 0 %}
+<div class="app-card mb-4">
+    <div class="card-header app-card-header d-flex justify-content-between align-items-center py-2 px-3 rounded-top">
+        <h6 class="mb-0 text-body">Eleves a risque</h6>
+        <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-danger">{{ risk_count }}</span>
+            <a href="{{ risk_url }}" class="btn btn-sm btn-outline-danger">Voir tous</a>
+        </div>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-sm mb-0 align-middle">
+            <thead>
+                <tr>
+                    <th>Nom</th>
+                    <th>Classe</th>
+                    <th>Moyenne</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for e in risk_students %}
+                <tr>
+                    <td>{{ e.nom }}</td>
+                    <td>{{ e.niveau }}</td>
+                    <td class="fw-bold text-danger">{{ e.moyenne }}</td>
+                    <td class="text-end">
+                        <a href="/bulletin/{{ e.id }}?trimestre={{ trimestre }}&subject={{ subject_id }}" target="_blank" class="btn btn-sm btn-outline-warning">Bulletin</a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="4" class="text-center text-muted py-3">Aucun eleve en risque.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% if not can_edit %}
+<div class="alert alert-warning py-2">
+    Mode lecture seule actif: les modifications (ajout, import, suppression, sauvegarde) sont bloquees.
+</div>
+{% endif %}
+{% endif %}
+
 <div class="app-card mb-4 filters-sticky glass-panel">
     <div class="card-body py-3 px-3">
         <form action="/" method="get">
@@ -125,11 +173,16 @@
                 </div>
                 <div class="col-6 col-lg-2">
                     <label class="small text-muted">Matiere</label>
+                    {% if session.get('lock_subject') %}
+                    <input type="text" class="form-control form-control-sm" value="{{ subject_name }}" readonly>
+                    <input type="hidden" name="subject" value="{{ subject_id }}">
+                    {% else %}
                     <select name="subject" class="form-select form-select-sm " onchange="this.form.submit()">
                         {% for s in subjects %}
                         <option value="{{ s.id }}" {% if subject_id == s.id %}selected{% endif %}>{{ s.name }}</option>
                         {% endfor %}
                     </select>
+                    {% endif %}
                 </div>
                 <div class="col-12 col-lg-4">
                     <label class="small text-muted">Recherche</label>
@@ -137,8 +190,10 @@
                 </div>
                 <div class="col-12 col-lg-2 d-flex gap-1 justify-content-end filter-actions">
                     <button type="submit" class="btn btn-sm btn-outline-info"><i class="bi bi-search"></i></button>
+                    {% if can_edit %}
                     <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#addStudentModal"><i class="bi bi-person-plus-fill"></i></button>
                     <button class="btn btn-sm btn-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#importBox"><i class="bi bi-file-earmark-spreadsheet-fill"></i></button>
+                    {% endif %}
                 </div>
             </div>
 
@@ -193,6 +248,7 @@
             </div>
         </form>
     </div>
+    {% if can_edit %}
     <div class="collapse" id="importBox">
         <div class="card-footer app-card-header p-3">
             <form action="/import_excel" method="post" enctype="multipart/form-data" class="d-flex gap-2 align-items-center">
@@ -200,10 +256,11 @@
                 <input class="form-control form-control-sm " type="file" name="fichier_excel" accept=".xlsx, .xls" required>
                 <input type="hidden" name="trimestre_import" value="{{ trimestre }}">
                 <input type="hidden" name="subject" value="{{ subject_id }}">
-                <button type="submit" class="btn btn-sm btn-success">Import</button>
+                <button type="submit" class="btn btn-sm btn-success">Importer (avec correspondance)</button>
             </form>
         </div>
     </div>
+    {% endif %}
 </div>
 
 <form action="/sauvegarder_tout" method="POST" id="formSaveAll">
@@ -212,19 +269,27 @@
     <input type="hidden" name="subject" value="{{ subject_id }}">
     <div class="app-card">
         <div class="card-header app-card-header d-flex justify-content-between align-items-center py-2 px-3 rounded-top">
-            <h6 class="mb-0 text-body">Liste eleves</h6>
+            <div>
+                <h6 class="mb-0 text-body">Liste eleves</h6>
+                <div class="small text-muted">Activite = Participation(3) + Comportement(6) + Cahier(5) + Projet(4) + Abs/Outils(2)</div>
+            </div>
             <div class="d-flex gap-1">
+                {% if can_edit %}
                 <button type="submit" class="btn btn-sm btn-primary px-3">Sauver</button>
                 <button type="button" class="btn btn-sm btn-warning text-dark px-3" data-bs-toggle="modal" data-bs-target="#fillOfficialModal">Remplir officiel</button>
+                {% else %}
+                <span class="badge bg-secondary align-self-center px-3 py-2">Lecture seule</span>
+                {% endif %}
                 <div class="dropdown">
                     <button class="btn btn-sm btn-secondary dropdown-toggle px-2" type="button" data-bs-toggle="dropdown">Actions</button>
                     <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark shadow">
-                        <li><a class="dropdown-item" href="{{ url_for('main.print_list', trimestre=trimestre, niveau=niveau_actuel, recherche=recherche_actuelle, sort=sort, order=order, min_moy=min_moy, max_moy=max_moy, etat=etat, subject=subject_id) }}" target="_blank">Imprimer HTML</a></li>
                         <li><a class="dropdown-item" href="{{ url_for('main.export_list_pdf', trimestre=trimestre, niveau=niveau_actuel, recherche=recherche_actuelle, sort=sort, order=order, min_moy=min_moy, max_moy=max_moy, etat=etat, subject=subject_id) }}">Exporter PDF (Liste)</a></li>
                         <li><a class="dropdown-item" href="{{ url_for('main.export_excel', trimestre=trimestre, niveau=niveau_actuel, recherche=recherche_actuelle, sort=sort, order=order, min_moy=min_moy, max_moy=max_moy, etat=etat, subject=subject_id) }}">Exporter Excel</a></li>
                         <li><a class="dropdown-item" href="{{ url_for('main.export_parents', trimestre=trimestre, niveau=niveau_actuel, recherche=recherche_actuelle, sort=sort, order=order, min_moy=min_moy, max_moy=max_moy, etat=etat, subject=subject_id) }}">Export Parents</a></li>
+                        {% if can_edit %}
                         <li><hr class="dropdown-divider"></li>
                         <li><a class="dropdown-item text-danger" href="#" onclick="submitDelete()">Supprimer selection</a></li>
+                        {% endif %}
                     </ul>
                 </div>
             </div>
@@ -234,10 +299,21 @@
             <table class="table table-hover mb-0 align-middle" style="min-width: 600px;">
                 <thead>
                     <tr style="border-bottom: 1px solid var(--border); background-color: var(--surface-2);">
-                        <th class="text-center p-2" style="width: 80px;"><input type="checkbox" class="form-check-input" onclick="toggle(this)" title="Tout selectionner"></th>
+                        <th class="text-center p-2" style="width: 80px;">
+                            {% if can_edit %}
+                            <input type="checkbox" class="form-check-input" onclick="toggle(this)" title="Tout selectionner">
+                            {% else %}
+                            Bulletin
+                            {% endif %}
+                        </th>
                         <th class="text-body p-2">#</th>
                         <th class="text-body p-2" style="min-width: 160px;">Nom</th>
-                        <th class="text-center text-muted p-2">Activite</th>
+                        <th class="text-center text-muted p-2">Participation (3)</th>
+                        <th class="text-center text-muted p-2">Comportement (6)</th>
+                        <th class="text-center text-muted p-2">Cahier (5)</th>
+                        <th class="text-center text-muted p-2">Projet (4)</th>
+                        <th class="text-center text-muted p-2">Abs/Outils (2)</th>
+                        <th class="text-center text-info p-2">Activite /20</th>
                         <th class="text-center text-muted p-2">Devoir</th>
                         <th class="text-center text-muted p-2">Compo</th>
                         <th class="text-center text-primary p-2">Moyenne</th>
@@ -248,20 +324,27 @@
                     {% for eleve in eleves %}
                     <tr style="border-bottom: 1px solid var(--border);">
                         <td class="text-center d-flex gap-2 justify-content-center pt-3">
+                            {% if can_edit %}
                             <input type="checkbox" name="ids_delete" value="{{ eleve.id }}" class="form-check-input check-delete">
+                            {% endif %}
                             <input type="hidden" name="id_eleve" value="{{ eleve.id }}">
                             <a href="/bulletin/{{ eleve.id }}?trimestre={{ trimestre }}&subject={{ subject_id }}" target="_blank" class="btn btn-sm btn-outline-info py-0 px-1" title="Imprimer Bulletin" style="height: 25px;"><i class="bi bi-file-text"></i></a>
                         </td>
                         <td class="text-body fw-bold">{{ ((page - 1) * per_page) + loop.index }}</td>
                         <td class="fw-bold text-body">{{ eleve.nom_complet }}<br><span class="badge bg-secondary text-body border border-dark mt-1" style="font-size: 0.65em;">{{ eleve.niveau }}</span></td>
-                        <td class="p-1"><input type="number" step="0.01" min="0" max="20" id="act_{{eleve.id}}" name="activite" value="{{ eleve.activite }}" class="form-control input-note" oninput="calculLive({{eleve.id}})"></td>
-                        <td class="p-1"><input type="number" step="0.01" min="0" max="20" id="dev_{{eleve.id}}" name="devoir" value="{{ eleve.devoir }}" class="form-control input-note" oninput="calculLive({{eleve.id}})"></td>
-                        <td class="p-1"><input type="number" step="0.01" min="0" max="20" id="comp_{{eleve.id}}" name="compo" value="{{ eleve.compo }}" class="form-control input-note" oninput="calculLive({{eleve.id}})"></td>
+                        <td class="p-1"><input type="number" step="0.01" min="0" max="3" id="part_{{eleve.id}}" name="participation" value="{{ eleve.participation }}" class="form-control input-note" oninput="calculLive({{eleve.id}})" {% if not can_edit %}readonly{% endif %}></td>
+                        <td class="p-1"><input type="number" step="0.01" min="0" max="6" id="comport_{{eleve.id}}" name="comportement" value="{{ eleve.comportement }}" class="form-control input-note" oninput="calculLive({{eleve.id}})" {% if not can_edit %}readonly{% endif %}></td>
+                        <td class="p-1"><input type="number" step="0.01" min="0" max="5" id="cah_{{eleve.id}}" name="cahier" value="{{ eleve.cahier }}" class="form-control input-note" oninput="calculLive({{eleve.id}})" {% if not can_edit %}readonly{% endif %}></td>
+                        <td class="p-1"><input type="number" step="0.01" min="0" max="4" id="proj_{{eleve.id}}" name="projet" value="{{ eleve.projet }}" class="form-control input-note" oninput="calculLive({{eleve.id}})" {% if not can_edit %}readonly{% endif %}></td>
+                        <td class="p-1"><input type="number" step="0.01" min="0" max="2" id="ao_{{eleve.id}}" name="assiduite_outils" value="{{ eleve.assiduite_outils }}" class="form-control input-note" oninput="calculLive({{eleve.id}})" {% if not can_edit %}readonly{% endif %}></td>
+                        <td class="text-center fw-bold fs-6 text-info"><span id="act_display_{{eleve.id}}">{{ eleve.activite }}</span><input type="hidden" id="act_{{eleve.id}}" name="activite" value="{{ eleve.activite }}"></td>
+                        <td class="p-1"><input type="number" step="0.01" min="0" max="20" id="dev_{{eleve.id}}" name="devoir" value="{{ eleve.devoir }}" class="form-control input-note" oninput="calculLive({{eleve.id}})" {% if not can_edit %}readonly{% endif %}></td>
+                        <td class="p-1"><input type="number" step="0.01" min="0" max="20" id="comp_{{eleve.id}}" name="compo" value="{{ eleve.compo }}" class="form-control input-note" oninput="calculLive({{eleve.id}})" {% if not can_edit %}readonly{% endif %}></td>
                         <td class="text-center fw-bold fs-5"><span id="moy_{{eleve.id}}" class="{% if eleve.moyenne < 10 %}text-danger{% else %}text-success{% endif %}">{{ eleve.moyenne }}</span></td>
                         <td class="small text-muted text-truncate" style="max-width: 150px;">{{ eleve.remarques }}</td>
                     </tr>
                     {% else %}
-                    <tr><td colspan="9" class="text-center py-5 text-body">Aucun resultat.</td></tr>
+                    <tr><td colspan="13" class="text-center py-5 text-body">Aucun resultat.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
@@ -294,6 +377,7 @@
     </div>
 </form>
 
+{% if can_edit %}
 <form action="/supprimer_multi" method="POST" id="formMultiDelete" style="display:none;">
     {{ csrf_field() }}
 </form>
@@ -314,6 +398,7 @@
     </div>
   </div>
 </div>
+{% endif %}
 
 <div class="modal fade" id="addStudentModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
@@ -331,9 +416,19 @@
                 <div class="col-6"><input type="email" class="form-control " name="parent_email" placeholder="Email parent"></div>
             </div>
             <div class="row g-2 mt-2">
-                <div class="col-4"><input type="number" step="0.01" class="form-control  text-center" name="activite" placeholder="Act"></div>
-                <div class="col-4"><input type="number" step="0.01" class="form-control  text-center" name="devoir" placeholder="Dev"></div>
-                <div class="col-4"><input type="number" step="0.01" class="form-control  text-center" name="compo" placeholder="Ex"></div>
+                <div class="col-4"><input type="number" step="0.01" min="0" max="3" class="form-control  text-center activite-part" name="participation" placeholder="Participation (3)" oninput="calculAddActivite()"></div>
+                <div class="col-4"><input type="number" step="0.01" min="0" max="6" class="form-control  text-center activite-part" name="comportement" placeholder="Comportement (6)" oninput="calculAddActivite()"></div>
+                <div class="col-4"><input type="number" step="0.01" min="0" max="5" class="form-control  text-center activite-part" name="cahier" placeholder="Cahier (5)" oninput="calculAddActivite()"></div>
+            </div>
+            <div class="row g-2 mt-2">
+                <div class="col-4"><input type="number" step="0.01" min="0" max="4" class="form-control  text-center activite-part" name="projet" placeholder="Projet (4)" oninput="calculAddActivite()"></div>
+                <div class="col-4"><input type="number" step="0.01" min="0" max="2" class="form-control  text-center activite-part" name="assiduite_outils" placeholder="Abs/Outils (2)" oninput="calculAddActivite()"></div>
+                <div class="col-4"><input type="text" id="activite_total_add" class="form-control text-center" value="Activite: 0.00 / 20" readonly></div>
+                <input type="hidden" id="activite_hidden_add" name="activite" value="0">
+            </div>
+            <div class="row g-2 mt-2">
+                <div class="col-6"><input type="number" step="0.01" class="form-control  text-center" name="devoir" placeholder="Dev"></div>
+                <div class="col-6"><input type="number" step="0.01" class="form-control  text-center" name="compo" placeholder="Ex"></div>
             </div>
         </div>
         <div class="modal-footer border-secondary justify-content-center"><button type="submit" class="btn btn-success w-75 fw-bold">Sauver</button></div>
@@ -346,9 +441,10 @@
 <script>
     {% if eleves %}
     (function() {
-        const data = {{ chart_data|safe }};
+        const data = {{ chart_data|tojson }};
         const ctxClasses = document.getElementById('chartClasses');
         const ctxDist = document.getElementById('chartDist');
+        const ctxProgress = document.getElementById('chartProgress');
         const css = getComputedStyle(document.documentElement);
         const textColor = (css.getPropertyValue('--text') || '#f2f5f9').trim();
         const gridColor = (css.getPropertyValue('--border') || '#283446').trim();
@@ -379,24 +475,88 @@
                 options: { responsive: true, plugins: { legend: { labels: { color: textColor } } } }
             });
         }
+
+        if (ctxProgress) {
+            new Chart(ctxProgress, {
+                type: 'line',
+                data: {
+                    labels: data.progression.labels,
+                    datasets: [
+                        { label: 'T1', data: data.progression.t1, borderColor: '#0d6efd', backgroundColor: 'rgba(13,110,253,0.15)', tension: 0.25, fill: false },
+                        { label: 'T2', data: data.progression.t2, borderColor: '#20c997', backgroundColor: 'rgba(32,201,151,0.15)', tension: 0.25, fill: false },
+                        { label: 'T3', data: data.progression.t3, borderColor: '#fd7e14', backgroundColor: 'rgba(253,126,20,0.15)', tension: 0.25, fill: false }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { labels: { color: textColor } } },
+                    scales: {
+                        y: { beginAtZero: true, max: 20, ticks: { color: textColor }, grid: { color: gridColor } },
+                        x: { ticks: { color: textColor }, grid: { color: gridColor } }
+                    }
+                }
+            });
+        }
     })();
     {% endif %}
 </script>
 
 <script>
+    function toNum(value) {
+        var parsed = parseFloat(value);
+        return isNaN(parsed) ? 0 : parsed;
+    }
+    function clampInput(input, maxValue) {
+        if (!input) return 0;
+        if (input.value === '') return 0;
+        var value = toNum(input.value);
+        if (value < 0) value = 0;
+        if (value > maxValue) value = maxValue;
+        input.value = value;
+        return value;
+    }
+    function computeActivite(id) {
+        var part = clampInput(document.getElementById('part_' + id), 3);
+        var compor = clampInput(document.getElementById('comport_' + id), 6);
+        var cah = clampInput(document.getElementById('cah_' + id), 5);
+        var proj = clampInput(document.getElementById('proj_' + id), 4);
+        var ao = clampInput(document.getElementById('ao_' + id), 2);
+        var total = part + compor + cah + proj + ao;
+        var totalRounded = total.toFixed(2);
+        var actInput = document.getElementById('act_' + id);
+        var actDisplay = document.getElementById('act_display_' + id);
+        if (actInput) actInput.value = totalRounded;
+        if (actDisplay) actDisplay.innerText = totalRounded;
+        return total;
+    }
     function calculLive(id) {
-        var actInput = document.getElementById('act_' + id); var devInput = document.getElementById('dev_' + id); var compInput = document.getElementById('comp_' + id); var moySpan = document.getElementById('moy_' + id);
-        checkMax(actInput); checkMax(devInput); checkMax(compInput);
-        var act = parseFloat(actInput.value) || 0; var dev = parseFloat(devInput.value) || 0; var comp = parseFloat(compInput.value) || 0;
+        var devInput = document.getElementById('dev_' + id);
+        var compInput = document.getElementById('comp_' + id);
+        var moySpan = document.getElementById('moy_' + id);
+        var act = computeActivite(id);
+        var dev = clampInput(devInput, 20);
+        var comp = clampInput(compInput, 20);
         var moyenne = ((dev + act) / 2 + (comp * 2)) / 3;
         moySpan.innerText = moyenne.toFixed(2);
         if (moyenne < 10) { moySpan.className = 'text-danger fw-bold fs-5'; } else { moySpan.className = 'text-success fw-bold fs-5'; }
     }
-    function checkMax(input) { if(input.value > 20) { input.value = 20; input.style.borderColor = 'red'; setTimeout(function(){ input.style.borderColor = '#444'; }, 500); } if(input.value < 0) { input.value = 0; } }
+    function calculAddActivite() {
+        var fields = document.querySelectorAll('#addStudentModal .activite-part');
+        var caps = [3, 6, 5, 4, 2];
+        var total = 0;
+        fields.forEach(function(input, index) {
+            total += clampInput(input, caps[index] || 20);
+        });
+        var display = document.getElementById('activite_total_add');
+        var hidden = document.getElementById('activite_hidden_add');
+        if (display) display.value = 'Activite: ' + total.toFixed(2) + ' / 20';
+        if (hidden) hidden.value = total.toFixed(2);
+    }
     function toggle(source) { checkboxes = document.querySelectorAll('.check-delete'); for(var i=0, n=checkboxes.length;i<n;i++) { checkboxes[i].checked = source.checked; } }
     function submitDelete() {
         if(!confirm('Supprimer les eleves selectionnes ?')) return;
         var formDelete = document.getElementById('formMultiDelete');
+        if (!formDelete) return;
         var csrfInputExisting = formDelete.querySelector('input[name=\'csrf_token\']');
         var csrfVal = csrfInputExisting ? csrfInputExisting.value : null;
         formDelete.innerHTML = '';
@@ -412,6 +572,14 @@
         checkboxes.forEach(function(chk) { var input = document.createElement('input'); input.type = 'hidden'; input.name = 'ids'; input.value = chk.value; formDelete.appendChild(input); });
         formDelete.submit();
     }
+    document.addEventListener('DOMContentLoaded', function() {
+        var partInputs = document.querySelectorAll('input[id^="part_"]');
+        partInputs.forEach(function(input) {
+            var id = input.id.replace('part_', '');
+            calculLive(id);
+        });
+        calculAddActivite();
+    });
 </script>
 
 {% endblock %}

@@ -5,7 +5,7 @@ from flask import Blueprint, current_app, flash, redirect, render_template, requ
 from werkzeug.utils import secure_filename
 
 from core.db import get_db
-from core.security import login_required
+from core.security import login_required, write_required
 from core.utils import is_allowed_upload
 
 bp = Blueprint("docs", __name__)
@@ -14,15 +14,18 @@ bp = Blueprint("docs", __name__)
 @bp.route("/ressources")
 @login_required
 def ressources():
+    role = session.get("role") or ("admin" if session.get("is_admin") else "prof")
+    can_edit = role != "read_only"
     docs = get_db().execute(
         "SELECT * FROM documents WHERE user_id = ? ORDER BY id DESC",
         (session["user_id"],),
     ).fetchall()
-    return render_template("ressources.html", docs=docs)
+    return render_template("ressources.html", docs=docs, can_edit=can_edit)
 
 
 @bp.route("/upload", methods=["POST"])
 @login_required
+@write_required
 def upload():
     f = request.files.get("fichier")
     if not f or not f.filename:
@@ -48,6 +51,7 @@ def upload():
 
 @bp.route("/supprimer_document/<int:id>", methods=["POST"])
 @login_required
+@write_required
 def supprimer_document(id: int):
     db = get_db()
     doc = db.execute(
@@ -62,4 +66,3 @@ def supprimer_document(id: int):
         db.execute("DELETE FROM documents WHERE id = ?", (id,))
         db.commit()
     return redirect(url_for("docs.ressources"))
-

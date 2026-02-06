@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="app-card p-3 p-md-4 mb-4">
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <div>
+      <h4 class="mb-1">{{ tr('import.mapping.title', 'Import intelligent Excel') }}</h4>
+      <div class="text-muted small">{{ tr('import.mapping.subtitle', 'Associez les colonnes avant validation.') }}</div>
+    </div>
+    <div class="small text-muted">
+      <span class="badge bg-secondary">Onglet: {{ source_sheet }}</span>
+      <span class="badge bg-dark">T{{ trim }}</span>
+    </div>
+  </div>
+
+  <div class="alert alert-info py-2">
+    Renseignez au minimum <strong>Nom complet</strong> ou bien <strong>Nom + Prenom</strong>.
+  </div>
+
+  <form action="{{ url_for('main.import_excel_apply') }}" method="post" class="mb-3">
+    {{ csrf_field() }}
+    <input type="hidden" name="token" value="{{ token }}">
+    <input type="hidden" name="subject" value="{{ subject_id }}">
+
+    <div class="row g-2">
+      {% for key, label in mapping_fields %}
+      <div class="col-12 col-md-6 col-lg-4">
+        <label class="small text-muted">{{ label }}</label>
+        <select name="map_{{ key }}" class="form-select form-select-sm">
+          <option value="">-- Ignorer --</option>
+          {% for col in columns %}
+          <option value="{{ col }}" {% if defaults.get(key) == col %}selected{% endif %}>{{ col }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% endfor %}
+    </div>
+
+    <div class="d-flex flex-wrap gap-2 justify-content-end mt-3">
+      <a href="{{ url_for('main.import_excel_cancel', token=token) }}" class="btn btn-outline-secondary btn-sm">{{ tr('import.mapping.cancel', 'Annuler') }}</a>
+      <button type="submit" class="btn btn-success btn-sm">{{ tr('import.mapping.apply', 'Valider import') }}</button>
+    </div>
+  </form>
+
+  <div class="table-responsive">
+    <table class="table table-sm align-middle mb-0">
+      <thead>
+        <tr>
+          {% for h in sample_headers %}
+          <th>{{ h }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in sample_rows %}
+        <tr>
+          {% for h in sample_headers %}
+          <td>{{ row.get(h, '') }}</td>
+          {% endfor %}
+        </tr>
+        {% else %}
+        <tr><td colspan="{{ sample_headers|length }}" class="text-center text-muted">Aucune ligne de previsualisation.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -40,8 +40,8 @@ def register():
             flash("Utilisateur existe déjà.", "danger")
         else:
             db.execute(
-                "INSERT INTO users (username, password, nom_affichage, school_name, default_subject, lock_subject) VALUES (?, ?, ?, ?, ?, ?)",
-                (username, generate_password_hash(password), nom_affichage, school_name, subject_name, 1),
+                "INSERT INTO users (username, password, nom_affichage, role, school_name, default_subject, lock_subject) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (username, generate_password_hash(password), nom_affichage, "prof", school_name, subject_name, 1),
             )
             db.commit()
             user_id = db.execute("SELECT id FROM users WHERE username = ?", (username,)).fetchone()[
@@ -75,7 +75,6 @@ def login():
         locked, remaining = is_login_locked(db, username, ip)
         if locked:
             flash(lock_message(remaining), "danger")
-            record_login_attempt(db, username, ip, success=False)
             return render_template("login.html")
 
         user = db.execute("SELECT * FROM users WHERE username = ?", (username,)).fetchone()
@@ -83,12 +82,17 @@ def login():
         record_login_attempt(db, username, ip, success=ok)
 
         if ok:
+            role = user["role"] if "role" in user.keys() and user["role"] else ("admin" if int(user["is_admin"] or 0) == 1 else "prof")
+            if role not in ("admin", "prof", "read_only"):
+                role = "admin" if int(user["is_admin"] or 0) == 1 else "prof"
             session["user_id"] = user["id"]
             session["nom_affichage"] = user["nom_affichage"]
             session["is_admin"] = user["is_admin"]
+            session["role"] = role
             session["school_name"] = user["school_name"] if "school_name" in user.keys() else ""
             session["lock_subject"] = user["lock_subject"] if "lock_subject" in user.keys() else 0
             session["default_subject"] = user["default_subject"] if "default_subject" in user.keys() else ""
+            session["can_edit"] = 0 if role == "read_only" else 1
             return redirect(url_for("main.index"))
 
         flash("Utilisateur ou mot de passe incorrect.", "danger")

@@ -21,7 +21,16 @@ bp = Blueprint("admin", __name__)
 def admin():
     db = get_db()
     users = db.execute(
-        "SELECT id, username, nom_affichage, is_admin FROM users ORDER BY is_admin DESC, id ASC"
+        """
+        SELECT
+            id,
+            username,
+            nom_affichage,
+            is_admin,
+            COALESCE(role, CASE WHEN COALESCE(is_admin, 0) = 1 THEN 'admin' ELSE 'prof' END) AS role
+        FROM users
+        ORDER BY is_admin DESC, id ASC
+        """
     ).fetchall()
     all_docs = db.execute(
         """
@@ -41,18 +50,18 @@ def admin_create_user():
     username = (request.form.get("username") or "").strip()
     display = (request.form.get("display_name") or "").strip()
     password = (request.form.get("password") or "").strip()
-    role = (request.form.get("role") or "prof").strip()
+    role = (request.form.get("role") or "prof").strip().lower()
     school_name = (request.form.get("school_name") or "").strip()
     subject_name = (request.form.get("subject_name") or "").strip()
-    lock_subject = 1 if (request.form.get("lock_subject") or "1") == "1" else 0
 
     if not username or not display or not password or not school_name or not subject_name:
         flash("Champs manquants.", "warning")
         return redirect(url_for("admin.admin"))
 
+    if role not in ("admin", "prof", "read_only"):
+        role = "prof"
     is_admin = 1 if role == "admin" else 0
-    if is_admin:
-        lock_subject = 0
+    lock_subject = 0 if is_admin else 1
     db = get_db()
     existing = db.execute(
         "SELECT id FROM users WHERE username = ?",
@@ -63,8 +72,8 @@ def admin_create_user():
         return redirect(url_for("admin.admin"))
 
     cur = db.execute(
-        "INSERT INTO users (username, password, nom_affichage, is_admin, school_name, default_subject, lock_subject) VALUES (?, ?, ?, ?, ?, ?, ?)",
-        (username, generate_password_hash(password), display, is_admin, school_name, subject_name, lock_subject),
+        "INSERT INTO users (username, password, nom_affichage, is_admin, role, school_name, default_subject, lock_subject) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        (username, generate_password_hash(password), display, is_admin, role, school_name, subject_name, lock_subject),
     )
     db.commit()
     user_id = cur.lastrowid
@@ -90,20 +99,54 @@ def admin_toggle_role(user_id: int):
 
     db = get_db()
     user = db.execute(
-        "SELECT id, username, is_admin FROM users WHERE id = ?",
+        "SELECT id, username, is_admin, COALESCE(role, CASE WHEN COALESCE(is_admin, 0)=1 THEN 'admin' ELSE 'prof' END) AS role FROM users WHERE id = ?",
         (user_id,),
     ).fetchone()
     if not user:
         abort(404)
 
     new_role = 0 if int(user["is_admin"] or 0) == 1 else 1
+    role_value = "admin" if new_role == 1 else "prof"
     db.execute(
-        "UPDATE users SET is_admin = ? WHERE id = ?",
-        (new_role, user_id),
+        "UPDATE users SET is_admin = ?, role = ?, lock_subject = ? WHERE id = ?",
+        (new_role, role_value, 0 if role_value == "admin" else 1, user_id),
     )
     db.commit()
     role_label = "admin" if new_role == 1 else "prof"
     log_change("toggle_role", session["user_id"], details=f"{user['username']} -> {role_label}")
+    flash("Role mis a jour.", "success")
+    return redirect(url_for("admin.admin"))
+
+
+@bp.route("/admin/set_role/<int:user_id>", methods=["POST"])
+@login_required
+@admin_required
+def admin_set_role(user_id: int):
+    if session.get("user_id") == user_id:
+        flash("Action interdite sur votre compte.", "warning")
+        return redirect(url_for("admin.admin"))
+
+    role = (request.form.get("role") or "").strip().lower()
+    if role not in ("admin", "prof", "read_only"):
+        flash("Role invalide.", "warning")
+        return redirect(url_for("admin.admin"))
+
+    db = get_db()
+    user = db.execute(
+        "SELECT id, username FROM users WHERE id = ?",
+        (user_id,),
+    ).fetchone()
+    if not user:
+        abort(404)
+
+    is_admin = 1 if role == "admin" else 0
+    lock_subject = 0 if role == "admin" else 1
+    db.execute(
+        "UPDATE users SET role = ?, is_admin = ?, lock_subject = ? WHERE id = ?",
+        (role, is_admin, lock_subject, user_id),
+    )
+    db.commit()
+    log_change("set_role", session["user_id"], details=f"{user['username']} -> {role}")
     flash("Role mis a jour.", "success")
     return redirect(url_for("admin.admin"))
 
@@ -209,18 +252,59 @@ def admin_delete_user(user_id: int):
         "SELECT filename FROM documents WHERE user_id = ?",
         (user_id,),
     ).fetchall()
+    username = user["username"]
+
+    try:
+        db.execute("BEGIN")
+        db.execute("DELETE FROM notes WHERE user_id = ?", (user_id,))
+        db.execute("DELETE FROM change_log WHERE user_id = ?", (user_id,))
+        db.execute("DELETE FROM timetable WHERE user_id = ?", (user_id,))
+        db.execute("DELETE FROM documents WHERE user_id = ?", (user_id,))
+        db.execute("DELETE FROM appreciations WHERE user_id = ?", (user_id,))
+        db.execute("DELETE FROM subjects WHERE user_id = ?", (user_id,))
+        db.execute("DELETE FROM eleves WHERE user_id = ?", (user_id,))
+        db.execute("DELETE FROM password_reset_tokens WHERE user_id = ?", (user_id,))
+        db.execute("DELETE FROM login_attempts WHERE username = ?", ((username or "").lower(),))
+        db.execute("DELETE FROM users WHERE id = ?", (user_id,))
+        db.commit()
+    except Exception as exc:
+        db.rollback()
+        flash(f"Suppression impossible: {exc}", "danger")
+        return redirect(url_for("admin.admin"))
+
     for d in docs:
         try:
             os.remove(os.path.join(current_app.config["UPLOAD_FOLDER"], d["filename"]))
         except Exception:
             pass
 
-    db.execute("DELETE FROM documents WHERE user_id = ?", (user_id,))
-    db.execute("DELETE FROM eleves WHERE user_id = ?", (user_id,))
-    db.execute("DELETE FROM password_reset_tokens WHERE user_id = ?", (user_id,))
-    db.execute("DELETE FROM users WHERE id = ?", (user_id,))
-    db.commit()
+    log_change("delete_user", session["user_id"], details=username)
     flash(f"Utilisateur supprime: {user['username']}", "success")
+    return redirect(url_for("admin.admin"))
+
+
+@bp.route("/admin/delete_document/<int:doc_id>", methods=["POST"])
+@login_required
+@admin_required
+def admin_delete_document(doc_id: int):
+    db = get_db()
+    doc = db.execute(
+        "SELECT id, filename FROM documents WHERE id = ?",
+        (doc_id,),
+    ).fetchone()
+    if not doc:
+        abort(404)
+
+    db.execute("DELETE FROM documents WHERE id = ?", (doc_id,))
+    db.commit()
+
+    try:
+        os.remove(os.path.join(current_app.config["UPLOAD_FOLDER"], doc["filename"]))
+    except Exception:
+        pass
+
+    log_change("admin_delete_document", session["user_id"], details=str(doc_id))
+    flash("Document supprime.", "success")
     return redirect(url_for("admin.admin"))
 
 

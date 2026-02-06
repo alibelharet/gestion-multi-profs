@@ -7,7 +7,7 @@ import uuid
 from datetime import datetime
 from functools import wraps
 
-from flask import session, request, redirect, abort
+from flask import session, request, redirect, abort, flash, url_for
 from markupsafe import Markup
 
 from .config import LICENSE_FILE, CACHE_FILE, SECRET_LICENCE, DATABASE
@@ -110,6 +110,30 @@ def admin_required(f):
         if not session.get('is_admin'):
             abort(403)
         return f(*args, **kwargs)
+    return decorated_function
+
+
+def write_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if "user_id" not in session:
+            return redirect("/login")
+
+        if request.method in ("POST", "PUT", "PATCH", "DELETE"):
+            role = session.get("role")
+            if not role:
+                role = "admin" if session.get("is_admin") else "prof"
+            if role == "read_only":
+                flash("Compte en lecture seule: modification non autorisee.", "warning")
+                target = request.referrer
+                if target:
+                    return redirect(target)
+                try:
+                    return redirect(url_for("main.index"))
+                except Exception:
+                    return redirect("/")
+        return f(*args, **kwargs)
+
     return decorated_function
 
 

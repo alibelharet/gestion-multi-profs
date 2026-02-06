@@ -1,6 +1,7 @@
 ﻿{% extends 'base.html' %}
 
 {% block content %}
+{% set can_edit = session.get('can_edit', 1) %}
 <div class="app-card mb-4">
   <div class="card-header app-card-header d-flex justify-content-between align-items-center">
     <h6 class="mb-0 text-body">Emploi du temps</h6>
@@ -26,6 +27,9 @@
 
 <div class="app-card">
   <div class="card-body">
+    {% if not can_edit %}
+    <div class="alert alert-warning py-2">Mode lecture seule: modification de l'emploi du temps desactivee.</div>
+    {% endif %}
     {% if not niveau_actuel %}
     <div class="text-muted">Choisissez une classe pour afficher l'emploi du temps.</div>
     {% else %}
@@ -48,7 +52,7 @@
               <td class="fw-bold">{{ s.label }}</td>
               {% for d in days %}
               <td>
-                <input type="text" name="cell_{{ d.key }}_{{ s.key }}" value="{{ grid.get(d.key, {}).get(s.key, '') }}" class="form-control form-control-sm" placeholder="-">
+                <input type="text" name="cell_{{ d.key }}_{{ s.key }}" value="{{ grid.get(d.key, {}).get(s.key, '') }}" class="form-control form-control-sm" placeholder="-" {% if not can_edit %}readonly{% endif %}>
               </td>
               {% endfor %}
             </tr>
@@ -56,9 +60,11 @@
           </tbody>
         </table>
       </div>
+      {% if can_edit %}
       <div class="d-flex justify-content-end mt-3">
         <button type="submit" class="btn btn-primary">Sauver emploi du temps</button>
       </div>
+      {% endif %}
     </form>
     {% endif %}
   </div>
