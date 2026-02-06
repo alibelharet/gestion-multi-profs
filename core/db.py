@@ -146,6 +146,23 @@ def init_db():
         FOREIGN KEY(user_id) REFERENCES users(id)
     )''')
 
+    db.execute('''CREATE TABLE IF NOT EXISTS attendance (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        eleve_id INTEGER NOT NULL,
+        trimestre INTEGER NOT NULL,
+        event_date TEXT NOT NULL,
+        event_type TEXT NOT NULL,
+        justified INTEGER DEFAULT 0,
+        details TEXT DEFAULT '',
+        created_at INTEGER NOT NULL,
+        FOREIGN KEY(user_id) REFERENCES users(id),
+        FOREIGN KEY(eleve_id) REFERENCES eleves(id)
+    )''')
+
+    db.execute('CREATE INDEX IF NOT EXISTS idx_attendance_user_trim_type ON attendance(user_id, trimestre, event_type)')
+    db.execute('CREATE INDEX IF NOT EXISTS idx_attendance_user_eleve_trim ON attendance(user_id, eleve_id, trimestre)')
+
     # Add new columns safely (ignore if already exists).
     try:
         db.execute('ALTER TABLE eleves ADD COLUMN parent_phone TEXT')

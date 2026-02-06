@@ -4,5 +4,8 @@ __pycache__/
 build/
 dist/
 static/uploads/
+ecole_multi.db
+license.key
+.sys_check
 
 backups/

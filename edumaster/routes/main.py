@@ -2,6 +2,7 @@ import csv
 import json
 import os
 import re
+import time
 import unicodedata
 from datetime import datetime
 from io import BytesIO, TextIOWrapper
@@ -246,6 +247,110 @@ def _note_expr(trim):
     remarques = f"COALESCE(n.remarques, e.remarques_t{trim})"
     moy_expr = f"(({devoir} + {activite})/2.0 + ({compo}*2.0))/3.0"
     return devoir, activite, compo, remarques, moy_expr
+
+
+def _parse_trim(raw, default="1"):
+    trim = str(raw or default).strip()
+    if trim not in ("1", "2", "3"):
+        return default
+    return trim
+
+
+def _build_bulletin_multisubject(db, user_id: int, eleve_id: int, trim: str):
+    eleve = db.execute(
+        "SELECT * FROM eleves WHERE id = ? AND user_id = ?",
+        (eleve_id, user_id),
+    ).fetchone()
+    if not eleve:
+        return None
+
+    subjects = db.execute(
+        "SELECT id, name FROM subjects WHERE user_id = ? ORDER BY name COLLATE NOCASE",
+        (user_id,),
+    ).fetchall()
+    if not subjects:
+        db.execute(
+            "INSERT INTO subjects (user_id, name) VALUES (?, ?)",
+            (user_id, "Sciences"),
+        )
+        db.commit()
+
+    rows = db.execute(
+        """
+        SELECT
+            s.id AS subject_id,
+            s.name AS subject_name,
+            COALESCE(n.activite, 0) AS activite,
+            COALESCE(n.devoir, 0) AS devoir,
+            COALESCE(n.compo, 0) AS compo,
+            COALESCE(n.remarques, '') AS remarques,
+            ROUND(((COALESCE(n.devoir, 0) + COALESCE(n.activite, 0))/2.0 + (COALESCE(n.compo, 0) * 2.0))/3.0, 2) AS moyenne
+        FROM subjects s
+        LEFT JOIN notes n
+            ON n.user_id = s.user_id
+           AND n.eleve_id = ?
+           AND n.subject_id = s.id
+           AND n.trimestre = ?
+        WHERE s.user_id = ?
+        ORDER BY s.name COLLATE NOCASE
+        """,
+        (eleve_id, int(trim), user_id),
+    ).fetchall()
+
+    subject_lines = []
+    for r in rows:
+        subject_lines.append(
+            {
+                "subject_id": int(r["subject_id"]),
+                "subject_name": r["subject_name"],
+                "activite": float(r["activite"] or 0),
+                "devoir": float(r["devoir"] or 0),
+                "compo": float(r["compo"] or 0),
+                "remarques": r["remarques"] or "",
+                "moyenne": float(r["moyenne"] or 0),
+            }
+        )
+
+    moyenne_generale = 0.0
+    if subject_lines:
+        moyenne_generale = round(
+            sum(line["moyenne"] for line in subject_lines) / len(subject_lines),
+            2,
+        )
+
+    class_rows = db.execute(
+        """
+        SELECT
+            e.id,
+            AVG(((COALESCE(n.devoir, 0) + COALESCE(n.activite, 0))/2.0 + (COALESCE(n.compo, 0) * 2.0))/3.0) AS moyenne_generale
+        FROM eleves e
+        JOIN subjects s ON s.user_id = e.user_id
+        LEFT JOIN notes n
+            ON n.user_id = e.user_id
+           AND n.eleve_id = e.id
+           AND n.subject_id = s.id
+           AND n.trimestre = ?
+        WHERE e.user_id = ? AND e.niveau = ?
+        GROUP BY e.id
+        ORDER BY moyenne_generale DESC, e.nom_complet COLLATE NOCASE ASC
+        """,
+        (int(trim), user_id, eleve["niveau"]),
+    ).fetchall()
+
+    scores = [(int(r["id"]), float(r["moyenne_generale"] or 0)) for r in class_rows]
+    rank = next((i + 1 for i, item in enumerate(scores) if item[0] == eleve_id), 1)
+    moyenne_classe = round(
+        sum(item[1] for item in scores) / len(scores), 2
+    ) if scores else 0.0
+
+    return {
+        "eleve": eleve,
+        "subject_lines": subject_lines,
+        "moyenne_generale": moyenne_generale,
+        "moyenne_classe": moyenne_classe,
+        "rank": rank,
+        "total_eleves": len(scores),
+    }
 
 
 @bp.route("/sauvegarder_tout", methods=["POST"])
@@ -857,63 +962,23 @@ def index():
 @login_required
 def bulletin(id: int):
     user_id = session["user_id"]
-    trim = request.args.get("trimestre", "1")
-    if trim not in ("1", "2", "3"):
-        trim = "1"
+    trim = _parse_trim(request.args.get("trimestre", "1"))
 
     db = get_db()
-    subjects = _get_subjects(db, user_id)
-    subject_id = _select_subject_id(subjects, request.args.get("subject"))
-    subject_name = next(s["name"] for s in subjects if int(s["id"]) == subject_id)
-
-    devoir_expr, activite_expr, compo_expr, remarques_expr, moy_expr = _note_expr(trim)
-
-    eleve = db.execute(
-        f"""
-        SELECT
-          e.*,
-          {devoir_expr} AS devoir,
-          {activite_expr} AS activite,
-          {compo_expr} AS compo,
-          {remarques_expr} AS remarques,
-          ROUND({moy_expr}, 2) AS moyenne
-        FROM eleves e
-        LEFT JOIN notes n ON n.user_id = e.user_id AND n.eleve_id = e.id AND n.subject_id = ? AND n.trimestre = ?
-        WHERE e.id = ? AND e.user_id = ?
-        """,
-        (subject_id, int(trim), id, user_id),
-    ).fetchone()
-    if not eleve:
+    data = _build_bulletin_multisubject(db, user_id, id, trim)
+    if not data:
         return "Eleve introuvable"
-
-    camarades = db.execute(
-        f"""
-        SELECT e.id, ROUND({moy_expr}, 2) AS moyenne
-        FROM eleves e
-        LEFT JOIN notes n ON n.user_id = e.user_id AND n.eleve_id = e.id AND n.subject_id = ? AND n.trimestre = ?
-        WHERE e.user_id = ? AND e.niveau = ?
-        """,
-        (subject_id, int(trim), user_id, eleve["niveau"]),
-    ).fetchall()
-
-    scores = [(c["id"], float(c["moyenne"] or 0)) for c in camarades]
-    scores.sort(key=lambda x: x[1], reverse=True)
-
-    rank = next((i + 1 for i, s in enumerate(scores) if s[0] == id), 1)
-    moy_eleve = float(eleve["moyenne"] or 0)
-    moy_classe = sum(s[1] for s in scores) / len(scores) if scores else 0
 
     return render_template(
         "bulletin.html",
-        eleve=eleve,
-        rank=rank,
-        total_eleves=len(scores),
-        moyenne=round(moy_eleve, 2),
-        moyenne_classe=round(moy_classe, 2),
+        eleve=data["eleve"],
+        subject_lines=data["subject_lines"],
+        rank=data["rank"],
+        total_eleves=data["total_eleves"],
+        moyenne_generale=data["moyenne_generale"],
+        moyenne_classe=data["moyenne_classe"],
         trimestre=trim,
         nom_prof=session.get("nom_affichage"),
-        subject_name=subject_name,
-        subject_id=subject_id,
     )
 
 
@@ -921,9 +986,7 @@ def bulletin(id: int):
 @login_required
 def bulletin_pdf(id: int):
     user_id = session["user_id"]
-    trim = request.args.get("trimestre", "1")
-    if trim not in ("1", "2", "3"):
-        trim = "1"
+    trim = _parse_trim(request.args.get("trimestre", "1"))
 
     try:
         from reportlab.lib import colors
@@ -936,52 +999,15 @@ def bulletin_pdf(id: int):
         return redirect(url_for("main.bulletin", id=id, trimestre=trim))
 
     db = get_db()
-    subjects = _get_subjects(db, user_id)
-    subject_id = _select_subject_id(subjects, request.args.get("subject"))
-    subject_name = next(s["name"] for s in subjects if int(s["id"]) == subject_id)
-
-    devoir_expr, activite_expr, compo_expr, remarques_expr, moy_expr = _note_expr(trim)
-
-    eleve = db.execute(
-        f"""
-        SELECT
-          e.*,
-          {devoir_expr} AS devoir,
-          {activite_expr} AS activite,
-          {compo_expr} AS compo,
-          {remarques_expr} AS remarques,
-          ROUND({moy_expr}, 2) AS moyenne
-        FROM eleves e
-        LEFT JOIN notes n ON n.user_id = e.user_id AND n.eleve_id = e.id AND n.subject_id = ? AND n.trimestre = ?
-        WHERE e.id = ? AND e.user_id = ?
-        """,
-        (subject_id, int(trim), id, user_id),
-    ).fetchone()
-    if not eleve:
+    data = _build_bulletin_multisubject(db, user_id, id, trim)
+    if not data:
         return "Eleve introuvable"
-
-    camarades = db.execute(
-        f"""
-        SELECT e.id, ROUND({moy_expr}, 2) AS moyenne
-        FROM eleves e
-        LEFT JOIN notes n ON n.user_id = e.user_id AND n.eleve_id = e.id AND n.subject_id = ? AND n.trimestre = ?
-        WHERE e.user_id = ? AND e.niveau = ?
-        """,
-        (subject_id, int(trim), user_id, eleve["niveau"]),
-    ).fetchall()
-
-    scores = [(c["id"], float(c["moyenne"] or 0)) for c in camarades]
-    scores.sort(key=lambda x: x[1], reverse=True)
-
-    rank = next((i + 1 for i, s in enumerate(scores) if s[0] == id), 1)
-    moy_eleve = float(eleve["moyenne"] or 0)
-    moy_classe = sum(s[1] for s in scores) / len(scores) if scores else 0
-
-    activite = eleve["activite"]
-    devoir = eleve["devoir"]
-    compo = eleve["compo"]
-    moyenne = round(moy_eleve, 2)
-    remarques = eleve["remarques"] or ""
+    eleve = data["eleve"]
+    subject_lines = data["subject_lines"]
+    moyenne_generale = data["moyenne_generale"]
+    moyenne_classe = data["moyenne_classe"]
+    rank = data["rank"]
+    total_eleves = data["total_eleves"]
 
     buffer = BytesIO()
     doc = SimpleDocTemplate(
@@ -1027,7 +1053,7 @@ def bulletin_pdf(id: int):
         ["Eleve", eleve["nom_complet"]],
         ["Classe", eleve["niveau"]],
         ["Trimestre", trim],
-        ["Matiere", subject_name],
+        ["Nombre matieres", len(subject_lines)],
         ["Prof", session.get("nom_affichage", "")],
     ]
     info_table = Table(info_data, colWidths=[28 * mm, 120 * mm])
@@ -1046,8 +1072,19 @@ def bulletin_pdf(id: int):
 
     table_data = [
         ["Matiere", "Activite", "Devoir", "Compo", "Moyenne", "Remarques"],
-        [subject_name, activite, devoir, compo, moyenne, remarques],
     ]
+    for line in subject_lines:
+        table_data.append(
+            [
+                line["subject_name"],
+                line["activite"],
+                line["devoir"],
+                line["compo"],
+                line["moyenne"],
+                line["remarques"],
+            ]
+        )
+
     table = Table(
         table_data,
         colWidths=[35 * mm, 22 * mm, 22 * mm, 22 * mm, 22 * mm, 51 * mm],
@@ -1068,17 +1105,17 @@ def bulletin_pdf(id: int):
     story.append(Spacer(1, 14))
 
     summary_data = [
-        ["Moyenne classe", round(moy_classe, 2)],
-        ["Rang", f"{rank} / {len(scores)}"],
-        ["Moyenne eleve", moyenne],
+        ["Moyenne classe", moyenne_classe],
+        ["Rang", f"{rank} / {total_eleves}"],
+        ["Moyenne generale", moyenne_generale],
     ]
     summary = Table(summary_data, colWidths=[60 * mm, 40 * mm])
     summary.setStyle(
         TableStyle(
             [
                 ("GRID", (0, 0), (-1, -1), 0.5, colors.black),
-                ("BACKGROUND", (0, 0), (-1, 0), colors.whitesmoke),
-                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("BACKGROUND", (0, 0), (0, -1), colors.whitesmoke),
+                ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
                 ("ALIGN", (1, 0), (1, -1), "CENTER"),
             ]
         )
@@ -1689,6 +1726,200 @@ def delete_subject(subject_id: int):
     log_change("delete_subject", user_id, details=str(subject_id), subject_id=subject_id)
     flash("Matiere supprimee", "success")
     return redirect(url_for("main.subjects"))
+
+
+@bp.route("/attendance", methods=["GET", "POST"])
+@login_required
+def attendance():
+    user_id = session["user_id"]
+    db = get_db()
+
+    trim = _parse_trim(request.values.get("trimestre", "1"))
+    niveau = (request.values.get("niveau") or "").strip()
+    search = (request.values.get("recherche") or "").strip()
+
+    if request.method == "POST":
+        try:
+            eleve_id = int(request.form.get("eleve_id") or 0)
+        except Exception:
+            eleve_id = 0
+
+        event_type = (request.form.get("event_type") or "").strip().lower()
+        event_date_raw = (request.form.get("event_date") or "").strip()
+        parsed_date = _parse_date(event_date_raw)
+        event_date = parsed_date.strftime("%Y-%m-%d") if parsed_date else datetime.now().strftime("%Y-%m-%d")
+        justified = 1 if (request.form.get("justified") or "0") == "1" else 0
+        details = (request.form.get("details") or "").strip()[:300]
+
+        if eleve_id <= 0:
+            flash("Eleve invalide.", "danger")
+        elif event_type not in ("absence", "retard"):
+            flash("Type d'evenement invalide.", "danger")
+        else:
+            eleve = db.execute(
+                "SELECT id, nom_complet FROM eleves WHERE id = ? AND user_id = ?",
+                (eleve_id, user_id),
+            ).fetchone()
+            if not eleve:
+                flash("Eleve introuvable.", "danger")
+            else:
+                db.execute(
+                    """
+                    INSERT INTO attendance (user_id, eleve_id, trimestre, event_date, event_type, justified, details, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        user_id,
+                        eleve_id,
+                        int(trim),
+                        event_date,
+                        event_type,
+                        justified,
+                        details,
+                        int(time.time()),
+                    ),
+                )
+                db.commit()
+                log_change(
+                    "add_attendance",
+                    user_id,
+                    details=f"{event_type} T{trim}",
+                    eleve_id=eleve_id,
+                )
+                flash("Evenement enregistre.", "success")
+
+        return redirect(
+            url_for(
+                "main.attendance",
+                trimestre=trim,
+                niveau=niveau,
+                recherche=search,
+            )
+        )
+
+    classes = [
+        r["niveau"]
+        for r in db.execute(
+            "SELECT DISTINCT niveau FROM eleves WHERE user_id = ? ORDER BY niveau",
+            (user_id,),
+        ).fetchall()
+    ]
+
+    where = "e.user_id = ?"
+    params = [user_id]
+    if niveau and niveau != "all":
+        where += " AND e.niveau = ?"
+        params.append(niveau)
+    if search:
+        where += " AND e.nom_complet LIKE ?"
+        params.append(f"%{search}%")
+
+    students = db.execute(
+        f"""
+        SELECT
+            e.id,
+            e.nom_complet,
+            e.niveau,
+            SUM(CASE WHEN a.event_type = 'absence' THEN 1 ELSE 0 END) AS absences,
+            SUM(CASE WHEN a.event_type = 'retard' THEN 1 ELSE 0 END) AS retards,
+            SUM(CASE WHEN a.justified = 1 THEN 1 ELSE 0 END) AS justifies
+        FROM eleves e
+        LEFT JOIN attendance a
+            ON a.user_id = e.user_id
+           AND a.eleve_id = e.id
+           AND a.trimestre = ?
+        WHERE {where}
+        GROUP BY e.id, e.nom_complet, e.niveau
+        ORDER BY e.niveau, e.nom_complet COLLATE NOCASE
+        """,
+        [int(trim)] + params,
+    ).fetchall()
+
+    recent_where = "a.user_id = ? AND a.trimestre = ?"
+    recent_params = [user_id, int(trim)]
+    if niveau and niveau != "all":
+        recent_where += " AND e.niveau = ?"
+        recent_params.append(niveau)
+    if search:
+        recent_where += " AND e.nom_complet LIKE ?"
+        recent_params.append(f"%{search}%")
+
+    recent_events = db.execute(
+        f"""
+        SELECT
+            a.id,
+            a.event_date,
+            a.event_type,
+            a.justified,
+            a.details,
+            e.id AS eleve_id,
+            e.nom_complet,
+            e.niveau
+        FROM attendance a
+        JOIN eleves e ON e.id = a.eleve_id AND e.user_id = a.user_id
+        WHERE {recent_where}
+        ORDER BY a.event_date DESC, a.id DESC
+        LIMIT 120
+        """,
+        recent_params,
+    ).fetchall()
+
+    total_absences = sum(int(r["absences"] or 0) for r in students)
+    total_retards = sum(int(r["retards"] or 0) for r in students)
+    total_events = total_absences + total_retards
+
+    return render_template(
+        "attendance.html",
+        students=students,
+        recent_events=recent_events,
+        liste_classes=classes,
+        niveau_actuel=niveau,
+        recherche_actuelle=search,
+        trimestre=trim,
+        total_absences=total_absences,
+        total_retards=total_retards,
+        total_events=total_events,
+        today=datetime.now().strftime("%Y-%m-%d"),
+    )
+
+
+@bp.route("/attendance/delete/<int:event_id>", methods=["POST"])
+@login_required
+def attendance_delete(event_id: int):
+    user_id = session["user_id"]
+    trim = _parse_trim(request.form.get("trimestre", "1"))
+    niveau = (request.form.get("niveau") or "").strip()
+    search = (request.form.get("recherche") or "").strip()
+
+    db = get_db()
+    row = db.execute(
+        "SELECT eleve_id FROM attendance WHERE id = ? AND user_id = ?",
+        (event_id, user_id),
+    ).fetchone()
+    if row:
+        db.execute(
+            "DELETE FROM attendance WHERE id = ? AND user_id = ?",
+            (event_id, user_id),
+        )
+        db.commit()
+        log_change(
+            "delete_attendance",
+            user_id,
+            details=f"id={event_id}",
+            eleve_id=row["eleve_id"],
+        )
+        flash("Evenement supprime.", "success")
+    else:
+        flash("Evenement introuvable.", "warning")
+
+    return redirect(
+        url_for(
+            "main.attendance",
+            trimestre=trim,
+            niveau=niveau,
+            recherche=search,
+        )
+    )
 
 
 @bp.route("/history")

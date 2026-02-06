@@ -1,132 +1,107 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>كشف النقاط - {{ eleve.nom_complet }}</title>
+    <title>Bulletin - {{ eleve.nom_complet }}</title>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
-    
     <style>
-        /* CONFIGURATION PAGE ET IMPRESSION */
-        body { font-family: 'Tajawal', sans-serif; background: #555; margin: 0; padding: 40px; display: flex; justify-content: center; }
-        .page { background: white; width: 210mm; min-height: 297mm; padding: 15mm; box-shadow: 0 0 20px rgba(0,0,0,0.5); box-sizing: border-box; position: relative; }
-
+        body { font-family: 'Tajawal', sans-serif; background: #4f4f4f; margin: 0; padding: 20px; }
+        .sheet { background: #fff; max-width: 1000px; margin: 0 auto; padding: 24px; box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35); }
+        .toolbar { max-width: 1000px; margin: 0 auto 16px auto; display: flex; gap: 10px; }
+        .btn { border: none; padding: 10px 14px; border-radius: 6px; font-weight: 700; cursor: pointer; text-decoration: none; color: #fff; display: inline-block; }
+        .btn-print { background: #198754; }
+        .btn-pdf { background: #0d6efd; }
+        .head { border-bottom: 2px solid #111; padding-bottom: 12px; margin-bottom: 16px; }
+        .head h1 { margin: 0 0 6px 0; font-size: 26px; }
+        .muted { color: #555; }
+        .info { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
+        .info td { border: 1px solid #111; padding: 8px; }
+        .info .label { background: #f3f3f3; font-weight: 700; width: 18%; }
+        .marks { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
+        .marks th, .marks td { border: 1px solid #111; padding: 8px; text-align: center; }
+        .marks th { background: #ececec; }
+        .marks td.subject { text-align: left; font-weight: 700; }
+        .summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 14px; }
+        .summary-box { border: 2px solid #111; padding: 10px; text-align: center; border-radius: 8px; }
+        .summary-box .title { font-size: 13px; color: #555; }
+        .summary-box .value { font-size: 24px; font-weight: 800; }
+        .summary-box.primary { border-color: #d63384; background: #fff0f7; }
         @media print {
-            @page { size: A4; margin: 0; }
-            body { background: white; padding: 0; margin: 0; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-            .page { width: 100%; height: auto; box-shadow: none; padding: 15mm; margin: 0; border: none; }
-            .no-print { display: none !important; }
+            @page { size: A4; margin: 10mm; }
+            body { background: #fff; padding: 0; }
+            .toolbar { display: none; }
+            .sheet { box-shadow: none; margin: 0; max-width: none; padding: 0; }
         }
-
-        /* DESIGN */
-        .header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 30px; }
-        .header h3 { margin: 2px; font-weight: normal; font-size: 16px; }
-        .header h1 { margin: 15px 0; font-size: 28px; font-weight: 800; text-decoration: underline; }
-
-        /* TABLEAU INFOS (Nom/Prénom sur la même ligne) */
-        .info-table { width: 100%; border-collapse: collapse; margin-bottom: 25px; }
-        .info-table td { border: 1px solid #000; padding: 10px 15px; font-size: 18px; vertical-align: middle; }
-        .label { background-color: #f0f0f0; font-weight: bold; width: 15%; white-space: nowrap; }
-
-        /* TABLEAU NOTES */
-        .marks-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        .marks-table th { background-color: #e0e0e0 !important; border: 1px solid #000; padding: 12px; font-weight: 800; font-size: 16px; }
-        .marks-table td { border: 1px solid #000; padding: 12px; text-align: center; font-size: 16px; }
-
-        /* STATS & FOOTER */
-        .summary-container { display: flex; justify-content: space-between; margin-top: 30px; gap: 20px; }
-        .summary-box { border: 2px solid #000; flex: 1; padding: 15px; text-align: center; border-radius: 8px; }
-        .summary-title { font-size: 14px; color: #333; margin-bottom: 5px; }
-        .summary-value { font-size: 22px; font-weight: 800; }
-        
-        .footer { margin-top: 80px; display: flex; justify-content: space-between; padding: 0 40px; }
-        
-        /* BOUTON IMPRIMER */
-        .no-print { position: fixed; top: 20px; left: 20px; z-index: 1000; }
-        .btn-print { background-color: #28a745; color: white; font-family: 'Tajawal', sans-serif; font-size: 18px; font-weight: bold; padding: 12px 25px; border: none; border-radius: 50px; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.3); transition: 0.3s; }
-        .btn-print:hover { transform: scale(1.05); background-color: #218838; }
-        .btn-pdf { display: inline-block; margin-top: 10px; background-color: #0d6efd; text-decoration: none; }
-        .btn-pdf:hover { background-color: #0b5ed7; }
     </style>
 </head>
 <body>
-
-    <div class="no-print">
-        <button onclick="window.print()" class="btn-print">🖨️ طباعة (Imprimer)</button>
+    <div class="toolbar">
+        <button class="btn btn-print" onclick="window.print()">Imprimer</button>
+        <a class="btn btn-pdf" href="/bulletin_pdf/{{ eleve.id }}?trimestre={{ trimestre }}">Exporter PDF</a>
     </div>
 
-    <div class="page">
-        
-        <div class="header">
-            <h3>الجمهورية الجزائرية الديمقراطية الشعبية</h3>
-            <h3>وزارة التربية الوطنية</h3>
-            <h1>كشــــف النـقــــاط</h1>
-            <p><strong>السنة الدراسية:</strong> 2025 / 2026 &nbsp;&nbsp;|&nbsp;&nbsp; <strong>الثلاثي:</strong> {{ trimestre }}</p>
+    <div class="sheet">
+        <div class="head">
+            <h1>Bulletin de notes</h1>
+            <div class="muted">Trimestre {{ trimestre }}</div>
         </div>
 
-        <table class="info-table">
+        <table class="info">
             <tr>
-                <td class="label">اللقب و الاسم</td>
+                <td class="label">Eleve</td>
                 <td><strong>{{ eleve.nom_complet }}</strong></td>
-                <td class="label">القسم</td>
+                <td class="label">Classe</td>
                 <td><strong>{{ eleve.niveau }}</strong></td>
+            </tr>
+            <tr>
+                <td class="label">Professeur</td>
+                <td>{{ nom_prof }}</td>
+                <td class="label">Matieres</td>
+                <td>{{ subject_lines|length }}</td>
             </tr>
         </table>
 
-        <table class="marks-table">
+        <table class="marks">
             <thead>
                 <tr>
-                    <th rowspan="2" width="25%">المادة</th>
-                    <th colspan="3">عناصر التقييم</th>
-                    <th rowspan="2" width="15%">المعدل / 20</th>
-                    <th rowspan="2" width="30%">الملاحظات</th>
-                </tr>
-                <tr>
-                    <th>نشاطات</th>
-                    <th>فرض</th>
-                    <th>إختبار</th>
+                    <th style="width: 24%;">Matiere</th>
+                    <th style="width: 12%;">Activite</th>
+                    <th style="width: 12%;">Devoir</th>
+                    <th style="width: 12%;">Compo</th>
+                    <th style="width: 12%;">Moyenne</th>
+                    <th style="width: 28%;">Remarques</th>
                 </tr>
             </thead>
             <tbody>
+                {% for line in subject_lines %}
                 <tr>
-                    <td style="font-weight: bold; text-align: right; padding-right: 15px;">العلوم الفيزيائية</td>
-                    <td>{{ eleve.activite }}</td>
-                    <td>{{ eleve.devoir }}</td>
-                    <td>{{ eleve.compo }}</td>
-                    <td style="background-color: #f9f9f9; font-weight: 800; font-size: 18px;">{{ moyenne }}</td>
-                    <td style="font-size: 14px;">{{ eleve.remarques }}</td>
+                    <td class="subject">{{ line.subject_name }}</td>
+                    <td>{{ line.activite }}</td>
+                    <td>{{ line.devoir }}</td>
+                    <td>{{ line.compo }}</td>
+                    <td><strong>{{ line.moyenne }}</strong></td>
+                    <td>{{ line.remarques }}</td>
                 </tr>
+                {% else %}
+                <tr><td colspan="6">Aucune matiere disponible.</td></tr>
+                {% endfor %}
             </tbody>
         </table>
 
-        <div class="summary-container">
+        <div class="summary">
             <div class="summary-box">
-                <div class="summary-title">معدل القسم (Moy. Classe)</div>
-                <div class="summary-value">{{ moyenne_classe }}</div>
+                <div class="title">Moyenne classe</div>
+                <div class="value">{{ moyenne_classe }}</div>
             </div>
             <div class="summary-box">
-                <div class="summary-title">الرتبة (Classement)</div>
-                <div class="summary-value">{{ rank }} <span style="font-size: 16px; font-weight: normal; color: #555;">/ {{ total_eleves }}</span></div>
+                <div class="title">Rang</div>
+                <div class="value">{{ rank }} <span style="font-size: 14px;">/ {{ total_eleves }}</span></div>
             </div>
-            <div class="summary-box" style="border-color: #d63384; background-color: #fff0f6;">
-                <div class="summary-title">المعدل الفصلي (Moyenne)</div>
-                <div class="summary-value" style="color: #d63384;">{{ moyenne }}</div>
+            <div class="summary-box primary">
+                <div class="title">Moyenne generale</div>
+                <div class="value">{{ moyenne_generale }}</div>
             </div>
         </div>
-
-        <div class="footer">
-            <div style="text-align: center; width: 200px;">
-                <p><strong>توقيع الأستاذ(ة):</strong></p>
-                <br>
-                <p style="font-family: 'Courier New', monospace; font-size: 18px;">{{ nom_prof }}</p>
-            </div>
-            <div style="text-align: center; width: 200px;">
-                <p><strong>توقيع المدير(ة):</strong></p>
-                <br><br>
-                <p>_________________</p>
-            </div>
-        </div>
-
     </div>
-
 </body>
 </html>
