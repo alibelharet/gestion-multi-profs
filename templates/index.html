@@ -267,7 +267,7 @@
                     <select name="etat" class="form-select form-select-sm" onchange="this.form.submit()">
                         <option value="all" {% if etat=='all' %}selected{% endif %}>Tous</option>
                         <option value="admis" {% if etat=='admis' %}selected{% endif %}>Admis (>=10)</option>
-                        <option value="echec" {% if etat=='echec' %}selected{% endif %}>Echec (<10)< /option>
+                        <option value="echec" {% if etat=='echec' %}selected{% endif %}>Echec (&lt;10)</option>
                         <option value="non_saisi" {% if etat=='non_saisi' %}selected{% endif %}>Non saisi</option>
                     </select>
                 </div>
@@ -483,6 +483,7 @@
                 <div class="modal-body text-center p-4">
                     <p class="text-muted mb-3">Importer le fichier Excel vide.</p>
                     <input type="hidden" name="trimestre_fill" value="{{ trimestre }}">
+                    <input type="hidden" name="subject" value="{{ subject_id }}">
                     <input type="file" class="form-control " name="fichier_vide" accept=".xlsx" required>
                 </div>
                 <div class="modal-footer border-secondary justify-content-center"><button type="submit"

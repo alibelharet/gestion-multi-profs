@@ -91,7 +91,7 @@
             {% if user.role != 'admin' %}
             <form action="/admin/reset_password/{{ user.id }}" method="POST" style="display:inline;">
               {{ csrf_field() }}
-              <button type="submit" class="btn btn-warning btn-sm" onclick="return confirm('Reinitialiser le mot de passe a 123456 ?')">Reset mdp</button>
+              <button type="submit" class="btn btn-warning btn-sm" onclick="return confirm('Generer un mot de passe temporaire ?')">Reset mdp</button>
             </form>
             {% endif %}
 

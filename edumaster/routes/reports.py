@@ -357,7 +357,9 @@ def export_list_pdf():
         prof_style = styles["Normal"].clone("ArabicProf")
         prof_style.fontName = font_name
         prof_style.alignment = 1
-        story.append(Paragraph(arabize(f"Ø§Ù„Ø£Ø³ØªØ§Ø°: {prof_name}"), prof_style))
+        story.append(
+            Paragraph(arabize(f"\u0627\u0644\u0623\u0633\u062a\u0627\u0630: {prof_name}"), prof_style)
+        )
         story.append(Spacer(1, 6))
 
     table_data = [[

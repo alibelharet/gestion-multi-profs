@@ -313,15 +313,6 @@ def import_excel_apply():
     )
     return redirect(url_for("dashboard.index", trimestre=trim, subject=subject_id))
 
-
-@bp.route("/import_excel_cancel/<token>")
-@login_required
-def import_excel_cancel(token: str):
-    meta = get_preview_meta((token or "").strip())
-    if meta:
-        clear_preview_meta(meta)
-    return redirect(url_for("dashboard.index"))
-
 @bp.route("/remplir_bulletin_officiel", methods=["POST"])
 @login_required
 @write_required
@@ -333,6 +324,9 @@ def remplir_bulletin_officiel():
         try:
             wb = openpyxl.load_workbook(file)
             db = get_db()
+            subjects = get_subjects(db, user_id)
+            subject_id = select_subject_id(subjects, request.form.get("subject"))
+
             for sheet in wb.worksheets:
                 header_row = None
                 col_map = {}
@@ -340,23 +334,44 @@ def remplir_bulletin_officiel():
                     sheet.iter_rows(min_row=1, max_row=20, values_only=True)
                 ):
                     row_str = [str(c).lower() for c in row if c]
-                    if any(x in row_str for x in ["nom", "Ø§Ù„Ù„Ù‚Ø¨"]):
+                    if any(
+                        x in row_str
+                        for x in ["nom", "\u0627\u0644\u0644\u0642\u0628"]
+                    ):
                         header_row = i + 1
                         for cell in sheet[header_row]:
                             if not cell.value:
                                 continue
                             v = str(cell.value).strip().lower()
-                            if v in ["nom", "Ø§Ù„Ù„Ù‚Ø¨"]:
+                            if v in ["nom", "\u0627\u0644\u0644\u0642\u0628"]:
                                 col_map["nom"] = cell.column
-                            elif v in ["prenom", "Ø§Ù„Ø§Ø³Ù…"]:
+                            elif v in ["prenom", "\u0627\u0644\u0627\u0633\u0645"]:
                                 col_map["prenom"] = cell.column
-                            elif v in ["01", "act", "Ø§Ù„Ù†Ø´Ø§Ø·Ø§Øª"]:
+                            elif v in [
+                                "01",
+                                "1",
+                                "act",
+                                "\u0627\u0644\u0646\u0634\u0627\u0637",
+                                "\u0627\u0644\u0646\u0634\u0627\u0637\u0627\u062a",
+                            ]:
                                 col_map["act"] = cell.column
-                            elif v in ["04", "dev", "Ø§Ù„Ù Ø±Ø¶"]:
+                            elif v in [
+                                "04",
+                                "4",
+                                "dev",
+                                "\u0627\u0644\u0641\u0631\u0636",
+                                "\u0627\u0644\u0648\u0627\u062c\u0628",
+                            ]:
                                 col_map["dev"] = cell.column
-                            elif v in ["09", "compo", "Ø§Ù„Ø§Ø®ØªØ¨Ø§Ø±"]:
+                            elif v in ["09", "9", "compo", "\u0627\u0644\u0627\u062e\u062a\u0628\u0627\u0631"]:
                                 col_map["compo"] = cell.column
-                            elif v in ["obs", "rem", "Ø§Ù„ØªÙ‚Ø¯ÙŠØ±Ø§Øª"]:
+                            elif v in [
+                                "obs",
+                                "rem",
+                                "remarques",
+                                "\u0627\u0644\u062a\u0642\u062f\u064a\u0631\u0627\u062a",
+                                "\u0645\u0644\u0627\u062d\u0638\u0627\u062a",
+                            ]:
                                 col_map["rem"] = cell.column
                         break
 
@@ -372,26 +387,53 @@ def remplir_bulletin_officiel():
                         )
                         full = f"{nom} {prenom}".strip()
                         el = db.execute(
-                            "SELECT * FROM eleves WHERE nom_complet = ? AND user_id = ?",
-                            (full, user_id),
+                            f"""
+                            SELECT
+                                e.*,
+                                n.activite AS n_activite,
+                                n.devoir AS n_devoir,
+                                n.compo AS n_compo,
+                                n.remarques AS n_remarques
+                            FROM eleves e
+                            LEFT JOIN notes n
+                              ON n.user_id = e.user_id
+                             AND n.eleve_id = e.id
+                             AND n.subject_id = ?
+                             AND n.trimestre = ?
+                            WHERE e.nom_complet = ? AND e.user_id = ?
+                            """,
+                            (subject_id, int(trim), full, user_id),
                         ).fetchone()
                         if el:
+                            activite_val = (
+                                el["n_activite"]
+                                if el["n_activite"] is not None
+                                else el[f"activite_t{trim}"]
+                            )
+                            devoir_val = (
+                                el["n_devoir"]
+                                if el["n_devoir"] is not None
+                                else el[f"devoir_t{trim}"]
+                            )
+                            compo_val = (
+                                el["n_compo"]
+                                if el["n_compo"] is not None
+                                else el[f"compo_t{trim}"]
+                            )
+                            rem_val = (
+                                el["n_remarques"]
+                                if el["n_remarques"] not in (None, "")
+                                else el[f"remarques_t{trim}"]
+                            )
                             if "act" in col_map:
-                                sheet.cell(row=r, column=col_map["act"]).value = el[
-                                    f"activite_t{trim}"
-                                ]
+                                sheet.cell(row=r, column=col_map["act"]).value = activite_val
                             if "dev" in col_map:
-                                sheet.cell(row=r, column=col_map["dev"]).value = el[
-                                    f"devoir_t{trim}"
-                                ]
+                                sheet.cell(row=r, column=col_map["dev"]).value = devoir_val
                             if "compo" in col_map:
-                                sheet.cell(row=r, column=col_map["compo"]).value = el[
-                                    f"compo_t{trim}"
-                                ]
+                                sheet.cell(row=r, column=col_map["compo"]).value = compo_val
                             if "rem" in col_map:
-                                sheet.cell(row=r, column=col_map["rem"]).value = el[
-                                    f"remarques_t{trim}"
-                                ]
+                                sheet.cell(row=r, column=col_map["rem"]).value = rem_val
+
             out = BytesIO()
             wb.save(out)
             out.seek(0)
@@ -404,3 +446,13 @@ def remplir_bulletin_officiel():
         except Exception as e:
             flash(f"Erreur: {e}", "danger")
     return redirect(request.referrer or url_for("dashboard.index"))
+
+
+@bp.route("/import_excel_cancel/<token>")
+@login_required
+def import_excel_cancel(token: str):
+    meta = get_preview_meta((token or "").strip())
+    if meta:
+        clear_preview_meta(meta)
+    return redirect(url_for("dashboard.index"))
+

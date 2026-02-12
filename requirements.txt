@@ -5,3 +5,5 @@ reportlab
 Werkzeug
 python-dotenv
 xlrd
+arabic-reshaper
+python-bidi

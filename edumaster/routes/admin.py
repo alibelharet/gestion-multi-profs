@@ -1,4 +1,5 @@
 import os
+import secrets
 import tempfile
 from datetime import datetime
 
@@ -210,12 +211,18 @@ def admin_reset_password(user_id: int):
     ).fetchone()
     if not user or int(user["is_admin"] or 0) == 1:
         abort(404)
+    alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789"
+    temp_password = "".join(secrets.choice(alphabet) for _ in range(10))
     db.execute(
         "UPDATE users SET password = ? WHERE id = ?",
-        (generate_password_hash("123456"), user_id),
+        (generate_password_hash(temp_password), user_id),
     )
     db.commit()
-    flash(f"Mot de passe reinitialise pour {user['username']} (123456).", "success")
+    log_change("admin_reset_password", session["user_id"], details=user["username"])
+    flash(
+        f"Mot de passe temporaire pour {user['username']}: {temp_password}",
+        "success",
+    )
     return redirect(url_for("admin.admin"))
 
 
@@ -333,19 +340,55 @@ def admin_voir_eleves(user_id: int):
         ).fetchall()
     ]
 
-    query = "SELECT * FROM eleves WHERE user_id = ?"
-    params = [user_id]
+    subject_row = db.execute(
+        """
+        SELECT s.id
+        FROM subjects s
+        LEFT JOIN users u ON u.id = s.user_id
+        WHERE s.user_id = ?
+        ORDER BY
+          CASE
+            WHEN LOWER(TRIM(s.name)) = LOWER(TRIM(COALESCE(u.default_subject, ''))) THEN 0
+            ELSE 1
+          END,
+          s.id
+        LIMIT 1
+        """,
+        (user_id,),
+    ).fetchone()
+    subject_id = int(subject_row["id"]) if subject_row else -1
+
+    query = f"""
+        SELECT
+            e.id,
+            e.nom_complet,
+            e.niveau,
+            COALESCE(n.devoir, e.devoir_t{trim}) AS devoir,
+            COALESCE(n.activite, e.activite_t{trim}) AS activite,
+            COALESCE(n.compo, e.compo_t{trim}) AS compo,
+            COALESCE(n.remarques, e.remarques_t{trim}) AS remarques
+        FROM eleves e
+        LEFT JOIN notes n
+          ON n.user_id = e.user_id
+         AND n.eleve_id = e.id
+         AND n.subject_id = ?
+         AND n.trimestre = ?
+        WHERE e.user_id = ?
+    """
+    params = [subject_id, int(trim), user_id]
     if niveau and niveau != "all":
-        query += " AND niveau = ?"
+        query += " AND e.niveau = ?"
         params.append(niveau)
-    query += " ORDER BY niveau, id"
+    query += " ORDER BY e.niveau, e.id"
 
     eleves_db = db.execute(query, params).fetchall()
     eleves_list = []
     admis, total_moy, count_saisis, notes = 0, 0, 0, []
 
     for el in eleves_db:
-        d, a, c = el[f"devoir_t{trim}"], el[f"activite_t{trim}"], el[f"compo_t{trim}"]
+        d = float(el["devoir"] or 0)
+        a = float(el["activite"] or 0)
+        c = float(el["compo"] or 0)
         moy = round(((d + a) / 2 + (c * 2)) / 3, 2)
         if moy > 0:
             count_saisis += 1
@@ -358,7 +401,7 @@ def admin_voir_eleves(user_id: int):
                 "id": el["id"],
                 "nom_complet": el["nom_complet"],
                 "niveau": el["niveau"],
-                "remarques": el[f"remarques_t{trim}"],
+                "remarques": el["remarques"] or "",
                 "devoir": d,
                 "activite": a,
                 "compo": c,
