@@ -1,6 +1,6 @@
 import os
 
-from flask import Flask
+from flask import Flask, render_template
 
 from core.config import BASE_DIR, MAX_CONTENT_LENGTH, UPLOAD_FOLDER
 from core.db import bootstrap_admin, close_db, init_db
@@ -26,7 +26,6 @@ def create_app() -> Flask:
     if not app.config["SECRET_KEY"]:
         # Keeps dev usable, but production should always set SECRET_KEY
         app.config["SECRET_KEY"] = os.urandom(32)
-        print("WARNING: SECRET_KEY not set; using a random key for this run.")
 
     # --- APP INIT ---
     init_security(app)
@@ -46,17 +45,37 @@ def create_app() -> Flask:
             "text_dir": get_text_dir(lang),
         }
 
+    @app.errorhandler(400)
+    def bad_request(e):
+        return render_template("400.html"), 400
+
+    @app.errorhandler(500)
+    def internal_error(e):
+        return render_template("500.html"), 500
+
+
     # --- ROUTES ---
     from .routes.admin import bp as admin_bp
     from .routes.auth import bp as auth_bp
     from .routes.docs import bp as docs_bp
     from .routes.licence import bp as licence_bp
-    from .routes.main import bp as main_bp
+    
+    # New route modules
+    from .routes.dashboard import bp as dashboard_bp
+    from .routes.students import bp as students_bp
+    from .routes.grades import bp as grades_bp
+    from .routes.imports import bp as imports_bp
+    from .routes.reports import bp as reports_bp
 
     app.register_blueprint(licence_bp)
     app.register_blueprint(auth_bp)
-    app.register_blueprint(main_bp)
     app.register_blueprint(docs_bp)
     app.register_blueprint(admin_bp)
-
+    
+    app.register_blueprint(dashboard_bp)
+    app.register_blueprint(students_bp)
+    app.register_blueprint(grades_bp)
+    app.register_blueprint(imports_bp)
+    app.register_blueprint(reports_bp)
+    
     return app

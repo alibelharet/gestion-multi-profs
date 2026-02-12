@@ -129,7 +129,7 @@ def write_required(f):
                 if target:
                     return redirect(target)
                 try:
-                    return redirect(url_for("main.index"))
+                    return redirect(url_for("dashboard.index"))
                 except Exception:
                     return redirect("/")
         return f(*args, **kwargs)

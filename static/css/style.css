@@ -1,0 +1,50 @@
+/* Mobile Optimization */
+@media (max-width: 768px) {
+    /* Hide the Index column (#) to save space */
+    .table th:nth-child(2),
+    .table td:nth-child(2) {
+        display: none;
+    }
+
+    /* Make the Name column sticky */
+    .table th:nth-child(3),
+    .table td:nth-child(3) {
+        position: sticky;
+        left: 0;
+        z-index: 5;
+        /* Ensure background is opaque so scrolling content goes under */
+        background-color: var(--surface) !important;
+        border-right: 1px solid var(--border);
+        box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+        max-width: 150px;
+        white-space: normal;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    /* Header needs to match the th background context */
+    .table thead th:nth-child(3) {
+        background-color: var(--surface-2) !important;
+        z-index: 10;
+        top: 0; /* logic if we had sticky header too */
+    }
+
+    /* Adjust the action column (1st) */
+    .table th:nth-child(1),
+    .table td:nth-child(1) {
+        /* Keep it static, it will scroll away */
+        min-width: 60px !important;
+        width: 60px !important;
+    }
+}
+
+/* Spinner styling */
+.btn-loading {
+    position: relative;
+    pointer-events: none;
+    opacity: 0.8;
+}
+
+.btn-loading .spinner-border {
+    margin-right: 0.5rem;
+}

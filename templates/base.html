@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="{{ current_lang }}" dir="{{ text_dir }}" data-theme="dark">
-  <head>
+
+<head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
@@ -16,165 +17,213 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
     {% endif %}
 
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
     <style>
-:root {
-    color-scheme: dark;
-    --bg: #0b0f15;
-    --bg-soft: #111824;
-    --surface: #161f2b;
-    --surface-2: #1d2736;
-    --border: #283446;
-    --text: #f2f5f9;
-    --muted: #a7b1c2;
-    --accent: #2f7bff;
-    --accent-2: #30d2b3;
-    --warning: #f4c24b;
-    --danger: #ff6b6b;
-    --shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
-    --radius: 12px;
-}
+        :root {
+            color-scheme: dark;
+            --bg: #0b0f15;
+            --bg-soft: #111824;
+            --surface: #161f2b;
+            --surface-2: #1d2736;
+            --border: #283446;
+            --text: #f2f5f9;
+            --muted: #a7b1c2;
+            --accent: #2f7bff;
+            --accent-2: #30d2b3;
+            --warning: #f4c24b;
+            --danger: #ff6b6b;
+            --shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+            --radius: 12px;
+        }
 
-[data-theme="light"] {
-    color-scheme: light;
-    --bg: #f5f7fb;
-    --bg-soft: #eef2f8;
-    --surface: #ffffff;
-    --surface-2: #f3f6fb;
-    --border: #d6dde8;
-    --text: #1a2433;
-    --muted: #5b667a;
-    --accent: #1b6dff;
-    --accent-2: #10b981;
-    --warning: #f3b647;
-    --danger: #e04545;
-    --shadow: 0 14px 32px rgba(16, 24, 40, 0.15);
-}
+        [data-theme="light"] {
+            color-scheme: light;
+            --bg: #f5f7fb;
+            --bg-soft: #eef2f8;
+            --surface: #ffffff;
+            --surface-2: #f3f6fb;
+            --border: #d6dde8;
+            --text: #1a2433;
+            --muted: #5b667a;
+            --accent: #1b6dff;
+            --accent-2: #10b981;
+            --warning: #f3b647;
+            --danger: #e04545;
+            --shadow: 0 14px 32px rgba(16, 24, 40, 0.15);
+        }
 
-body {
-    font-family: 'Tajawal', sans-serif;
-    background:
-        radial-gradient(circle at 8% 10%, rgba(47, 123, 255, 0.18), transparent 35%),
-        radial-gradient(circle at 90% 12%, rgba(48, 210, 179, 0.14), transparent 35%),
-        var(--bg);
-    color: var(--text);
-    margin-bottom: 50px;
-}
+        body {
+            font-family: 'Tajawal', sans-serif;
+            background:
+                radial-gradient(circle at 8% 10%, rgba(47, 123, 255, 0.18), transparent 35%),
+                radial-gradient(circle at 90% 12%, rgba(48, 210, 179, 0.14), transparent 35%),
+                var(--bg);
+            color: var(--text);
+            margin-bottom: 50px;
+        }
 
-.navbar {
-    background: linear-gradient(135deg, var(--surface), var(--surface-2));
-    border-bottom: 1px solid var(--border);
-    padding: 0.8rem 1rem;
-    box-shadow: var(--shadow);
-}
+        .navbar {
+            background: linear-gradient(135deg, var(--surface), var(--surface-2));
+            border-bottom: 1px solid var(--border);
+            padding: 0.8rem 1rem;
+            box-shadow: var(--shadow);
+        }
 
-.navbar-brand {
-    font-weight: 800;
-    color: var(--text) !important;
-    font-size: 1.3rem;
-}
+        .navbar-brand {
+            font-weight: 800;
+            color: var(--text) !important;
+            font-size: 1.3rem;
+        }
 
-.nav-link { color: var(--muted) !important; }
-.nav-link.active, .nav-link:hover { color: var(--text) !important; }
+        .nav-link {
+            color: var(--muted) !important;
+        }
 
-.container {
-    max-width: 1400px;
-    margin-top: 20px;
-}
+        .nav-link.active,
+        .nav-link:hover {
+            color: var(--text) !important;
+        }
 
-.app-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    box-shadow: var(--shadow);
-}
+        .container {
+            max-width: 1400px;
+            margin-top: 20px;
+        }
 
-.app-card-header {
-    background: var(--surface-2);
-    border-bottom: 1px solid var(--border);
-}
+        .app-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+        }
 
-.glass-panel {
-    background: var(--surface);
-    border: 1px solid var(--border);
-}
+        .app-card-header {
+            background: var(--surface-2);
+            border-bottom: 1px solid var(--border);
+        }
 
-.filters-sticky {
-    position: static;
-}
+        .glass-panel {
+            background: var(--surface);
+            border: 1px solid var(--border);
+        }
 
-.stat-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    box-shadow: var(--shadow);
-}
+        .filters-sticky {
+            position: static;
+        }
 
-.soft-badge {
-    background: rgba(47, 123, 255, 0.12);
-    color: var(--text);
-    border: 1px solid rgba(47, 123, 255, 0.35);
-}
+        .stat-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            box-shadow: var(--shadow);
+        }
 
-.form-control, .form-select {
-    background-color: var(--surface-2);
-    border: 1px solid var(--border);
-    color: var(--text);
-    border-radius: 8px;
-}
+        .soft-badge {
+            background: rgba(47, 123, 255, 0.12);
+            color: var(--text);
+            border: 1px solid rgba(47, 123, 255, 0.35);
+        }
 
-.form-control:focus, .form-select:focus {
-    background-color: var(--surface);
-    border-color: var(--accent);
-    color: var(--text);
-    box-shadow: none;
-}
+        .form-control,
+        .form-select {
+            background-color: var(--surface-2);
+            border: 1px solid var(--border);
+            color: var(--text);
+            border-radius: 8px;
+        }
 
-.btn { border-radius: 8px; font-weight: bold; }
+        .form-control:focus,
+        .form-select:focus {
+            background-color: var(--surface);
+            border-color: var(--accent);
+            color: var(--text);
+            box-shadow: none;
+        }
 
-a { text-decoration: none; }
+        .btn {
+            border-radius: 8px;
+            font-weight: bold;
+        }
 
-.table {
-    color: var(--text);
-    border-color: var(--border);
-    --bs-table-color: var(--text);
-    --bs-table-bg: var(--surface);
-    --bs-table-border-color: var(--border);
-    --bs-table-striped-bg: var(--surface-2);
-    --bs-table-hover-bg: var(--bg-soft);
-    --bs-table-hover-color: var(--text);
-}
-.table thead { background: var(--surface-2); }
-.table td, .table th { color: var(--text); }
+        a {
+            text-decoration: none;
+        }
 
-.navbar-toggler { border-color: var(--border); }
+        .table {
+            color: var(--text);
+            border-color: var(--border);
+            --bs-table-color: var(--text);
+            --bs-table-bg: var(--surface);
+            --bs-table-border-color: var(--border);
+            --bs-table-striped-bg: var(--surface-2);
+            --bs-table-hover-bg: var(--bg-soft);
+            --bs-table-hover-color: var(--text);
+        }
 
-.text-body,
-.text-body-emphasis,
-.text-white {
-    color: var(--text) !important;
-}
-.text-muted,
-.text-secondary {
-    color: var(--muted) !important;
-}
+        .table thead {
+            background: var(--surface-2);
+        }
 
-@media (max-width: 768px) {
-    .container { padding-left: 8px; padding-right: 8px; }
-    .navbar-brand { font-size: 1.05rem; }
-    .btn { padding: 0.35rem 0.6rem; }
-    .table td, .table th { padding: 0.35rem; font-size: 0.85rem; }
-    .input-note { min-width: 44px; height: 32px; font-size: 0.85rem; }
-    .filters-sticky { top: 66px; }
-}
+        .table td,
+        .table th {
+            color: var(--text);
+        }
+
+        .navbar-toggler {
+            border-color: var(--border);
+        }
+
+        .text-body,
+        .text-body-emphasis,
+        .text-white {
+            color: var(--text) !important;
+        }
+
+        .text-muted,
+        .text-secondary {
+            color: var(--muted) !important;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding-left: 8px;
+                padding-right: 8px;
+            }
+
+            .navbar-brand {
+                font-size: 1.05rem;
+            }
+
+            .btn {
+                padding: 0.35rem 0.6rem;
+            }
+
+            .table td,
+            .table th {
+                padding: 0.35rem;
+                font-size: 0.85rem;
+            }
+
+            .input-note {
+                min-width: 44px;
+                height: 32px;
+                font-size: 0.85rem;
+            }
+
+            .filters-sticky {
+                top: 66px;
+            }
+        }
     </style>
-  </head>
-  <body>
+</head>
+
+<body>
 
     <nav class="navbar navbar-expand-lg navbar-dark sticky-top">
-      <div class="container-fluid">
-        <a class="navbar-brand" href="/">EduMaster</a>
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">EduMaster</a>
 
-        {% if session.get('user_id') %}
+            {% if session.get('user_id') %}
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
@@ -201,6 +250,10 @@ a { text-decoration: none; }
                     <li class="nav-item">
                         <a class="nav-link" href="/history">{{ tr('menu.history', 'Historique') }}</a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('dashboard.stats') }}">{{ tr('menu.stats', 'Statistiques')
+                            }}</a>
+                    </li>
                     {% if session.get('is_admin') %}
                     <li class="nav-item">
                         <a class="nav-link text-warning" href="/admin">{{ tr('menu.admin', 'Admin') }}</a>
@@ -209,61 +262,40 @@ a { text-decoration: none; }
                 </ul>
 
                 <div class="d-flex gap-2 align-items-center">
-                    <a href="{{ url_for('main.set_lang', lang='ar' if current_lang == 'fr' else 'fr') }}" class="btn btn-outline-secondary btn-sm px-3">{{ tr('lang.switch', 'AR') }}</a>
-                    <button type="button" id="themeToggle" class="btn btn-outline-info btn-sm px-3">{{ tr('theme.light', 'Mode clair') }}</button>
+                    <a href="{{ url_for('dashboard.set_lang', lang='ar' if current_lang == 'fr' else 'fr') }}"
+                        class="btn btn-outline-secondary btn-sm px-3">{{ tr('lang.switch', 'AR') }}</a>
+                    <button type="button" id="themeToggle" class="btn btn-outline-info btn-sm px-3"
+                        data-label-light="{{ tr('theme.light', 'Mode clair') }}"
+                        data-label-dark="{{ tr('theme.dark', 'Mode sombre') }}">
+                        {{ tr('theme.light', 'Mode clair') }}
+                    </button>
                     <a href="/profile" class="btn btn-outline-light btn-sm px-3">{{ tr('menu.profile', 'Profil') }}</a>
                     <a href="/logout" class="btn btn-danger btn-sm px-3">{{ tr('menu.logout', 'Logout') }}</a>
                 </div>
             </div>
-        {% endif %}
-      </div>
+            {% endif %}
+        </div>
     </nav>
 
     <div class="container">
 
         {% with messages = get_flashed_messages(with_categories=true) %}
-          {% if messages %}
-            {% for category, message in messages %}
-              <div class="alert alert-{{ category }} alert-dismissible fade show py-2 mt-3" role="alert">
-                {{ message }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-              </div>
-            {% endfor %}
-          {% endif %}
+        {% if messages %}
+        {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show py-2 mt-3" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}
+        {% endif %}
         {% endwith %}
 
         {% block content %}{% endblock %}
 
     </div>
 
-    <script>
-        (function() {
-            const key = "edumaster_theme";
-            const root = document.documentElement;
-            const saved = localStorage.getItem(key);
-            const initial = saved || "dark";
-            root.setAttribute("data-theme", initial);
-
-            const toggleBtn = document.getElementById("themeToggle");
-            const labelLight = "{{ tr('theme.light', 'Mode clair') }}";
-            const labelDark = "{{ tr('theme.dark', 'Mode sombre') }}";
-            const setLabel = (mode) => {
-                if (!toggleBtn) return;
-                toggleBtn.textContent = mode === "dark" ? labelLight : labelDark;
-            };
-            setLabel(initial);
-
-            if (toggleBtn) {
-                toggleBtn.addEventListener("click", () => {
-                    const current = root.getAttribute("data-theme") || "dark";
-                    const next = current === "dark" ? "light" : "dark";
-                    root.setAttribute("data-theme", next);
-                    localStorage.setItem(key, next);
-                    setLabel(next);
-                });
-            }
-        })();
-    </script>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-  </body>
+</body>
+
 </html>

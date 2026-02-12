@@ -1,0 +1,138 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+
+<div class="app-card hero-card mb-4 p-3">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div>
+            <div class="text-uppercase small text-muted">Statistiques</div>
+            <h2 class="fw-bold mb-1">Détails & Évolution</h2>
+            <div class="text-muted small">Analyse approfondie par matière</div>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <form action="{{ url_for('dashboard.stats') }}" method="get" class="d-flex gap-2">
+                <select name="subject" class="form-select form-select-sm" onchange="this.form.submit()">
+                    {% for s in subjects %}
+                    <option value="{{ s.id }}" {% if subject_id==s.id %}selected{% endif %}>{{ s.name }}</option>
+                    {% endfor %}
+                </select>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Graphique Évolution -->
+    <div class="col-12 col-lg-8">
+        <div class="app-card h-100">
+            <div class="card-header app-card-header py-3 px-4 border-bottom">
+                <h6 class="mb-0 fw-bold">Évolution des Moyennes par Classe (T1 à T3)</h6>
+            </div>
+            <div class="card-body p-4">
+                <canvas id="evolutionChart" style="max-height: 400px;"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Élèves -->
+    <div class="col-12 col-lg-4">
+        <div class="app-card h-100">
+            <div class="card-header app-card-header py-3 px-4 border-bottom">
+                <h6 class="mb-0 fw-bold">Top 5 Élèves (Annuel)</h6>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0 align-middle">
+                        <thead class="bg-light">
+                            <tr>
+                                <th class="ps-4">Élève</th>
+                                <th class="text-center">Classe</th>
+                                <th class="text-center fw-bold text-primary">Moy. An</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for eleve in top_students %}
+                            <tr>
+                                <td class="ps-4">
+                                    <div class="fw-bold">{{ eleve.nom }}</div>
+                                    <div class="small text-muted">
+                                        <span class="badgex bg-light text-secondary border rounded px-1">T1: {{ eleve.t1
+                                            }}</span>
+                                        <span class="badgex bg-light text-secondary border rounded px-1">T2: {{ eleve.t2
+                                            }}</span>
+                                        <span class="badgex bg-light text-secondary border rounded px-1">T3: {{ eleve.t3
+                                            }}</span>
+                                    </div>
+                                </td>
+                                <td class="text-center"><span class="badge bg-secondary">{{ eleve.niveau }}</span></td>
+                                <td class="text-center fw-bold fs-5 text-primary">{{ eleve.annual }}</td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="3" class="text-center py-4 text-muted">Aucune donnée disponible</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const ctx = document.getElementById('evolutionChart').getContext('2d');
+
+        const data = {{ evolution | tojson
+    }};
+
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: data.labels,
+            datasets: [
+                {
+                    label: 'Trimestre 1',
+                    data: data.t1,
+                    backgroundColor: 'rgba(54, 162, 235, 0.7)',
+                    borderColor: 'rgb(54, 162, 235)',
+                    borderWidth: 1
+                },
+                {
+                    label: 'Trimestre 2',
+                    data: data.t2,
+                    backgroundColor: 'rgba(75, 192, 192, 0.7)',
+                    borderColor: 'rgb(75, 192, 192)',
+                    borderWidth: 1
+                },
+                {
+                    label: 'Trimestre 3',
+                    data: data.t3,
+                    backgroundColor: 'rgba(255, 99, 132, 0.7)',
+                    borderColor: 'rgb(255, 99, 132)',
+                    borderWidth: 1
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 20
+                }
+            },
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+    });
+</script>
+{% endblock %}

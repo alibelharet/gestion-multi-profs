@@ -1,4 +1,4 @@
-﻿{% extends 'base.html' %}
+{% extends 'base.html' %}
 
 {% block content %}
 <div class="app-card mb-4">
@@ -36,7 +36,7 @@
       </div>
       <div class="col-12 col-md-4 d-flex gap-2 justify-content-end">
         <button type="submit" class="btn btn-sm btn-primary">Filtrer</button>
-        <a href="{{ url_for('main.history') }}" class="btn btn-sm btn-outline-secondary">Reset</a>
+        <a href="{{ url_for('dashboard.history') }}" class="btn btn-sm btn-outline-secondary">Reset</a>
         <a href="{{ export_url }}" class="btn btn-sm btn-success">Export CSV</a>
       </div>
     </form>

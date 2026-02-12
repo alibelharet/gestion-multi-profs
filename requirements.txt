@@ -1,0 +1,7 @@
+Flask
+pandas
+openpyxl
+reportlab
+Werkzeug
+python-dotenv
+xlrd

@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-center vh-100">
+    <div class="text-center">
+        <h1 class="display-1 fw-bold">400</h1>
+        <p class="fs-3"> <span class="text-danger">Oups!</span> Session expirée.</p>
+        <p class="lead">
+            Cela arrive souvent après une mise à jour ou un redémarrage du serveur.<br>
+            Veuillez rafraîchir la page ou vous reconnecter.
+        </p>
+        <a href="/" class="btn btn-primary">Rafraîchir l'accueil</a>
+        <a href="/login" class="btn btn-secondary">Se reconnecter</a>
+    </div>
+</div>
+{% endblock %}

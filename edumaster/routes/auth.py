@@ -93,7 +93,7 @@ def login():
             session["lock_subject"] = user["lock_subject"] if "lock_subject" in user.keys() else 0
             session["default_subject"] = user["default_subject"] if "default_subject" in user.keys() else ""
             session["can_edit"] = 0 if role == "read_only" else 1
-            return redirect(url_for("main.index"))
+            return redirect(url_for("dashboard.index"))
 
         flash("Utilisateur ou mot de passe incorrect.", "danger")
 

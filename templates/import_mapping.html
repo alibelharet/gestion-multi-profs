@@ -17,7 +17,7 @@
     Renseignez au minimum <strong>Nom complet</strong> ou bien <strong>Nom + Prenom</strong>.
   </div>
 
-  <form action="{{ url_for('main.import_excel_apply') }}" method="post" class="mb-3">
+  <form action="{{ url_for('imports.import_excel_apply') }}" method="post" class="mb-3">
     {{ csrf_field() }}
     <input type="hidden" name="token" value="{{ token }}">
     <input type="hidden" name="subject" value="{{ subject_id }}">
@@ -37,7 +37,7 @@
     </div>
 
     <div class="d-flex flex-wrap gap-2 justify-content-end mt-3">
-      <a href="{{ url_for('main.import_excel_cancel', token=token) }}" class="btn btn-outline-secondary btn-sm">{{ tr('import.mapping.cancel', 'Annuler') }}</a>
+      <a href="{{ url_for('imports.import_excel_cancel', token=token) }}" class="btn btn-outline-secondary btn-sm">{{ tr('import.mapping.cancel', 'Annuler') }}</a>
       <button type="submit" class="btn btn-success btn-sm">{{ tr('import.mapping.apply', 'Valider import') }}</button>
     </div>
   </form>

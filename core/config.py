@@ -7,7 +7,9 @@ if getattr(sys, 'frozen', False):
 else:
     BASE_DIR = str(Path(__file__).resolve().parent.parent)
 
-DATABASE = os.path.join(BASE_DIR, "ecole_multi.db")
+# Allow overriding database path via environment variable (useful for PythonAnywhere)
+DATABASE = os.environ.get("DATABASE_PATH", os.path.join(BASE_DIR, "ecole_multi.db"))
+
 LICENSE_FILE = os.path.join(BASE_DIR, "license.key")
 CACHE_FILE = os.path.join(BASE_DIR, ".sys_check")
 UPLOAD_FOLDER = os.path.join(BASE_DIR, "static", "uploads")
