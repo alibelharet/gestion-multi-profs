@@ -18,6 +18,11 @@ def get_machine_id():
     return hashlib.md5(str(node).encode()).hexdigest().upper()[:12]
 
 
+def machine_lock_enabled() -> bool:
+    raw = str(os.environ.get("STRICT_LICENSE_MACHINE_CHECK", "1")).strip().lower()
+    return raw not in {"0", "false", "no", "off"}
+
+
 def verifier_manipulation_horloge():
     now_ts = datetime.now().timestamp()
     last_time = 0
@@ -70,9 +75,17 @@ def verifier_validite_licence():
                     json.dump(licence_locale, wf)
             except Exception:
                 pass
-
-        if licence_locale.get('mid') != get_machine_id():
-            return False, "Licence copiée illégalement."
+        current_mid = get_machine_id()
+        stored_mid = licence_locale.get("mid")
+        if machine_lock_enabled() and stored_mid != current_mid:
+            return False, "Licence copiee illegalement."
+        if not machine_lock_enabled() and stored_mid != current_mid:
+            licence_locale["mid"] = current_mid
+            try:
+                with open(LICENSE_FILE, "w", encoding="utf-8") as wf:
+                    json.dump(licence_locale, wf)
+            except Exception:
+                pass
         cle_val = licence_locale.get('cle')
         if not cle_val:
             return False, "Clé invalide."
