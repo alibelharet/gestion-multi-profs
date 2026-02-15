@@ -1,17 +1,48 @@
+﻿import os
 import sys
-import os
+
 from dotenv import load_dotenv
 
-# Ajout du dossier du projet au path
-# Remplacer 'votrenom' par votre nom d'utilisateur PythonAnywhere
-# et 'Gestion_Multi_Profs' par le nom de votre dossier s'il est différent
-project_home = '/home/votrenom/Gestion_Multi_Profs'
+
+def _detect_project_home() -> str:
+    explicit = (os.environ.get("PROJECT_HOME") or "").strip()
+    candidates = []
+    if explicit:
+        candidates.append(explicit)
+
+    user = (os.environ.get("USER") or "").strip()
+    if user:
+        candidates.extend(
+            [
+                f"/home/{user}/gestion-multi-profs",
+                f"/home/{user}/Gestion_Multi_Profs",
+            ]
+        )
+
+    candidates.extend(
+        [
+            os.path.expanduser("~/gestion-multi-profs"),
+            os.path.expanduser("~/Gestion_Multi_Profs"),
+        ]
+    )
+
+    for path in candidates:
+        if path and os.path.isdir(path):
+            return path
+
+    raise RuntimeError(
+        "Projet introuvable. Definissez PROJECT_HOME dans le fichier WSGI PythonAnywhere."
+    )
+
+
+project_home = _detect_project_home()
 if project_home not in sys.path:
-    sys.path = [project_home] + sys.path
+    sys.path.insert(0, project_home)
 
-# Charger les variables d'environnement
-load_dotenv(os.path.join(project_home, '.env'))
+env_path = os.path.join(project_home, ".env")
+if os.path.exists(env_path):
+    load_dotenv(env_path)
 
-# Configuration Flask
 from edumaster import create_app
+
 application = create_app()

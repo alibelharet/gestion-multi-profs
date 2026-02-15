@@ -1,6 +1,7 @@
-import json
+﻿import json
 import os
 import shutil
+import sqlite3
 import tempfile
 import zipfile
 from dataclasses import dataclass
@@ -17,35 +18,68 @@ class RestoreResult:
     restored_files: int
 
 
+def _create_sqlite_snapshot(source_db: str, target_db: str) -> None:
+    """
+    Create a consistent SQLite snapshot even when WAL is enabled.
+    """
+    src = None
+    dst = None
+    try:
+        src = sqlite3.connect(f"file:{source_db}?mode=ro", uri=True)
+    except sqlite3.Error:
+        # Fallback for environments that do not support URI mode.
+        src = sqlite3.connect(source_db)
+
+    try:
+        dst = sqlite3.connect(target_db)
+        src.backup(dst)
+    finally:
+        try:
+            if dst is not None:
+                dst.close()
+        finally:
+            if src is not None:
+                src.close()
+
+
 def create_backup_zip() -> BytesIO:
     """
     Create an in-memory ZIP backup with:
-      - ecole_multi.db
+      - ecole_multi.db (consistent SQLite snapshot)
       - uploads/ (files only)
       - backup_info.json (metadata)
     """
     if not os.path.exists(DATABASE):
-        raise FileNotFoundError("Base de données introuvable.")
+        raise FileNotFoundError("Base de donnees introuvable.")
 
-    buf = BytesIO()
-    with zipfile.ZipFile(buf, "w", compression=zipfile.ZIP_DEFLATED) as zf:
-        zf.write(DATABASE, arcname="ecole_multi.db")
+    tmpdir = tempfile.mkdtemp(prefix="edumaster_backup_")
+    snapshot_db = os.path.join(tmpdir, "ecole_multi.db")
 
-        if os.path.isdir(UPLOAD_FOLDER):
-            for root, _, files in os.walk(UPLOAD_FOLDER):
-                for name in files:
-                    src = os.path.join(root, name)
-                    rel = os.path.relpath(src, UPLOAD_FOLDER)
-                    zf.write(src, arcname=os.path.join("uploads", rel))
+    try:
+        _create_sqlite_snapshot(DATABASE, snapshot_db)
 
-        info = {
-            "created_at": datetime.now(timezone.utc).isoformat(),
-            "includes": ["ecole_multi.db", "uploads/"],
-        }
-        zf.writestr("backup_info.json", json.dumps(info, ensure_ascii=False, indent=2))
+        buf = BytesIO()
+        with zipfile.ZipFile(buf, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+            zf.write(snapshot_db, arcname="ecole_multi.db")
 
-    buf.seek(0)
-    return buf
+            if os.path.isdir(UPLOAD_FOLDER):
+                for root, _, files in os.walk(UPLOAD_FOLDER):
+                    for name in files:
+                        src = os.path.join(root, name)
+                        rel = os.path.relpath(src, UPLOAD_FOLDER)
+                        zf.write(src, arcname=os.path.join("uploads", rel))
+
+            info = {
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                "includes": ["ecole_multi.db", "uploads/"],
+                "sqlite_snapshot": True,
+            }
+            zf.writestr("backup_info.json", json.dumps(info, ensure_ascii=False, indent=2))
+
+        buf.seek(0)
+        return buf
+    finally:
+        shutil.rmtree(tmpdir, ignore_errors=True)
 
 
 def restore_from_backup_zip(zip_path: str) -> RestoreResult:
@@ -130,4 +164,3 @@ def restore_from_backup_zip(zip_path: str) -> RestoreResult:
         )
     finally:
         shutil.rmtree(tmpdir, ignore_errors=True)
-

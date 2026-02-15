@@ -150,15 +150,24 @@ def profile():
         db = get_db()
         user_id = session["user_id"]
         user = db.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
-        if check_password_hash(user["password"], request.form["old_password"]):
+
+        old_password = request.form.get("old_password", "")
+        new_password = request.form.get("new_password", "")
+        confirm_password = request.form.get("confirm_password", "")
+
+        if not check_password_hash(user["password"], old_password):
+            flash("Ancien mot de passe incorrect", "danger")
+        elif len(new_password) < 6:
+            flash("Mot de passe trop court (min 6).", "danger")
+        elif new_password != confirm_password:
+            flash("Les mots de passe ne correspondent pas.", "danger")
+        else:
             db.execute(
                 "UPDATE users SET password = ? WHERE id = ?",
-                (generate_password_hash(request.form["new_password"]), user_id),
+                (generate_password_hash(new_password), user_id),
             )
             db.commit()
-            flash("Mot de passe modifié", "success")
-        else:
-            flash("Ancien mot de passe incorrect", "danger")
+            flash("Mot de passe modifie", "success")
 
     is_valid, info = verifier_validite_licence()
     date_fin = info if is_valid else "-"
