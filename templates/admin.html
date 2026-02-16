@@ -33,7 +33,7 @@
 
   <form action="{{ url_for('admin.admin_clone_school_year') }}" method="POST" class="row g-2 align-items-end mb-3">
     {{ csrf_field() }}
-    <div class="col-12 col-md-3">
+    <div class="col-12 col-md-2">
       <label class="small text-muted">Annee source</label>
       <select name="from_year" class="form-select form-select-sm" required>
         {% for sy in school_years %}
@@ -41,7 +41,7 @@
         {% endfor %}
       </select>
     </div>
-    <div class="col-12 col-md-3">
+    <div class="col-12 col-md-2">
       <label class="small text-muted">Annee cible</label>
       <select name="to_year" class="form-select form-select-sm" required>
         {% for sy in school_years %}
@@ -49,19 +49,30 @@
         {% endfor %}
       </select>
     </div>
-    <div class="col-12 col-md-3">
+    <div class="col-12 col-md-2">
+      <label class="small text-muted">Mode classes</label>
+      <select name="class_mode" class="form-select form-select-sm">
+        <option value="keep" selected>Conserver</option>
+        <option value="auto_promote">Promotion +1</option>
+      </select>
+    </div>
+    <div class="col-12 col-md-4">
       <label class="small text-muted d-block">Options</label>
       <div class="form-check mt-1">
         <input class="form-check-input" type="checkbox" id="copy_assignments" name="copy_assignments" value="1" checked>
         <label class="form-check-label" for="copy_assignments">Copier les affectations</label>
       </div>
+      <div class="form-check mt-1">
+        <input class="form-check-input" type="checkbox" id="activate_target" name="activate_target" value="1">
+        <label class="form-check-label" for="activate_target">Activer l annee cible</label>
+      </div>
     </div>
-    <div class="col-12 col-md-3 d-grid">
+    <div class="col-12 col-md-2 d-grid">
       <button type="submit" class="btn btn-outline-primary btn-sm" onclick="return confirm('Copier les eleves de l annee source vers l annee cible ?')">Passage d annee</button>
     </div>
   </form>
   <div class="small text-muted mb-3">
-    Le passage copie uniquement les eleves (nom/classe/contacts) vers l annee cible, sans notes.
+    Le passage copie uniquement les eleves (nom/classe/contacts) vers l annee cible, sans notes. En mode "Promotion +1", la classe 2M2 devient 3M2.
   </div>
 
   <div class="table-responsive">

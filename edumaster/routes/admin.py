@@ -18,6 +18,20 @@ from edumaster.services.common import get_active_school_year, list_school_years,
 bp = Blueprint("admin", __name__)
 
 
+def _normalize_class_name(value: str) -> str:
+    return (value or "").strip().upper()
+
+
+def _promote_class_name(value: str) -> str:
+    raw = _normalize_class_name(value)
+    match = re.match(r"^(\d+)(.*)$", raw)
+    if not match:
+        return raw
+    level = int(match.group(1))
+    suffix = match.group(2) or ""
+    return f"{level + 1}{suffix}"
+
+
 @bp.route("/admin")
 @login_required
 @admin_required
@@ -149,6 +163,8 @@ def admin_clone_school_year():
     source_year = (request.form.get("from_year") or "").strip()
     target_year = (request.form.get("to_year") or "").strip()
     copy_assignments = (request.form.get("copy_assignments") or "") == "1"
+    class_mode = (request.form.get("class_mode") or "keep").strip().lower()
+    activate_target = (request.form.get("activate_target") or "") == "1"
 
     if not source_year or not target_year:
         flash("Source/cible manquante.", "warning")
@@ -156,6 +172,13 @@ def admin_clone_school_year():
     if source_year == target_year:
         flash("La source et la cible doivent etre differentes.", "warning")
         return redirect(url_for("admin.admin"))
+    if class_mode not in ("keep", "auto_promote"):
+        class_mode = "keep"
+
+    def map_class_name(name: str) -> str:
+        if class_mode == "auto_promote":
+            return _promote_class_name(name)
+        return _normalize_class_name(name)
 
     db = get_db()
     source_exists = db.execute(
@@ -182,7 +205,7 @@ def admin_clone_school_year():
         (
             int(r["user_id"]),
             (r["nom_complet"] or "").strip().lower(),
-            (r["niveau"] or "").strip().upper(),
+            _normalize_class_name(r["niveau"]),
         )
         for r in existing_rows
     }
@@ -199,11 +222,13 @@ def admin_clone_school_year():
 
     inserted = 0
     skipped = 0
+    promoted = 0
     for row in source_rows:
         nom = (row["nom_complet"] or "").strip()
-        niveau = (row["niveau"] or "").strip().upper()
-        key = (int(row["user_id"]), nom.lower(), niveau)
-        if not nom or not niveau or key in existing:
+        source_niveau = _normalize_class_name(row["niveau"])
+        target_niveau = map_class_name(source_niveau)
+        key = (int(row["user_id"]), nom.lower(), target_niveau)
+        if not nom or not target_niveau or key in existing:
             skipped += 1
             continue
 
@@ -222,43 +247,76 @@ def admin_clone_school_year():
                 int(row["user_id"]),
                 target_year,
                 nom,
-                niveau,
+                target_niveau,
                 (row["parent_phone"] or "").strip(),
                 (row["parent_email"] or "").strip(),
             ),
         )
         inserted += 1
+        if target_niveau != source_niveau:
+            promoted += 1
         existing.add(key)
 
     new_assignments = 0
     if copy_assignments:
-        before_count = db.execute(
-            "SELECT COUNT(*) AS c FROM teacher_assignments WHERE school_year = ?",
-            (target_year,),
-        ).fetchone()["c"]
-        db.execute(
+        existing_assignments_rows = db.execute(
             """
-            INSERT OR IGNORE INTO teacher_assignments (user_id, school_year, subject_id, class_name)
-            SELECT user_id, ?, subject_id, class_name
+            SELECT user_id, subject_id, class_name
             FROM teacher_assignments
             WHERE school_year = ?
             """,
-            (target_year, source_year),
-        )
-        after_count = db.execute(
-            "SELECT COUNT(*) AS c FROM teacher_assignments WHERE school_year = ?",
             (target_year,),
-        ).fetchone()["c"]
-        new_assignments = max(0, int(after_count or 0) - int(before_count or 0))
+        ).fetchall()
+        existing_assignments = {
+            (
+                int(r["user_id"]),
+                int(r["subject_id"]),
+                _normalize_class_name(r["class_name"]),
+            )
+            for r in existing_assignments_rows
+        }
+
+        src_assignments = db.execute(
+            """
+            SELECT user_id, subject_id, class_name
+            FROM teacher_assignments
+            WHERE school_year = ?
+            """,
+            (source_year,),
+        ).fetchall()
+        if src_assignments:
+            for row in src_assignments:
+                target_class = map_class_name(row["class_name"])
+                key = (int(row["user_id"]), int(row["subject_id"]), target_class)
+                if not target_class or key in existing_assignments:
+                    continue
+                db.execute(
+                    """
+                    INSERT INTO teacher_assignments (user_id, school_year, subject_id, class_name)
+                    VALUES (?, ?, ?, ?)
+                    """,
+                    (int(row["user_id"]), target_year, int(row["subject_id"]), target_class),
+                )
+                existing_assignments.add(key)
+                new_assignments += 1
+
+    if activate_target:
+        db.execute("UPDATE school_years SET is_active = 0")
+        db.execute("UPDATE school_years SET is_active = 1 WHERE label = ?", (target_year,))
 
     db.commit()
     log_change(
         "clone_school_year",
         session["user_id"],
-        details=f"{source_year} -> {target_year} | eleves {inserted} (skip {skipped}) | assign {new_assignments}",
+        details=(
+            f"{source_year} -> {target_year} | "
+            f"mode={class_mode} | eleves {inserted} (skip {skipped}, promoted {promoted}) | "
+            f"assign {new_assignments} | active={1 if activate_target else 0}"
+        ),
     )
+    active_msg = " L annee cible est maintenant active." if activate_target else ""
     flash(
-        f"Passage d'annee termine: {inserted} eleves copies ({skipped} ignores), {new_assignments} affectations ajoutees.",
+        f"Passage d annee termine: {inserted} eleves copies ({skipped} ignores, {promoted} promus), {new_assignments} affectations ajoutees.{active_msg}",
         "success",
     )
     return redirect(url_for("admin.admin"))
