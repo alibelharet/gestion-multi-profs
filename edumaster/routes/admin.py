@@ -142,6 +142,128 @@ def admin_activate_school_year(year_id: int):
     return redirect(url_for("admin.admin"))
 
 
+@bp.route("/admin/school_year/clone", methods=["POST"])
+@login_required
+@admin_required
+def admin_clone_school_year():
+    source_year = (request.form.get("from_year") or "").strip()
+    target_year = (request.form.get("to_year") or "").strip()
+    copy_assignments = (request.form.get("copy_assignments") or "") == "1"
+
+    if not source_year or not target_year:
+        flash("Source/cible manquante.", "warning")
+        return redirect(url_for("admin.admin"))
+    if source_year == target_year:
+        flash("La source et la cible doivent etre differentes.", "warning")
+        return redirect(url_for("admin.admin"))
+
+    db = get_db()
+    source_exists = db.execute(
+        "SELECT id FROM school_years WHERE label = ?",
+        (source_year,),
+    ).fetchone()
+    target_exists = db.execute(
+        "SELECT id FROM school_years WHERE label = ?",
+        (target_year,),
+    ).fetchone()
+    if not source_exists or not target_exists:
+        flash("Annee source/cible introuvable.", "warning")
+        return redirect(url_for("admin.admin"))
+
+    existing_rows = db.execute(
+        """
+        SELECT user_id, nom_complet, niveau
+        FROM eleves
+        WHERE school_year = ?
+        """,
+        (target_year,),
+    ).fetchall()
+    existing = {
+        (
+            int(r["user_id"]),
+            (r["nom_complet"] or "").strip().lower(),
+            (r["niveau"] or "").strip().upper(),
+        )
+        for r in existing_rows
+    }
+
+    source_rows = db.execute(
+        """
+        SELECT user_id, nom_complet, niveau, parent_phone, parent_email
+        FROM eleves
+        WHERE school_year = ?
+        ORDER BY user_id, niveau COLLATE NOCASE, nom_complet COLLATE NOCASE
+        """,
+        (source_year,),
+    ).fetchall()
+
+    inserted = 0
+    skipped = 0
+    for row in source_rows:
+        nom = (row["nom_complet"] or "").strip()
+        niveau = (row["niveau"] or "").strip().upper()
+        key = (int(row["user_id"]), nom.lower(), niveau)
+        if not nom or not niveau or key in existing:
+            skipped += 1
+            continue
+
+        db.execute(
+            """
+            INSERT INTO eleves (
+                user_id,
+                school_year,
+                nom_complet,
+                niveau,
+                parent_phone,
+                parent_email
+            ) VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (
+                int(row["user_id"]),
+                target_year,
+                nom,
+                niveau,
+                (row["parent_phone"] or "").strip(),
+                (row["parent_email"] or "").strip(),
+            ),
+        )
+        inserted += 1
+        existing.add(key)
+
+    new_assignments = 0
+    if copy_assignments:
+        before_count = db.execute(
+            "SELECT COUNT(*) AS c FROM teacher_assignments WHERE school_year = ?",
+            (target_year,),
+        ).fetchone()["c"]
+        db.execute(
+            """
+            INSERT OR IGNORE INTO teacher_assignments (user_id, school_year, subject_id, class_name)
+            SELECT user_id, ?, subject_id, class_name
+            FROM teacher_assignments
+            WHERE school_year = ?
+            """,
+            (target_year, source_year),
+        )
+        after_count = db.execute(
+            "SELECT COUNT(*) AS c FROM teacher_assignments WHERE school_year = ?",
+            (target_year,),
+        ).fetchone()["c"]
+        new_assignments = max(0, int(after_count or 0) - int(before_count or 0))
+
+    db.commit()
+    log_change(
+        "clone_school_year",
+        session["user_id"],
+        details=f"{source_year} -> {target_year} | eleves {inserted} (skip {skipped}) | assign {new_assignments}",
+    )
+    flash(
+        f"Passage d'annee termine: {inserted} eleves copies ({skipped} ignores), {new_assignments} affectations ajoutees.",
+        "success",
+    )
+    return redirect(url_for("admin.admin"))
+
+
 @bp.route("/admin/assignment/add", methods=["POST"])
 @login_required
 @admin_required
