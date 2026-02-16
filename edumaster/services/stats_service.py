@@ -1,7 +1,6 @@
 from core.db import get_db
-from edumaster.services.grading import note_expr
 
-def get_class_evolution(user_id, subject_id):
+def get_class_evolution(user_id, subject_id, school_year):
     """
     Récupère l'évolution de la moyenne de classe par trimestre.
     Retourne: { 'classes': ['6A', '5B'], 't1': [12.5, 11.0], 't2': [...], 't3': [...] }
@@ -25,11 +24,11 @@ def get_class_evolution(user_id, subject_id):
         LEFT JOIN notes n1 ON n1.user_id = e.user_id AND n1.eleve_id = e.id AND n1.subject_id = ? AND n1.trimestre = 1
         LEFT JOIN notes n2 ON n2.user_id = e.user_id AND n2.eleve_id = e.id AND n2.subject_id = ? AND n2.trimestre = 2
         LEFT JOIN notes n3 ON n3.user_id = e.user_id AND n3.eleve_id = e.id AND n3.subject_id = ? AND n3.trimestre = 3
-        WHERE e.user_id = ?
+        WHERE e.user_id = ? AND e.school_year = ?
         GROUP BY e.niveau
         ORDER BY e.niveau COLLATE NOCASE ASC
         """,
-        (subject_id, subject_id, subject_id, user_id)
+        (subject_id, subject_id, subject_id, user_id, school_year)
     ).fetchall()
 
     return {
@@ -40,7 +39,7 @@ def get_class_evolution(user_id, subject_id):
         'counts': [r['count'] for r in rows]
     }
 
-def get_best_students_evolution(user_id, subject_id, limit=5):
+def get_best_students_evolution(user_id, subject_id, school_year, limit=5):
     """
     Récupère les meilleurs élèves (moyenne annuelle) et leur évolution.
     """
@@ -66,11 +65,11 @@ def get_best_students_evolution(user_id, subject_id, limit=5):
         LEFT JOIN notes n1 ON n1.user_id = e.user_id AND n1.eleve_id = e.id AND n1.subject_id = ? AND n1.trimestre = 1
         LEFT JOIN notes n2 ON n2.user_id = e.user_id AND n2.eleve_id = e.id AND n2.subject_id = ? AND n2.trimestre = 2
         LEFT JOIN notes n3 ON n3.user_id = e.user_id AND n3.eleve_id = e.id AND n3.subject_id = ? AND n3.trimestre = 3
-        WHERE e.user_id = ?
+        WHERE e.user_id = ? AND e.school_year = ?
         ORDER BY annual DESC
         LIMIT ?
         """,
-        (subject_id, subject_id, subject_id, user_id, limit)
+        (subject_id, subject_id, subject_id, user_id, school_year, limit)
     ).fetchall()
 
     return [

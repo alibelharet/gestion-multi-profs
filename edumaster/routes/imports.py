@@ -10,7 +10,13 @@ from core.audit import log_change
 from core.db import get_db
 from core.security import login_required, write_required
 from core.utils import clean_note, get_appreciation_dynamique
-from edumaster.services.common import get_subjects, select_subject_id, parse_trim
+from edumaster.services.common import (
+    get_subjects,
+    get_user_assignment_scope,
+    parse_trim,
+    resolve_school_year,
+    select_subject_id,
+)
 from edumaster.services.grading import clean_component, split_activite_components, sum_activite_components
 from edumaster.services.import_utils import (
     preview_dir, cleanup_import_previews, get_preview_meta, clear_preview_meta,
@@ -44,13 +50,26 @@ def import_excel():
     user_id = session["user_id"]
     trim = parse_trim(request.form.get("trimestre_import", "1"))
     file = request.files.get("fichier_excel")
+    db = get_db()
+    selected_school_year = resolve_school_year(
+        db,
+        request.form.get("school_year"),
+        is_admin=bool(session.get("is_admin")),
+    )
+    scope = (
+        {"restricted": False, "subject_ids": set(), "classes": set()}
+        if session.get("is_admin")
+        else get_user_assignment_scope(db, user_id, selected_school_year)
+    )
     if not file or not file.filename:
         flash("Fichier Excel manquant.", "warning")
-        return redirect(request.referrer or url_for("dashboard.index", trimestre=trim))
+        return redirect(request.referrer or url_for("dashboard.index", trimestre=trim, school_year=selected_school_year))
 
-    db = get_db()
     subjects = get_subjects(db, user_id)
     subject_id = select_subject_id(subjects, request.form.get("subject"))
+    if scope["restricted"] and subject_id not in scope["subject_ids"]:
+        flash("Matiere non autorisee pour ce compte.", "warning")
+        return redirect(request.referrer or url_for("dashboard.index", trimestre=trim, school_year=selected_school_year))
     previous_meta = session.get("import_preview")
     if isinstance(previous_meta, dict):
         clear_preview_meta(previous_meta)
@@ -72,7 +91,7 @@ def import_excel():
         except Exception:
             pass
         flash(f"Erreur lecture Excel: {exc}", "danger")
-        return redirect(request.referrer or url_for("dashboard.index", trimestre=trim))
+        return redirect(request.referrer or url_for("dashboard.index", trimestre=trim, school_year=selected_school_year))
 
     selected_sheet = ""
     selected_df = None
@@ -93,7 +112,7 @@ def import_excel():
         except Exception:
             pass
         flash("Aucune ligne exploitable detectee dans le fichier.", "warning")
-        return redirect(request.referrer or url_for("dashboard.index", trimestre=trim))
+        return redirect(request.referrer or url_for("dashboard.index", trimestre=trim, school_year=selected_school_year))
 
     columns = [str(c) for c in selected_df.columns]
     defaults = build_default_mapping(columns)
@@ -113,6 +132,7 @@ def import_excel():
         "path": preview_path,
         "trim": trim,
         "subject_id": int(subject_id),
+        "school_year": selected_school_year,
         "sheet_name": selected_sheet,
         "created_at": int(datetime.now().timestamp()),
     }
@@ -131,6 +151,7 @@ def import_excel():
         source_sheet=selected_sheet,
         trim=trim,
         subject_id=subject_id,
+        school_year=selected_school_year,
     )
 
 
@@ -147,6 +168,16 @@ def import_excel_apply():
 
     trim = parse_trim(meta.get("trim"), "1")
     db = get_db()
+    selected_school_year = resolve_school_year(
+        db,
+        meta.get("school_year"),
+        is_admin=bool(session.get("is_admin")),
+    )
+    scope = (
+        {"restricted": False, "subject_ids": set(), "classes": set()}
+        if session.get("is_admin")
+        else get_user_assignment_scope(db, user_id, selected_school_year)
+    )
     subjects = get_subjects(db, user_id)
     subject_ids = {int(s["id"]) for s in subjects}
     try:
@@ -155,6 +186,10 @@ def import_excel_apply():
         subject_id = None
     if subject_id not in subject_ids:
         subject_id = select_subject_id(subjects, request.form.get("subject"))
+    if scope["restricted"] and subject_id not in scope["subject_ids"]:
+        clear_preview_meta(meta)
+        flash("Matiere non autorisee pour ce compte.", "warning")
+        return redirect(url_for("dashboard.index", trimestre=trim, school_year=selected_school_year))
 
     mapping = {}
     for key, _label in IMPORT_MAPPING_FIELDS:
@@ -165,7 +200,7 @@ def import_excel_apply():
     except Exception as exc:
         clear_preview_meta(meta)
         flash(f"Lecture impossible pendant validation: {exc}", "danger")
-        return redirect(url_for("dashboard.index", trimestre=trim, subject=subject_id))
+        return redirect(url_for("dashboard.index", trimestre=trim, subject=subject_id, school_year=selected_school_year))
 
     inserted = 0
     updated = 0
@@ -206,6 +241,9 @@ def import_excel_apply():
                 niveau = str(row_value(row, resolved.get("classe")) or "").strip()
                 if not niveau:
                     niveau = str(sheet_name).strip() or "Global"
+                if scope["restricted"] and niveau not in scope["classes"]:
+                    skipped_rows += 1
+                    continue
 
                 phone = str(row_value(row, resolved.get("phone")) or "").strip()
                 email = str(row_value(row, resolved.get("email")) or "").strip()
@@ -232,8 +270,8 @@ def import_excel_apply():
                     rem = str(custom_rem).strip()
 
                 ex = db.execute(
-                    "SELECT id FROM eleves WHERE nom_complet = ? AND niveau = ? AND user_id = ?",
-                    (full, niveau, user_id),
+                    "SELECT id FROM eleves WHERE nom_complet = ? AND niveau = ? AND school_year = ? AND user_id = ?",
+                    (full, niveau, selected_school_year, user_id),
                 ).fetchone()
 
                 if ex:
@@ -266,8 +304,8 @@ def import_excel_apply():
                     updated += 1
                 else:
                     cur = db.execute(
-                        f"INSERT INTO eleves (user_id, nom_complet, niveau, remarques_t{trim}, devoir_t{trim}, activite_t{trim}, compo_t{trim}, parent_phone, parent_email) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                        (user_id, full, niveau, rem, d, a, c, phone, email),
+                        f"INSERT INTO eleves (user_id, school_year, nom_complet, niveau, remarques_t{trim}, devoir_t{trim}, activite_t{trim}, compo_t{trim}, parent_phone, parent_email) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                        (user_id, selected_school_year, full, niveau, rem, d, a, c, phone, email),
                     )
                     eleve_id = cur.lastrowid
                     db.execute(
@@ -304,14 +342,14 @@ def import_excel_apply():
     log_change(
         "import_excel",
         user_id,
-        details=f"{total} lignes (new {inserted}, upd {updated}, sheets {skipped_sheets}, rows {skipped_rows})",
+        details=f"{selected_school_year}: {total} lignes (new {inserted}, upd {updated}, sheets {skipped_sheets}, rows {skipped_rows})",
         subject_id=subject_id,
     )
     flash(
         f"Import termine: {total} lignes (nouveaux {inserted}, maj {updated}, onglets ignores {skipped_sheets}, lignes ignorees {skipped_rows})",
         "success",
     )
-    return redirect(url_for("dashboard.index", trimestre=trim, subject=subject_id))
+    return redirect(url_for("dashboard.index", trimestre=trim, subject=subject_id, school_year=selected_school_year))
 
 @bp.route("/remplir_bulletin_officiel", methods=["POST"])
 @login_required
@@ -319,13 +357,26 @@ def import_excel_apply():
 def remplir_bulletin_officiel():
     user_id = session["user_id"]
     trim = parse_trim(request.form.get("trimestre_fill", "1"))
+    db = get_db()
+    selected_school_year = resolve_school_year(
+        db,
+        request.form.get("school_year"),
+        is_admin=bool(session.get("is_admin")),
+    )
+    scope = (
+        {"restricted": False, "subject_ids": set(), "classes": set()}
+        if session.get("is_admin")
+        else get_user_assignment_scope(db, user_id, selected_school_year)
+    )
     file = request.files.get("fichier_vide")
     if file and file.filename:
         try:
             wb = openpyxl.load_workbook(file)
-            db = get_db()
             subjects = get_subjects(db, user_id)
             subject_id = select_subject_id(subjects, request.form.get("subject"))
+            if scope["restricted"] and subject_id not in scope["subject_ids"]:
+                flash("Matiere non autorisee pour ce compte.", "warning")
+                return redirect(request.referrer or url_for("dashboard.index", trimestre=trim, school_year=selected_school_year))
 
             for sheet in wb.worksheets:
                 header_row = None
@@ -401,8 +452,9 @@ def remplir_bulletin_officiel():
                              AND n.subject_id = ?
                              AND n.trimestre = ?
                             WHERE e.nom_complet = ? AND e.user_id = ?
+                              AND e.school_year = ?
                             """,
-                            (subject_id, int(trim), full, user_id),
+                            (subject_id, int(trim), full, user_id, selected_school_year),
                         ).fetchone()
                         if el:
                             activite_val = (
@@ -445,7 +497,7 @@ def remplir_bulletin_officiel():
             )
         except Exception as e:
             flash(f"Erreur: {e}", "danger")
-    return redirect(request.referrer or url_for("dashboard.index"))
+    return redirect(request.referrer or url_for("dashboard.index", school_year=selected_school_year))
 
 
 @bp.route("/import_excel_cancel/<token>")
@@ -453,6 +505,21 @@ def remplir_bulletin_officiel():
 def import_excel_cancel(token: str):
     meta = get_preview_meta((token or "").strip())
     if meta:
+        trim = parse_trim(meta.get("trim"), "1")
+        school_year = (meta.get("school_year") or "").strip()
+        try:
+            subject_id = int(meta.get("subject_id"))
+        except Exception:
+            subject_id = None
         clear_preview_meta(meta)
+        if subject_id:
+            return redirect(
+                url_for(
+                    "dashboard.index",
+                    trimestre=trim,
+                    subject=subject_id,
+                    school_year=school_year,
+                )
+            )
     return redirect(url_for("dashboard.index"))
 

@@ -1,7 +1,7 @@
 from .grading import parse_float
 from .import_utils import parse_date
 
-def build_filters(user_id, trim, args, moy_expr_override=None):
+def build_filters(user_id, trim, args, school_year_label, moy_expr_override=None, allowed_classes=None):
     niveau = args.get("niveau", "")
     search = (args.get("recherche") or "").strip()
     sort = args.get("sort", "class")
@@ -20,8 +20,16 @@ def build_filters(user_id, trim, args, moy_expr_override=None):
         if moy_expr_override
         else f"((devoir_t{trim} + activite_t{trim})/2.0 + (compo_t{trim}*2.0))/3.0"
     )
-    where = "e.user_id = ?"
-    params = [user_id]
+    where = "e.user_id = ? AND e.school_year = ?"
+    params = [user_id, school_year_label]
+
+    allowed_classes = sorted(set(allowed_classes or []))
+    if allowed_classes:
+        placeholders = ",".join("?" for _ in allowed_classes)
+        where += f" AND e.niveau IN ({placeholders})"
+        params.extend(allowed_classes)
+        if niveau and niveau != "all" and niveau not in allowed_classes:
+            niveau = "all"
 
     if niveau and niveau != "all":
         where += " AND e.niveau = ?"
@@ -52,6 +60,7 @@ def build_filters(user_id, trim, args, moy_expr_override=None):
         "etat": etat,
         "min_moy": min_moy,
         "max_moy": max_moy,
+        "school_year": school_year_label,
         "moy_expr": moy_expr,
         "where": where,
         "params": params,

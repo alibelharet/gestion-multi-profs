@@ -8,7 +8,14 @@ from flask import Blueprint, render_template, request, session, redirect, url_fo
 from core.config import BASE_DIR
 from core.db import get_db
 from core.security import login_required
-from edumaster.services.common import school_year, get_subjects, select_subject_id, parse_trim, arabize
+from edumaster.services.common import (
+    arabize,
+    get_subjects,
+    get_user_assignment_scope,
+    parse_trim,
+    resolve_school_year,
+    select_subject_id,
+)
 from edumaster.services.filters import build_filters
 from edumaster.services.grading import note_expr
 from edumaster.services.reports import build_bulletin_multisubject
@@ -22,7 +29,12 @@ def bulletin(id: int):
     trim = parse_trim(request.args.get("trimestre", "1"))
 
     db = get_db()
-    data = build_bulletin_multisubject(db, user_id, id, trim)
+    selected_school_year = resolve_school_year(
+        db,
+        request.args.get("school_year"),
+        is_admin=bool(session.get("is_admin")),
+    )
+    data = build_bulletin_multisubject(db, user_id, id, trim, selected_school_year)
     if not data:
         return "Eleve introuvable"
 
@@ -35,6 +47,7 @@ def bulletin(id: int):
         moyenne_generale=data["moyenne_generale"],
         moyenne_classe=data["moyenne_classe"],
         trimestre=trim,
+        school_year=selected_school_year,
         nom_prof=session.get("nom_affichage"),
     )
 
@@ -53,10 +66,22 @@ def bulletin_pdf(id: int):
         from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
     except Exception:
         flash("PDF indisponible. Installez reportlab (pip install reportlab).", "danger")
-        return redirect(url_for("reports.bulletin", id=id, trimestre=trim))
+        return redirect(
+            url_for(
+                "reports.bulletin",
+                id=id,
+                trimestre=trim,
+                school_year=request.args.get("school_year", ""),
+            )
+        )
 
     db = get_db()
-    data = build_bulletin_multisubject(db, user_id, id, trim)
+    selected_school_year = resolve_school_year(
+        db,
+        request.args.get("school_year"),
+        is_admin=bool(session.get("is_admin")),
+    )
+    data = build_bulletin_multisubject(db, user_id, id, trim, selected_school_year)
     if not data:
         return "Eleve introuvable"
     eleve = data["eleve"]
@@ -79,7 +104,7 @@ def bulletin_pdf(id: int):
 
     story = []
     school_name = session.get("school_name") or os.environ.get("SCHOOL_NAME", "Etablissement")
-    s_year = school_year(datetime.now())
+    s_year = selected_school_year
     logo_path = os.path.join(BASE_DIR, "static", "logo.png")
     stamp_path = os.path.join(BASE_DIR, "static", "stamp.png")
 
@@ -208,12 +233,33 @@ def print_list():
         trim = "1"
 
     db = get_db()
+    selected_school_year = resolve_school_year(
+        db,
+        request.args.get("school_year"),
+        is_admin=bool(session.get("is_admin")),
+    )
+    scope = (
+        {"restricted": False, "subject_ids": set(), "classes": set()}
+        if session.get("is_admin")
+        else get_user_assignment_scope(db, user_id, selected_school_year)
+    )
     subjects = get_subjects(db, user_id)
     subject_id = select_subject_id(subjects, request.args.get("subject"))
+    if scope["restricted"] and subject_id not in scope["subject_ids"]:
+        allowed_subjects = [s for s in subjects if int(s["id"]) in scope["subject_ids"]]
+        if allowed_subjects:
+            subject_id = int(allowed_subjects[0]["id"])
     subject_name = next(s["name"] for s in subjects if int(s["id"]) == subject_id)
 
     devoir_expr, activite_expr, compo_expr, remarques_expr, moy_expr = note_expr(trim)
-    filters = build_filters(user_id, trim, request.args, moy_expr)
+    filters = build_filters(
+        user_id,
+        trim,
+        request.args,
+        selected_school_year,
+        moy_expr,
+        allowed_classes=(scope["classes"] if scope["restricted"] else None),
+    )
     niveau = filters["niveau"]
 
     where = filters["where"]
@@ -256,6 +302,7 @@ def print_list():
         nom_prof=session.get("nom_affichage"),
         trimestre=trim,
         niveau=niveau,
+        school_year=selected_school_year,
         subject_name=subject_name,
     )
 
@@ -276,15 +323,43 @@ def export_list_pdf():
         from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
     except Exception:
         flash("PDF indisponible. Installez reportlab (pip install reportlab).", "danger")
-        return redirect(request.referrer or url_for("dashboard.index", trimestre=trim))
+        return redirect(
+            request.referrer
+            or url_for(
+                "dashboard.index",
+                trimestre=trim,
+                school_year=request.args.get("school_year", ""),
+            )
+        )
 
     db = get_db()
+    selected_school_year = resolve_school_year(
+        db,
+        request.args.get("school_year"),
+        is_admin=bool(session.get("is_admin")),
+    )
+    scope = (
+        {"restricted": False, "subject_ids": set(), "classes": set()}
+        if session.get("is_admin")
+        else get_user_assignment_scope(db, user_id, selected_school_year)
+    )
     subjects = get_subjects(db, user_id)
     subject_id = select_subject_id(subjects, request.args.get("subject"))
+    if scope["restricted"] and subject_id not in scope["subject_ids"]:
+        allowed_subjects = [s for s in subjects if int(s["id"]) in scope["subject_ids"]]
+        if allowed_subjects:
+            subject_id = int(allowed_subjects[0]["id"])
     subject_name = next(s["name"] for s in subjects if int(s["id"]) == subject_id)
 
     devoir_expr, activite_expr, compo_expr, remarques_expr, moy_expr = note_expr(trim)
-    filters = build_filters(user_id, trim, request.args, moy_expr)
+    filters = build_filters(
+        user_id,
+        trim,
+        request.args,
+        selected_school_year,
+        moy_expr,
+        allowed_classes=(scope["classes"] if scope["restricted"] else None),
+    )
 
     where = filters["where"]
     params = filters["params"]
@@ -339,7 +414,7 @@ def export_list_pdf():
     school_name = session.get("school_name") or os.environ.get("SCHOOL_NAME", "")
     class_label = filters.get("niveau") if "filters" in locals() else ""
     class_suffix = f" - {class_label}" if class_label and class_label != "all" else ""
-    title = arabize(f"\u0642\u0627\u0626\u0645\u0629 \u0627\u0644\u062a\u0644\u0627\u0645\u064a\u0630{class_suffix} - T{trim} - {subject_name}")
+    title = arabize(f"\u0642\u0627\u0626\u0645\u0629 \u0627\u0644\u062a\u0644\u0627\u0645\u064a\u0630{class_suffix} - {selected_school_year} - T{trim} - {subject_name}")
     title_style = styles["Title"].clone("ArabicTitle")
     title_style.fontName = font_bold
     title_style.alignment = 1
@@ -435,11 +510,32 @@ def export_excel():
         trim = "1"
 
     db = get_db()
+    selected_school_year = resolve_school_year(
+        db,
+        request.args.get("school_year"),
+        is_admin=bool(session.get("is_admin")),
+    )
+    scope = (
+        {"restricted": False, "subject_ids": set(), "classes": set()}
+        if session.get("is_admin")
+        else get_user_assignment_scope(db, user_id, selected_school_year)
+    )
     subjects = get_subjects(db, user_id)
     subject_id = select_subject_id(subjects, request.args.get("subject"))
+    if scope["restricted"] and subject_id not in scope["subject_ids"]:
+        allowed_subjects = [s for s in subjects if int(s["id"]) in scope["subject_ids"]]
+        if allowed_subjects:
+            subject_id = int(allowed_subjects[0]["id"])
 
     devoir_expr, activite_expr, compo_expr, remarques_expr, moy_expr = note_expr(trim)
-    filters = build_filters(user_id, trim, request.args, moy_expr)
+    filters = build_filters(
+        user_id,
+        trim,
+        request.args,
+        selected_school_year,
+        moy_expr,
+        allowed_classes=(scope["classes"] if scope["restricted"] else None),
+    )
     where = filters["where"]
     params = filters["params"]
     sort = filters["sort"]
@@ -521,11 +617,32 @@ def export_parents():
         trim = "1"
 
     db = get_db()
+    selected_school_year = resolve_school_year(
+        db,
+        request.args.get("school_year"),
+        is_admin=bool(session.get("is_admin")),
+    )
+    scope = (
+        {"restricted": False, "subject_ids": set(), "classes": set()}
+        if session.get("is_admin")
+        else get_user_assignment_scope(db, user_id, selected_school_year)
+    )
     subjects = get_subjects(db, user_id)
     subject_id = select_subject_id(subjects, request.args.get("subject"))
+    if scope["restricted"] and subject_id not in scope["subject_ids"]:
+        allowed_subjects = [s for s in subjects if int(s["id"]) in scope["subject_ids"]]
+        if allowed_subjects:
+            subject_id = int(allowed_subjects[0]["id"])
 
     devoir_expr, activite_expr, compo_expr, remarques_expr, moy_expr = note_expr(trim)
-    filters = build_filters(user_id, trim, request.args, moy_expr)
+    filters = build_filters(
+        user_id,
+        trim,
+        request.args,
+        selected_school_year,
+        moy_expr,
+        allowed_classes=(scope["classes"] if scope["restricted"] else None),
+    )
     where = filters["where"]
     params = filters["params"]
 

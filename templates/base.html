@@ -229,9 +229,10 @@
             </button>
 
             <div class="collapse navbar-collapse" id="navbarNav">
+                {% set current_school_year = request.args.get('school_year') %}
                 <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                     <li class="nav-item">
-                        <a class="nav-link active fw-bold" href="/">{{ tr('menu.dashboard', 'Tableau') }}</a>
+                        <a class="nav-link active fw-bold" href="{{ url_for('dashboard.index', school_year=current_school_year) if current_school_year else url_for('dashboard.index') }}">{{ tr('menu.dashboard', 'Tableau') }}</a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="/ressources">{{ tr('menu.resources', 'Ressources') }}</a>
@@ -245,13 +246,13 @@
                     </li>
                     {% endif %}
                     <li class="nav-item">
-                        <a class="nav-link" href="/timetable">{{ tr('menu.timetable', 'Emploi du temps') }}</a>
+                        <a class="nav-link" href="{{ url_for('dashboard.timetable', school_year=current_school_year) if current_school_year else url_for('dashboard.timetable') }}">{{ tr('menu.timetable', 'Emploi du temps') }}</a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="/history">{{ tr('menu.history', 'Historique') }}</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('dashboard.stats') }}">{{ tr('menu.stats', 'Statistiques')
+                        <a class="nav-link" href="{{ url_for('dashboard.stats', school_year=current_school_year) if current_school_year else url_for('dashboard.stats') }}">{{ tr('menu.stats', 'Statistiques')
                             }}</a>
                     </li>
                     {% if session.get('is_admin') %}

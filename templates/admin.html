@@ -19,6 +19,128 @@
 </div>
 
 <div class="app-card p-3 mb-4">
+  <h5 class="mb-3">Annees scolaires</h5>
+  <form action="{{ url_for('admin.admin_add_school_year') }}" method="POST" class="row g-2 align-items-end mb-3">
+    {{ csrf_field() }}
+    <div class="col-12 col-md-4">
+      <label class="small text-muted">Nouvelle annee</label>
+      <input type="text" name="label" class="form-control form-control-sm" placeholder="2026/2027" required>
+    </div>
+    <div class="col-12 col-md-2 d-grid">
+      <button type="submit" class="btn btn-primary btn-sm">Ajouter</button>
+    </div>
+  </form>
+
+  <div class="table-responsive">
+    <table class="table table-sm align-middle mb-0">
+      <thead>
+        <tr>
+          <th>Annee</th>
+          <th>Etat</th>
+          <th class="text-end">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for sy in school_years %}
+        <tr>
+          <td class="fw-bold">{{ sy.label }}</td>
+          <td>
+            {% if sy.is_active %}
+            <span class="badge bg-success">Active</span>
+            {% else %}
+            <span class="badge bg-secondary">Inactive</span>
+            {% endif %}
+          </td>
+          <td class="text-end">
+            {% if not sy.is_active %}
+            <form action="{{ url_for('admin.admin_activate_school_year', year_id=sy.id) }}" method="POST" style="display:inline;">
+              {{ csrf_field() }}
+              <button type="submit" class="btn btn-outline-success btn-sm">Activer</button>
+            </form>
+            {% else %}
+            <span class="text-muted small">Courante</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="3" class="text-center text-muted">Aucune annee.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="app-card p-3 mb-4">
+  <h5 class="mb-3">Affectations enseignants</h5>
+  <form action="{{ url_for('admin.admin_add_assignment') }}" method="POST" class="row g-2 align-items-end mb-3">
+    {{ csrf_field() }}
+    <div class="col-12 col-md-4">
+      <label class="small text-muted">Enseignant / Matiere</label>
+      <select name="teacher_subject" class="form-select form-select-sm" required>
+        <option value="">Choisir...</option>
+        {% for ts in teacher_subjects %}
+        <option value="{{ ts.user_id }}|{{ ts.subject_id }}">
+          {{ ts.nom_affichage }} ({{ ts.username }}) - {{ ts.subject_name }}
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-12 col-md-3">
+      <label class="small text-muted">Annee scolaire</label>
+      <select name="school_year" class="form-select form-select-sm" required>
+        {% for sy in school_years %}
+        <option value="{{ sy.label }}" {% if sy.label == active_school_year %}selected{% endif %}>{{ sy.label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-12 col-md-3">
+      <label class="small text-muted">Classe</label>
+      <input type="text" name="class_name" class="form-control form-control-sm" list="classes_admin_list" placeholder="Ex: 2M2" required>
+      <datalist id="classes_admin_list">
+        {% for c in available_classes %}
+        <option value="{{ c }}">
+        {% endfor %}
+      </datalist>
+    </div>
+    <div class="col-12 col-md-2 d-grid">
+      <button type="submit" class="btn btn-primary btn-sm">Affecter</button>
+    </div>
+  </form>
+
+  <div class="table-responsive">
+    <table class="table table-sm align-middle mb-0">
+      <thead>
+        <tr>
+          <th>Annee</th>
+          <th>Enseignant</th>
+          <th>Matiere</th>
+          <th>Classe</th>
+          <th class="text-end">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in assignments %}
+        <tr>
+          <td>{{ a.school_year }}</td>
+          <td>{{ a.nom_affichage }} <span class="text-muted small">({{ a.username }})</span></td>
+          <td>{{ a.subject_name }}</td>
+          <td><span class="badge bg-secondary">{{ a.class_name }}</span></td>
+          <td class="text-end">
+            <form action="{{ url_for('admin.admin_delete_assignment', assignment_id=a.id) }}" method="POST" style="display:inline;">
+              {{ csrf_field() }}
+              <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Supprimer cette affectation ?')">Supprimer</button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5" class="text-center text-muted">Aucune affectation.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="app-card p-3 mb-4">
   <h5 class="mb-3">Ajouter utilisateur</h5>
   <form action="/admin/create_user" method="POST" class="row g-2 align-items-end">
     {{ csrf_field() }}
@@ -86,7 +208,7 @@
           </td>
           <td class="text-end">
             {% if user.id != session.get('user_id') %}
-            <a href="/admin/voir_eleves/{{ user.id }}" class="btn btn-info btn-sm text-white">Voir classe</a>
+            <a href="{{ url_for('admin.admin_voir_eleves', user_id=user.id, school_year=active_school_year) }}" class="btn btn-info btn-sm text-white">Voir classe</a>
 
             {% if user.role != 'admin' %}
             <form action="/admin/reset_password/{{ user.id }}" method="POST" style="display:inline;">

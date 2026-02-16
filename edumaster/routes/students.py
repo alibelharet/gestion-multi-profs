@@ -3,7 +3,13 @@ from core.audit import log_change
 from core.db import get_db
 from core.security import login_required, write_required
 from core.utils import clean_note, get_appreciation_dynamique
-from edumaster.services.common import get_subjects, select_subject_id, parse_trim
+from edumaster.services.common import (
+    get_subjects,
+    get_user_assignment_scope,
+    parse_trim,
+    resolve_school_year,
+    select_subject_id,
+)
 from edumaster.services.grading import clean_component, split_activite_components, sum_activite_components
 
 bp = Blueprint("students", __name__)
@@ -34,17 +40,36 @@ def ajouter_eleve():
 
     parent_phone = (request.form.get("parent_phone") or "").strip()
     parent_email = (request.form.get("parent_email") or "").strip()
+    niveau = (request.form.get("niveau") or "").strip()
 
     db = get_db()
+    selected_school_year = resolve_school_year(
+        db,
+        request.form.get("school_year"),
+        is_admin=bool(session.get("is_admin")),
+    )
+    scope = (
+        {"restricted": False, "subject_ids": set(), "classes": set()}
+        if session.get("is_admin")
+        else get_user_assignment_scope(db, user_id, selected_school_year)
+    )
     subjects = get_subjects(db, user_id)
     subject_id = select_subject_id(subjects, request.form.get("subject"))
+    if scope["restricted"]:
+        if subject_id not in scope["subject_ids"]:
+            flash("Matiere non autorisee pour ce compte.", "warning")
+            return redirect(request.referrer or url_for("dashboard.index", trimestre=trim, school_year=selected_school_year))
+        if niveau not in scope["classes"]:
+            flash("Classe non autorisee pour ce compte.", "warning")
+            return redirect(request.referrer or url_for("dashboard.index", trimestre=trim, school_year=selected_school_year))
 
     cur = db.execute(
-        f"INSERT INTO eleves (user_id, nom_complet, niveau, remarques_t{trim}, devoir_t{trim}, activite_t{trim}, compo_t{trim}, parent_phone, parent_email) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        f"INSERT INTO eleves (user_id, school_year, nom_complet, niveau, remarques_t{trim}, devoir_t{trim}, activite_t{trim}, compo_t{trim}, parent_phone, parent_email) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         (
             user_id,
+            selected_school_year,
             request.form["nom_complet"],
-            request.form["niveau"],
+            niveau,
             get_appreciation_dynamique(moy, user_id),
             d,
             a,
@@ -80,25 +105,52 @@ def ajouter_eleve():
 
     db.commit()
     log_change("add_student", user_id, details=request.form.get("nom_complet", ""), eleve_id=eleve_id, subject_id=subject_id)
-    return redirect(request.referrer or url_for("dashboard.index", trimestre=trim))
+    return redirect(request.referrer or url_for("dashboard.index", trimestre=trim, school_year=selected_school_year))
 
 
 @bp.route("/supprimer_multi", methods=["POST"])
 @login_required
 @write_required
 def supprimer_multi():
+    user_id = session["user_id"]
+    db = get_db()
+    selected_school_year = resolve_school_year(
+        db,
+        request.form.get("school_year"),
+        is_admin=bool(session.get("is_admin")),
+    )
+    scope = (
+        {"restricted": False, "classes": set()}
+        if session.get("is_admin")
+        else get_user_assignment_scope(db, user_id, selected_school_year)
+    )
     ids = request.form.getlist("ids")
     if ids:
-        db = get_db()
+        placeholders = ",".join("?" * len(ids))
+        params = ids + [user_id, selected_school_year]
+        where_extra = ""
+        if scope["restricted"] and scope["classes"]:
+            class_placeholders = ",".join("?" * len(scope["classes"]))
+            where_extra = f" AND niveau IN ({class_placeholders})"
+            params += sorted(scope["classes"])
+        allowed_rows = db.execute(
+            f"SELECT id FROM eleves WHERE id IN ({placeholders}) AND user_id = ? AND school_year = ?{where_extra}",
+            params,
+        ).fetchall()
+        allowed_ids = [str(r["id"]) for r in allowed_rows]
+        if not allowed_ids:
+            flash("Aucun eleve autorise pour suppression.", "warning")
+            return redirect(request.referrer or url_for("dashboard.index", school_year=selected_school_year))
+        del_placeholders = ",".join("?" * len(allowed_ids))
         db.execute(
-            f"DELETE FROM notes WHERE eleve_id IN ({','.join('?'*len(ids))}) AND user_id = ?",
-            ids + [session["user_id"]],
+            f"DELETE FROM notes WHERE eleve_id IN ({del_placeholders}) AND user_id = ?",
+            allowed_ids + [user_id],
         )
         db.execute(
-            f"DELETE FROM eleves WHERE id IN ({','.join('?'*len(ids))}) AND user_id = ?",
-            ids + [session["user_id"]],
+            f"DELETE FROM eleves WHERE id IN ({del_placeholders}) AND user_id = ? AND school_year = ?",
+            allowed_ids + [user_id, selected_school_year],
         )
         db.commit()
-        log_change("delete_students", session["user_id"], details=f"{len(ids)} eleves")
-        flash(f"Supprimes ({len(ids)})", "success")
-    return redirect(request.referrer or url_for("dashboard.index"))
+        log_change("delete_students", user_id, details=f"{len(allowed_ids)} eleves")
+        flash(f"Supprimes ({len(allowed_ids)})", "success")
+    return redirect(request.referrer or url_for("dashboard.index", school_year=selected_school_year))

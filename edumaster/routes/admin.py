@@ -1,4 +1,5 @@
 import os
+import re
 import secrets
 import tempfile
 from datetime import datetime
@@ -12,6 +13,7 @@ from core.db import close_db, get_db
 from core.password_reset import create_reset_token
 from core.security import admin_required, login_required
 from core.utils import init_default_rules
+from edumaster.services.common import get_active_school_year, list_school_years, resolve_school_year
 
 bp = Blueprint("admin", __name__)
 
@@ -41,7 +43,183 @@ def admin():
         ORDER BY d.id DESC
         """
     ).fetchall()
-    return render_template("admin.html", users=users, all_docs=all_docs)
+    school_years = list_school_years(db)
+    active_school_year = get_active_school_year(db)
+    teacher_subjects = db.execute(
+        """
+        SELECT
+            u.id AS user_id,
+            u.username,
+            u.nom_affichage,
+            s.id AS subject_id,
+            s.name AS subject_name
+        FROM users u
+        JOIN subjects s ON s.user_id = u.id
+        WHERE COALESCE(u.is_admin, 0) = 0
+        ORDER BY u.nom_affichage COLLATE NOCASE, s.name COLLATE NOCASE
+        """
+    ).fetchall()
+    assignments = db.execute(
+        """
+        SELECT
+            a.id,
+            a.school_year,
+            a.class_name,
+            u.nom_affichage,
+            u.username,
+            s.name AS subject_name
+        FROM teacher_assignments a
+        JOIN users u ON u.id = a.user_id
+        JOIN subjects s ON s.id = a.subject_id
+        ORDER BY a.school_year DESC, u.nom_affichage COLLATE NOCASE, s.name COLLATE NOCASE, a.class_name COLLATE NOCASE
+        """
+    ).fetchall()
+    available_classes = [
+        r["niveau"]
+        for r in db.execute(
+            "SELECT DISTINCT niveau FROM eleves ORDER BY niveau COLLATE NOCASE"
+        ).fetchall()
+    ]
+    return render_template(
+        "admin.html",
+        users=users,
+        all_docs=all_docs,
+        school_years=school_years,
+        active_school_year=active_school_year,
+        teacher_subjects=teacher_subjects,
+        assignments=assignments,
+        available_classes=available_classes,
+    )
+
+
+@bp.route("/admin/school_year/add", methods=["POST"])
+@login_required
+@admin_required
+def admin_add_school_year():
+    label = (request.form.get("label") or "").strip()
+    if not label:
+        flash("Annee scolaire manquante.", "warning")
+        return redirect(url_for("admin.admin"))
+    match = re.match(r"^(\d{4})/(\d{4})$", label)
+    if not match:
+        flash("Format invalide. Utilisez AAAA/AAAA (ex: 2026/2027).", "warning")
+        return redirect(url_for("admin.admin"))
+    y1 = int(match.group(1))
+    y2 = int(match.group(2))
+    if y2 != y1 + 1:
+        flash("Format invalide: la 2eme annee doit etre +1.", "warning")
+        return redirect(url_for("admin.admin"))
+
+    db = get_db()
+    before = db.execute(
+        "SELECT id FROM school_years WHERE label = ?",
+        (label,),
+    ).fetchone()
+    db.execute(
+        "INSERT OR IGNORE INTO school_years (label, is_active) VALUES (?, 0)",
+        (label,),
+    )
+    db.commit()
+    if before:
+        flash("Annee scolaire deja existante.", "info")
+    else:
+        flash("Annee scolaire ajoutee.", "success")
+    return redirect(url_for("admin.admin"))
+
+
+@bp.route("/admin/school_year/activate/<int:year_id>", methods=["POST"])
+@login_required
+@admin_required
+def admin_activate_school_year(year_id: int):
+    db = get_db()
+    row = db.execute("SELECT id, label FROM school_years WHERE id = ?", (year_id,)).fetchone()
+    if not row:
+        abort(404)
+    db.execute("UPDATE school_years SET is_active = 0")
+    db.execute("UPDATE school_years SET is_active = 1 WHERE id = ?", (year_id,))
+    db.commit()
+    flash(f"Annee active: {row['label']}", "success")
+    return redirect(url_for("admin.admin"))
+
+
+@bp.route("/admin/assignment/add", methods=["POST"])
+@login_required
+@admin_required
+def admin_add_assignment():
+    ref = (request.form.get("teacher_subject") or "").strip()
+    school_year = (request.form.get("school_year") or "").strip()
+    class_name = (request.form.get("class_name") or "").strip()
+    if not ref or not school_year or not class_name:
+        flash("Champs assignation manquants.", "warning")
+        return redirect(url_for("admin.admin"))
+
+    try:
+        user_id_s, subject_id_s = ref.split("|", 1)
+        user_id = int(user_id_s)
+        subject_id = int(subject_id_s)
+    except Exception:
+        flash("Valeur enseignant/matiere invalide.", "danger")
+        return redirect(url_for("admin.admin"))
+
+    db = get_db()
+    school_year_row = db.execute(
+        "SELECT id FROM school_years WHERE label = ?",
+        (school_year,),
+    ).fetchone()
+    if not school_year_row:
+        flash("Annee scolaire introuvable.", "warning")
+        return redirect(url_for("admin.admin"))
+    class_name = class_name.upper()
+    user_row = db.execute(
+        "SELECT id, is_admin FROM users WHERE id = ?",
+        (user_id,),
+    ).fetchone()
+    if not user_row:
+        flash("Utilisateur introuvable.", "warning")
+        return redirect(url_for("admin.admin"))
+    if int(user_row["is_admin"] or 0) == 1:
+        flash("Affectation impossible pour un compte admin.", "warning")
+        return redirect(url_for("admin.admin"))
+    link_row = db.execute(
+        "SELECT 1 FROM subjects WHERE id = ? AND user_id = ?",
+        (subject_id, user_id),
+    ).fetchone()
+    if not link_row:
+        flash("La matiere ne correspond pas a cet enseignant.", "warning")
+        return redirect(url_for("admin.admin"))
+
+    exists = db.execute(
+        """
+        SELECT id
+        FROM teacher_assignments
+        WHERE user_id = ? AND school_year = ? AND subject_id = ? AND class_name = ?
+        """,
+        (user_id, school_year, subject_id, class_name),
+    ).fetchone()
+    db.execute(
+        """
+        INSERT OR IGNORE INTO teacher_assignments (user_id, school_year, subject_id, class_name)
+        VALUES (?, ?, ?, ?)
+        """,
+        (user_id, school_year, subject_id, class_name),
+    )
+    db.commit()
+    if exists:
+        flash("Affectation deja existante.", "info")
+    else:
+        flash("Affectation enregistree.", "success")
+    return redirect(url_for("admin.admin"))
+
+
+@bp.route("/admin/assignment/delete/<int:assignment_id>", methods=["POST"])
+@login_required
+@admin_required
+def admin_delete_assignment(assignment_id: int):
+    db = get_db()
+    db.execute("DELETE FROM teacher_assignments WHERE id = ?", (assignment_id,))
+    db.commit()
+    flash("Affectation supprimee.", "success")
+    return redirect(url_for("admin.admin"))
 
 
 @bp.route("/admin/create_user", methods=["POST"])
@@ -268,6 +446,7 @@ def admin_delete_user(user_id: int):
         db.execute("DELETE FROM timetable WHERE user_id = ?", (user_id,))
         db.execute("DELETE FROM documents WHERE user_id = ?", (user_id,))
         db.execute("DELETE FROM appreciations WHERE user_id = ?", (user_id,))
+        db.execute("DELETE FROM teacher_assignments WHERE user_id = ?", (user_id,))
         db.execute("DELETE FROM subjects WHERE user_id = ?", (user_id,))
         db.execute("DELETE FROM eleves WHERE user_id = ?", (user_id,))
         db.execute("DELETE FROM password_reset_tokens WHERE user_id = ?", (user_id,))
@@ -320,6 +499,11 @@ def admin_delete_document(doc_id: int):
 @admin_required
 def admin_voir_eleves(user_id: int):
     db = get_db()
+    selected_school_year = resolve_school_year(
+        db,
+        request.args.get("school_year"),
+        is_admin=True,
+    )
     prof = db.execute(
         "SELECT id, username, nom_affichage FROM users WHERE id = ?",
         (user_id,),
@@ -335,8 +519,8 @@ def admin_voir_eleves(user_id: int):
     classes = [
         r["niveau"]
         for r in db.execute(
-            "SELECT DISTINCT niveau FROM eleves WHERE user_id = ? ORDER BY niveau",
-            (user_id,),
+            "SELECT DISTINCT niveau FROM eleves WHERE user_id = ? AND school_year = ? ORDER BY niveau",
+            (user_id, selected_school_year),
         ).fetchall()
     ]
 
@@ -373,9 +557,9 @@ def admin_voir_eleves(user_id: int):
          AND n.eleve_id = e.id
          AND n.subject_id = ?
          AND n.trimestre = ?
-        WHERE e.user_id = ?
+        WHERE e.user_id = ? AND e.school_year = ?
     """
-    params = [subject_id, int(trim), user_id]
+    params = [subject_id, int(trim), user_id, selected_school_year]
     if niveau and niveau != "all":
         query += " AND e.niveau = ?"
         params.append(niveau)
@@ -426,5 +610,8 @@ def admin_voir_eleves(user_id: int):
         stats=stats,
         trimestre=trim,
         niveau_actuel=niveau,
+        school_year=selected_school_year,
+        school_years=list_school_years(db),
+        active_school_year=get_active_school_year(db),
         liste_classes=classes,
     )

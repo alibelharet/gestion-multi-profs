@@ -44,6 +44,16 @@
                         {% endfor %}
                     </select>
                 </div>
+                <div class="col-md-3">
+                    <label class="small text-muted">Annee</label>
+                    <select name="school_year" class="form-select" onchange="this.form.submit()">
+                        {% for sy in school_years %}
+                        <option value="{{ sy.label }}" {% if school_year == sy.label %}selected{% endif %}>
+                            {{ sy.label }}{% if sy.is_active %} (active){% endif %}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
             </div>
         </form>
     </div>

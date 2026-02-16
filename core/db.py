@@ -1,8 +1,15 @@
 import os
 import sqlite3
+from datetime import datetime
 from flask import g
 from werkzeug.security import generate_password_hash
 from .config import DATABASE
+
+def _current_school_year_label() -> str:
+    now = datetime.now()
+    if now.month >= 9:
+        return f"{now.year}/{now.year + 1}"
+    return f"{now.year - 1}/{now.year}"
 
 
 def get_db():
@@ -27,6 +34,7 @@ def close_db(exception=None):
 
 def init_db():
     db = get_db()
+    current_school_year = _current_school_year_label()
     db.execute('''CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         username TEXT UNIQUE NOT NULL,
@@ -41,6 +49,7 @@ def init_db():
     db.execute('''CREATE TABLE IF NOT EXISTS eleves (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER NOT NULL,
+        school_year TEXT DEFAULT '',
         nom_complet TEXT NOT NULL,
         niveau TEXT NOT NULL,
         remarques_t1 TEXT DEFAULT '',
@@ -118,12 +127,37 @@ def init_db():
         FOREIGN KEY(user_id) REFERENCES users(id)
     )''')
 
+    db.execute('''CREATE TABLE IF NOT EXISTS school_years (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        label TEXT UNIQUE NOT NULL,
+        is_active INTEGER DEFAULT 0
+    )''')
+
+    db.execute('''CREATE TABLE IF NOT EXISTS teacher_assignments (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        school_year TEXT NOT NULL,
+        subject_id INTEGER NOT NULL,
+        class_name TEXT NOT NULL,
+        UNIQUE(user_id, school_year, subject_id, class_name),
+        FOREIGN KEY(user_id) REFERENCES users(id),
+        FOREIGN KEY(subject_id) REFERENCES subjects(id)
+    )''')
+
+    # Ensure legacy databases have the school_year column before index creation.
+    try:
+        db.execute("ALTER TABLE eleves ADD COLUMN school_year TEXT DEFAULT ''")
+    except sqlite3.OperationalError:
+        pass
+
     db.execute('CREATE INDEX IF NOT EXISTS idx_notes_user_subject_trim ON notes(user_id, subject_id, trimestre)')
     db.execute('CREATE INDEX IF NOT EXISTS idx_change_log_user_time ON change_log(user_id, created_at)')
     db.execute('CREATE INDEX IF NOT EXISTS idx_eleves_user_niveau ON eleves(user_id, niveau)')
+    db.execute('CREATE INDEX IF NOT EXISTS idx_eleves_user_year_niveau ON eleves(user_id, school_year, niveau)')
     db.execute('CREATE INDEX IF NOT EXISTS idx_eleves_user_nom ON eleves(user_id, nom_complet)')
     db.execute('CREATE INDEX IF NOT EXISTS idx_documents_user_type ON documents(user_id, type_doc)')
     db.execute('CREATE INDEX IF NOT EXISTS idx_timetable_user_niveau ON timetable(user_id, niveau)')
+    db.execute('CREATE INDEX IF NOT EXISTS idx_assignments_user_year ON teacher_assignments(user_id, school_year)')
     db.execute('''CREATE TABLE IF NOT EXISTS appreciations (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER NOT NULL,
@@ -216,6 +250,27 @@ def init_db():
     )
     db.execute("UPDATE users SET role = 'admin' WHERE COALESCE(is_admin, 0) = 1")
     db.execute("UPDATE users SET is_admin = CASE WHEN role = 'admin' THEN 1 ELSE 0 END")
+
+    # Ensure school years configuration exists with one active year.
+    db.execute(
+        "INSERT OR IGNORE INTO school_years (label, is_active) VALUES (?, 0)",
+        (current_school_year,),
+    )
+    active_count = db.execute(
+        "SELECT COUNT(*) AS c FROM school_years WHERE COALESCE(is_active, 0) = 1"
+    ).fetchone()["c"]
+    if int(active_count or 0) == 0:
+        db.execute("UPDATE school_years SET is_active = 0")
+        db.execute("UPDATE school_years SET is_active = 1 WHERE label = ?", (current_school_year,))
+
+    active_row = db.execute(
+        "SELECT label FROM school_years WHERE COALESCE(is_active, 0) = 1 ORDER BY id LIMIT 1"
+    ).fetchone()
+    active_school_year = active_row["label"] if active_row else current_school_year
+    db.execute(
+        "UPDATE eleves SET school_year = ? WHERE COALESCE(school_year, '') = ''",
+        (active_school_year,),
+    )
 
     # Enforce single-subject mode for all non-admin accounts.
     db.execute("UPDATE users SET lock_subject = 1 WHERE COALESCE(is_admin, 0) = 0")

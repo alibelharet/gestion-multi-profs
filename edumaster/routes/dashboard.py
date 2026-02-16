@@ -8,7 +8,14 @@ from core.db import get_db
 from core.security import login_required, write_required
 from core.utils import get_appreciation_dynamique
 
-from edumaster.services.common import school_year, get_subjects, select_subject_id
+from edumaster.services.common import (
+    get_active_school_year,
+    get_subjects,
+    get_user_assignment_scope,
+    list_school_years,
+    resolve_school_year,
+    select_subject_id,
+)
 from edumaster.services.filters import build_filters, build_history_filters
 from edumaster.services.grading import note_expr, split_activite_components
 from edumaster.services.stats_service import get_class_evolution, get_best_students_evolution
@@ -34,14 +41,38 @@ def index():
         trim = "1"
 
     db = get_db()
-    subjects = get_subjects(db, user_id)
-    subject_id = select_subject_id(subjects, request.args.get("subject"))
-    subject_name = next(s["name"] for s in subjects if int(s["id"]) == subject_id)
     role = session.get("role") or ("admin" if session.get("is_admin") else "prof")
     can_edit = role != "read_only"
+    is_admin = bool(session.get("is_admin"))
+
+    selected_school_year = resolve_school_year(
+        db,
+        request.args.get("school_year"),
+        is_admin=is_admin,
+    )
+    assignment_scope = (
+        {"restricted": False, "subject_ids": set(), "classes": set()}
+        if is_admin
+        else get_user_assignment_scope(db, user_id, selected_school_year)
+    )
+
+    subjects = get_subjects(db, user_id)
+    subject_id = select_subject_id(subjects, request.args.get("subject"))
+    if assignment_scope["restricted"] and subject_id not in assignment_scope["subject_ids"]:
+        allowed_subjects = [s for s in subjects if int(s["id"]) in assignment_scope["subject_ids"]]
+        if allowed_subjects:
+            subject_id = int(allowed_subjects[0]["id"])
+    subject_name = next(s["name"] for s in subjects if int(s["id"]) == subject_id)
 
     devoir_expr, activite_expr, compo_expr, remarques_expr, moy_expr = note_expr(trim)
-    filters = build_filters(user_id, trim, request.args, moy_expr)
+    filters = build_filters(
+        user_id,
+        trim,
+        request.args,
+        selected_school_year,
+        moy_expr,
+        allowed_classes=(assignment_scope["classes"] if assignment_scope["restricted"] else None),
+    )
     niveau = filters["niveau"]
     search = filters["search"]
     sort = filters["sort"]
@@ -65,10 +96,12 @@ def index():
     classes = [
         r["niveau"]
         for r in db.execute(
-            "SELECT DISTINCT niveau FROM eleves WHERE user_id = ? ORDER BY niveau",
-            (user_id,),
+            "SELECT DISTINCT niveau FROM eleves WHERE user_id = ? AND school_year = ? ORDER BY niveau",
+            (user_id, selected_school_year),
         ).fetchall()
     ]
+    if assignment_scope["restricted"]:
+        classes = [c for c in classes if c in assignment_scope["classes"]]
 
     where = filters["where"]
     params = filters["params"]
@@ -231,11 +264,15 @@ def index():
         for r in top_rows
     ]
 
-    risk_where = "e.user_id = ?"
-    risk_params = [user_id]
+    risk_where = "e.user_id = ? AND e.school_year = ?"
+    risk_params = [user_id, selected_school_year]
     if niveau and niveau != "all":
         risk_where += " AND e.niveau = ?"
         risk_params.append(niveau)
+    elif assignment_scope["restricted"] and assignment_scope["classes"]:
+        placeholders = ",".join("?" for _ in sorted(assignment_scope["classes"]))
+        risk_where += f" AND e.niveau IN ({placeholders})"
+        risk_params.extend(sorted(assignment_scope["classes"]))
     if search:
         risk_where += " AND e.nom_complet LIKE ?"
         risk_params.append(f"%{search}%")
@@ -276,11 +313,15 @@ def index():
         for r in risk_rows
     ]
 
-    progress_where = "e.user_id = ?"
-    progress_params = [user_id]
+    progress_where = "e.user_id = ? AND e.school_year = ?"
+    progress_params = [user_id, selected_school_year]
     if niveau and niveau != "all":
         progress_where += " AND e.niveau = ?"
         progress_params.append(niveau)
+    elif assignment_scope["restricted"] and assignment_scope["classes"]:
+        placeholders = ",".join("?" for _ in sorted(assignment_scope["classes"]))
+        progress_where += f" AND e.niveau IN ({placeholders})"
+        progress_params.extend(sorted(assignment_scope["classes"]))
     if search:
         progress_where += " AND e.nom_complet LIKE ?"
         progress_params.append(f"%{search}%")
@@ -327,6 +368,7 @@ def index():
     base_args.pop("page", None)
     risk_args = dict(request.args)
     risk_args["etat"] = "echec"
+    risk_args["school_year"] = selected_school_year
     risk_args.pop("page", None)
     risk_url = url_for("dashboard.index", **risk_args)
 
@@ -358,7 +400,9 @@ def index():
         subject_id=subject_id,
         subject_name=subject_name,
         can_edit=can_edit,
-        school_year=school_year(datetime.now()),
+        school_year=selected_school_year,
+        school_years=list_school_years(db),
+        active_school_year=get_active_school_year(db),
         school_name=session.get("school_name"),
     )
 
@@ -525,16 +569,31 @@ def settings():
 def timetable():
     user_id = session["user_id"]
     db = get_db()
+    selected_school_year = resolve_school_year(
+        db,
+        request.values.get("school_year"),
+        is_admin=bool(session.get("is_admin")),
+    )
+    scope = (
+        {"restricted": False, "classes": set()}
+        if session.get("is_admin")
+        else get_user_assignment_scope(db, user_id, selected_school_year)
+    )
 
     classes = [
         r["niveau"]
         for r in db.execute(
-            "SELECT DISTINCT niveau FROM eleves WHERE user_id = ? ORDER BY niveau",
-            (user_id,),
+            "SELECT DISTINCT niveau FROM eleves WHERE user_id = ? AND school_year = ? ORDER BY niveau",
+            (user_id, selected_school_year),
         ).fetchall()
     ]
+    if scope["restricted"]:
+        classes = [c for c in classes if c in scope["classes"]]
 
     niveau = request.values.get("niveau", "")
+    if scope["restricted"] and niveau and niveau not in scope["classes"]:
+        flash("Classe non autorisee pour ce compte.", "warning")
+        return redirect(url_for("dashboard.timetable", school_year=selected_school_year))
     days = [
         {"key": "sun", "label": "Dimanche"},
         {"key": "mon", "label": "Lundi"},
@@ -579,7 +638,7 @@ def timetable():
         db.commit()
         log_change("update_timetable", user_id, details=f"{niveau} ({updated} cases)")
         flash("Emploi du temps enregistre.", "success")
-        return redirect(url_for("dashboard.timetable", niveau=niveau))
+        return redirect(url_for("dashboard.timetable", niveau=niveau, school_year=selected_school_year))
 
     grid = {}
     if niveau:
@@ -597,6 +656,9 @@ def timetable():
         days=days,
         slots=slots,
         grid=grid,
+        school_year=selected_school_year,
+        school_years=list_school_years(db),
+        active_school_year=get_active_school_year(db),
     )
 
 
@@ -605,9 +667,20 @@ def timetable():
 def stats():
     user_id = session["user_id"]
     db = get_db()
+    selected_school_year = resolve_school_year(
+        db,
+        request.args.get("school_year"),
+        is_admin=bool(session.get("is_admin")),
+    )
     
     subjects = get_subjects(db, user_id)
     subject_id = select_subject_id(subjects, request.args.get("subject"))
+    if not session.get("is_admin"):
+        scope = get_user_assignment_scope(db, user_id, selected_school_year)
+        if scope["restricted"] and subject_id not in scope["subject_ids"]:
+            allowed_subjects = [s for s in subjects if int(s["id"]) in scope["subject_ids"]]
+            if allowed_subjects:
+                subject_id = int(allowed_subjects[0]["id"])
     
     # Handle case where no subjects exist
     if not subjects:
@@ -616,17 +689,20 @@ def stats():
         
     subject_name = next((s["name"] for s in subjects if int(s["id"]) == subject_id), "Matière inconnue")
     
-    evolution = get_class_evolution(user_id, subject_id)
+    evolution = get_class_evolution(user_id, subject_id, selected_school_year)
     # Convert set to list for template if necessary, but it's a list already
     
     # Get top students
-    top_students = get_best_students_evolution(user_id, subject_id, limit=5)
+    top_students = get_best_students_evolution(user_id, subject_id, selected_school_year, limit=5)
 
     return render_template(
         "stats.html",
         subjects=subjects,
         subject_id=subject_id,
         subject_name=subject_name,
+        school_year=selected_school_year,
+        school_years=list_school_years(db),
+        active_school_year=get_active_school_year(db),
         evolution=evolution,
         top_students=top_students
     )

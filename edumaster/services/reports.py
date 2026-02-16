@@ -1,9 +1,9 @@
 from .grading import note_expr
 
-def build_bulletin_multisubject(db, user_id: int, eleve_id: int, trim: str):
+def build_bulletin_multisubject(db, user_id: int, eleve_id: int, trim: str, school_year: str):
     eleve = db.execute(
-        "SELECT * FROM eleves WHERE id = ? AND user_id = ?",
-        (eleve_id, user_id),
+        "SELECT * FROM eleves WHERE id = ? AND user_id = ? AND school_year = ?",
+        (eleve_id, user_id, school_year),
     ).fetchone()
     if not eleve:
         return None
@@ -35,6 +35,7 @@ def build_bulletin_multisubject(db, user_id: int, eleve_id: int, trim: str):
         LEFT JOIN eleves e
             ON e.id = ?
            AND e.user_id = s.user_id
+           AND e.school_year = ?
         LEFT JOIN notes n
             ON n.user_id = s.user_id
            AND n.eleve_id = e.id
@@ -43,7 +44,7 @@ def build_bulletin_multisubject(db, user_id: int, eleve_id: int, trim: str):
         WHERE s.user_id = ?
         ORDER BY s.name COLLATE NOCASE
         """,
-        (eleve_id, int(trim), user_id),
+        (eleve_id, school_year, int(trim), user_id),
     ).fetchall()
 
     subject_lines = []
@@ -80,10 +81,11 @@ def build_bulletin_multisubject(db, user_id: int, eleve_id: int, trim: str):
            AND n.subject_id = s.id
            AND n.trimestre = ?
         WHERE e.user_id = ? AND e.niveau = ?
+          AND e.school_year = ?
         GROUP BY e.id
         ORDER BY moyenne_generale DESC, e.nom_complet COLLATE NOCASE ASC
         """,
-        (int(trim), user_id, eleve["niveau"]),
+        (int(trim), user_id, eleve["niveau"], school_year),
     ).fetchall()
 
     scores = [(int(r["id"]), float(r["moyenne_generale"] or 0)) for r in class_rows]

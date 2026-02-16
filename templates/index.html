@@ -167,7 +167,7 @@
                     <td>{{ e.niveau }}</td>
                     <td class="fw-bold text-danger">{{ e.moyenne }}</td>
                     <td class="text-end">
-                        <a href="/bulletin/{{ e.id }}?trimestre={{ trimestre }}&subject={{ subject_id }}"
+                        <a href="/bulletin/{{ e.id }}?trimestre={{ trimestre }}&subject={{ subject_id }}&school_year={{ school_year }}"
                             target="_blank" class="btn btn-sm btn-outline-warning">Bulletin</a>
                     </td>
                 </tr>
@@ -199,6 +199,21 @@
                         <option value="2" {% if trimestre=='2' %}selected{% endif %}>T2</option>
                         <option value="3" {% if trimestre=='3' %}selected{% endif %}>T3</option>
                     </select>
+                </div>
+                <div class="col-6 col-lg-2">
+                    <label class="small text-muted">Annee</label>
+                    {% if session.get('is_admin') %}
+                    <select name="school_year" class="form-select form-select-sm" onchange="this.form.submit()">
+                        {% for sy in school_years %}
+                        <option value="{{ sy.label }}" {% if school_year==sy.label %}selected{% endif %}>
+                            {{ sy.label }}{% if sy.is_active %} (active){% endif %}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    {% else %}
+                    <input type="text" class="form-control form-control-sm" value="{{ school_year }}" readonly>
+                    <input type="hidden" name="school_year" value="{{ school_year }}">
+                    {% endif %}
                 </div>
                 <div class="col-6 col-lg-2">
                     <label class="small text-muted">Classe</label>
@@ -300,6 +315,7 @@
                     required>
                 <input type="hidden" name="trimestre_import" value="{{ trimestre }}">
                 <input type="hidden" name="subject" value="{{ subject_id }}">
+                <input type="hidden" name="school_year" value="{{ school_year }}">
                 <button type="submit" class="btn btn-sm btn-success">Importer (avec correspondance)</button>
             </form>
         </div>
@@ -311,6 +327,7 @@
     {{ csrf_field() }}
     <input type="hidden" name="trimestre_save" value="{{ trimestre }}">
     <input type="hidden" name="subject" value="{{ subject_id }}">
+    <input type="hidden" name="school_year" value="{{ school_year }}">
     <div class="app-card">
         <div
             class="card-header app-card-header d-flex justify-content-between align-items-center py-2 px-3 rounded-top">
@@ -332,13 +349,13 @@
                         data-bs-toggle="dropdown">Actions</button>
                     <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark shadow">
                         <li><a class="dropdown-item"
-                                href="{{ url_for('reports.export_list_pdf', trimestre=trimestre, niveau=niveau_actuel, recherche=recherche_actuelle, sort=sort, order=order, min_moy=min_moy, max_moy=max_moy, etat=etat, subject=subject_id) }}">Exporter
+                                href="{{ url_for('reports.export_list_pdf', trimestre=trimestre, niveau=niveau_actuel, recherche=recherche_actuelle, sort=sort, order=order, min_moy=min_moy, max_moy=max_moy, etat=etat, subject=subject_id, school_year=school_year) }}">Exporter
                                 PDF (Liste)</a></li>
                         <li><a class="dropdown-item"
-                                href="{{ url_for('reports.export_excel', trimestre=trimestre, niveau=niveau_actuel, recherche=recherche_actuelle, sort=sort, order=order, min_moy=min_moy, max_moy=max_moy, etat=etat, subject=subject_id) }}">Exporter
+                                href="{{ url_for('reports.export_excel', trimestre=trimestre, niveau=niveau_actuel, recherche=recherche_actuelle, sort=sort, order=order, min_moy=min_moy, max_moy=max_moy, etat=etat, subject=subject_id, school_year=school_year) }}">Exporter
                                 Excel</a></li>
                         <li><a class="dropdown-item"
-                                href="{{ url_for('reports.export_parents', trimestre=trimestre, niveau=niveau_actuel, recherche=recherche_actuelle, sort=sort, order=order, min_moy=min_moy, max_moy=max_moy, etat=etat, subject=subject_id) }}">Export
+                                href="{{ url_for('reports.export_parents', trimestre=trimestre, niveau=niveau_actuel, recherche=recherche_actuelle, sort=sort, order=order, min_moy=min_moy, max_moy=max_moy, etat=etat, subject=subject_id, school_year=school_year) }}">Export
                                 Parents</a></li>
                         {% if can_edit %}
                         <li>
@@ -387,7 +404,7 @@
                                 class="form-check-input check-delete">
                             {% endif %}
                             <input type="hidden" name="id_eleve" value="{{ eleve.id }}">
-                            <a href="{{ url_for('reports.bulletin', id=eleve.id, trimestre=trimestre, subject=subject_id) }}"
+                            <a href="{{ url_for('reports.bulletin', id=eleve.id, trimestre=trimestre, subject=subject_id, school_year=school_year) }}"
                                 target="_blank" class="btn btn-sm btn-outline-info py-0 px-1" title="Imprimer Bulletin"
                                 style="height: 25px;"><i class="bi bi-file-text"></i></a>
                         </td>
@@ -441,7 +458,7 @@
                 <ul class="pagination pagination-sm mb-0">
                     <li class="page-item {% if page <= 1 %}disabled{% endif %}">
                         <a class="page-link"
-                            href="{{ url_for('dashboard.index', trimestre=trimestre, niveau=niveau_actuel, recherche=recherche_actuelle, sort=sort, order=order, per_page=per_page, min_moy=min_moy, max_moy=max_moy, etat=etat, subject=subject_id, page=page-1) }}">«</a>
+                            href="{{ url_for('dashboard.index', trimestre=trimestre, niveau=niveau_actuel, recherche=recherche_actuelle, sort=sort, order=order, per_page=per_page, min_moy=min_moy, max_moy=max_moy, etat=etat, subject=subject_id, school_year=school_year, page=page-1) }}">«</a>
                     </li>
 
                     {% set start = 1 if page - 2 < 1 else page - 2 %} {% set end=pages if page + 2> pages else page + 2
@@ -449,14 +466,14 @@
                         {% for p in range(start, end + 1) %}
                         <li class="page-item {% if p == page %}active{% endif %}">
                             <a class="page-link"
-                                href="{{ url_for('dashboard.index', trimestre=trimestre, niveau=niveau_actuel, recherche=recherche_actuelle, sort=sort, order=order, per_page=per_page, min_moy=min_moy, max_moy=max_moy, etat=etat, subject=subject_id, page=p) }}">{{
+                                href="{{ url_for('dashboard.index', trimestre=trimestre, niveau=niveau_actuel, recherche=recherche_actuelle, sort=sort, order=order, per_page=per_page, min_moy=min_moy, max_moy=max_moy, etat=etat, subject=subject_id, school_year=school_year, page=p) }}">{{
                                 p }}</a>
                         </li>
                         {% endfor %}
 
                         <li class="page-item {% if page >= pages %}disabled{% endif %}">
                             <a class="page-link"
-                                href="{{ url_for('dashboard.index', trimestre=trimestre, niveau=niveau_actuel, recherche=recherche_actuelle, sort=sort, order=order, per_page=per_page, min_moy=min_moy, max_moy=max_moy, etat=etat, subject=subject_id, page=page+1) }}">»</a>
+                                href="{{ url_for('dashboard.index', trimestre=trimestre, niveau=niveau_actuel, recherche=recherche_actuelle, sort=sort, order=order, per_page=per_page, min_moy=min_moy, max_moy=max_moy, etat=etat, subject=subject_id, school_year=school_year, page=page+1) }}">»</a>
                         </li>
                 </ul>
             </nav>
@@ -468,6 +485,7 @@
 {% if can_edit %}
 <form action="{{ url_for('students.supprimer_multi') }}" method="POST" id="formMultiDelete" style="display:none;">
     {{ csrf_field() }}
+    <input type="hidden" name="school_year" value="{{ school_year }}">
 </form>
 
 <div class="modal fade" id="fillOfficialModal" tabindex="-1" aria-hidden="true">
@@ -484,6 +502,7 @@
                     <p class="text-muted mb-3">Importer le fichier Excel vide.</p>
                     <input type="hidden" name="trimestre_fill" value="{{ trimestre }}">
                     <input type="hidden" name="subject" value="{{ subject_id }}">
+                    <input type="hidden" name="school_year" value="{{ school_year }}">
                     <input type="file" class="form-control " name="fichier_vide" accept=".xlsx" required>
                 </div>
                 <div class="modal-footer border-secondary justify-content-center"><button type="submit"
@@ -506,6 +525,7 @@
                 <div class="modal-body p-4">
                     <input type="hidden" name="trimestre_ajout" value="{{ trimestre }}">
                     <input type="hidden" name="subject" value="{{ subject_id }}">
+                    <input type="hidden" name="school_year" value="{{ school_year }}">
                     <div class="mb-3"><label class="form-label small text-muted">Nom complet</label><input type="text"
                             class="form-control " name="nom_complet" placeholder="Ex: Benali Mohamed" required></div>
                     <div class="mb-3"><label class="form-label small text-muted">Classe</label><input type="text"

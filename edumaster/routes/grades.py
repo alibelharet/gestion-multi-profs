@@ -3,7 +3,13 @@ from core.audit import log_change
 from core.db import get_db
 from core.security import login_required, write_required
 from core.utils import clean_note, get_appreciation_dynamique
-from edumaster.services.common import get_subjects, select_subject_id, parse_trim
+from edumaster.services.common import (
+    get_subjects,
+    get_user_assignment_scope,
+    parse_trim,
+    resolve_school_year,
+    select_subject_id,
+)
 from edumaster.services.grading import clean_component, split_activite_components, sum_activite_components, safe_list_get
 
 bp = Blueprint("grades", __name__)
@@ -15,8 +21,21 @@ def sauvegarder_tout():
     user_id = session["user_id"]
     trim = parse_trim(request.form.get("trimestre_save"))
     db = get_db()
+    selected_school_year = resolve_school_year(
+        db,
+        request.form.get("school_year"),
+        is_admin=bool(session.get("is_admin")),
+    )
+    scope = (
+        {"restricted": False, "subject_ids": set(), "classes": set()}
+        if session.get("is_admin")
+        else get_user_assignment_scope(db, user_id, selected_school_year)
+    )
     subjects = get_subjects(db, user_id)
     subject_id = select_subject_id(subjects, request.form.get("subject"))
+    if scope["restricted"] and subject_id not in scope["subject_ids"]:
+        flash("Matiere non autorisee pour ce compte.", "warning")
+        return redirect(request.referrer or url_for("dashboard.index", trimestre=trim, school_year=selected_school_year))
 
     ids = request.form.getlist("id_eleve")
     devs = request.form.getlist("devoir")
@@ -32,6 +51,17 @@ def sauvegarder_tout():
     updated = 0
     for i in range(len(ids)):
         try:
+            row = db.execute(
+                "SELECT niveau, school_year FROM eleves WHERE id = ? AND user_id = ?",
+                (ids[i], user_id),
+            ).fetchone()
+            if not row:
+                continue
+            if (row["school_year"] or "") != selected_school_year:
+                continue
+            if scope["restricted"] and row["niveau"] not in scope["classes"]:
+                continue
+
             d = clean_note(safe_list_get(devs, i))
             c = clean_note(safe_list_get(comps, i))
             if use_components:
@@ -71,6 +101,6 @@ def sauvegarder_tout():
         except Exception:
             continue
     db.commit()
-    log_change("update_notes", user_id, details=f"{updated} lignes", subject_id=subject_id)
+    log_change("update_notes", user_id, details=f"{selected_school_year}: {updated} lignes", subject_id=subject_id)
     flash("Notes enregistrees.", "success")
-    return redirect(request.referrer or url_for("dashboard.index", trimestre=trim))
+    return redirect(request.referrer or url_for("dashboard.index", trimestre=trim, school_year=selected_school_year))
