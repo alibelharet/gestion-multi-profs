@@ -10,7 +10,7 @@ from edumaster.services.common import (
     resolve_school_year,
     select_subject_id,
 )
-from edumaster.services.grading import clean_component, split_activite_components, sum_activite_components
+from edumaster.services.grading import clean_component, split_activite_components, sum_activite_components, trim_columns
 
 bp = Blueprint("students", __name__)
 
@@ -63,48 +63,58 @@ def ajouter_eleve():
             flash("Classe non autorisee pour ce compte.", "warning")
             return redirect(request.referrer or url_for("dashboard.index", trimestre=trim, school_year=selected_school_year))
 
-    cur = db.execute(
-        f"INSERT INTO eleves (user_id, school_year, nom_complet, niveau, remarques_t{trim}, devoir_t{trim}, activite_t{trim}, compo_t{trim}, parent_phone, parent_email) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        (
-            user_id,
-            selected_school_year,
-            request.form["nom_complet"],
-            niveau,
-            get_appreciation_dynamique(moy, user_id),
-            d,
-            a,
-            c,
-            parent_phone,
-            parent_email,
-        ),
-    )
-    eleve_id = cur.lastrowid
+    # Use safe column mapping instead of f-string interpolation
+    cols = trim_columns(trim)
 
-    db.execute(
-        """
-        INSERT INTO notes (
-            user_id, eleve_id, subject_id, trimestre,
-            participation, comportement, cahier, projet, assiduite_outils,
-            activite, devoir, compo, remarques
+    try:
+        cur = db.execute(
+            f"INSERT INTO eleves (user_id, school_year, nom_complet, niveau, "
+            f"{cols['remarques']}, {cols['devoir']}, {cols['activite']}, {cols['compo']}, "
+            f"parent_phone, parent_email) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                user_id,
+                selected_school_year,
+                request.form["nom_complet"],
+                niveau,
+                get_appreciation_dynamique(moy, user_id),
+                d,
+                a,
+                c,
+                parent_phone,
+                parent_email,
+            ),
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT(user_id, eleve_id, subject_id, trimestre)
-        DO UPDATE SET
-            participation=excluded.participation,
-            comportement=excluded.comportement,
-            cahier=excluded.cahier,
-            projet=excluded.projet,
-            assiduite_outils=excluded.assiduite_outils,
-            activite=excluded.activite,
-            devoir=excluded.devoir,
-            compo=excluded.compo,
-            remarques=excluded.remarques
-        """,
-        (user_id, eleve_id, subject_id, int(trim), p, b, k, pr, ao, a, d, c, get_appreciation_dynamique(moy, user_id)),
-    )
+        eleve_id = cur.lastrowid
 
-    db.commit()
-    log_change("add_student", user_id, details=request.form.get("nom_complet", ""), eleve_id=eleve_id, subject_id=subject_id)
+        db.execute(
+            """
+            INSERT INTO notes (
+                user_id, eleve_id, subject_id, trimestre,
+                participation, comportement, cahier, projet, assiduite_outils,
+                activite, devoir, compo, remarques
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(user_id, eleve_id, subject_id, trimestre)
+            DO UPDATE SET
+                participation=excluded.participation,
+                comportement=excluded.comportement,
+                cahier=excluded.cahier,
+                projet=excluded.projet,
+                assiduite_outils=excluded.assiduite_outils,
+                activite=excluded.activite,
+                devoir=excluded.devoir,
+                compo=excluded.compo,
+                remarques=excluded.remarques
+            """,
+            (user_id, eleve_id, subject_id, int(trim), p, b, k, pr, ao, a, d, c, get_appreciation_dynamique(moy, user_id)),
+        )
+
+        db.commit()
+        log_change("add_student", user_id, details=request.form.get("nom_complet", ""), eleve_id=eleve_id, subject_id=subject_id)
+    except Exception:
+        db.rollback()
+        flash("Erreur lors de l'ajout de l'eleve.", "danger")
+
     return redirect(request.referrer or url_for("dashboard.index", trimestre=trim, school_year=selected_school_year))
 
 
@@ -142,15 +152,19 @@ def supprimer_multi():
             flash("Aucun eleve autorise pour suppression.", "warning")
             return redirect(request.referrer or url_for("dashboard.index", school_year=selected_school_year))
         del_placeholders = ",".join("?" * len(allowed_ids))
-        db.execute(
-            f"DELETE FROM notes WHERE eleve_id IN ({del_placeholders}) AND user_id = ?",
-            allowed_ids + [user_id],
-        )
-        db.execute(
-            f"DELETE FROM eleves WHERE id IN ({del_placeholders}) AND user_id = ? AND school_year = ?",
-            allowed_ids + [user_id, selected_school_year],
-        )
-        db.commit()
-        log_change("delete_students", user_id, details=f"{len(allowed_ids)} eleves")
-        flash(f"Supprimes ({len(allowed_ids)})", "success")
+        try:
+            db.execute(
+                f"DELETE FROM notes WHERE eleve_id IN ({del_placeholders}) AND user_id = ?",
+                allowed_ids + [user_id],
+            )
+            db.execute(
+                f"DELETE FROM eleves WHERE id IN ({del_placeholders}) AND user_id = ? AND school_year = ?",
+                allowed_ids + [user_id, selected_school_year],
+            )
+            db.commit()
+            log_change("delete_students", user_id, details=f"{len(allowed_ids)} eleves")
+            flash(f"Supprimes ({len(allowed_ids)})", "success")
+        except Exception:
+            db.rollback()
+            flash("Erreur lors de la suppression.", "danger")
     return redirect(request.referrer or url_for("dashboard.index", school_year=selected_school_year))

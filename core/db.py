@@ -287,6 +287,10 @@ def init_db():
     )
     db.commit()
 
+    # Run versioned schema migrations
+    from .migrations import run_migrations
+    run_migrations(db)
+
 
 def bootstrap_admin():
     admin_user = os.environ.get("ADMIN_USER")

@@ -66,6 +66,7 @@ def create_app() -> Flask:
     from .routes.grades import bp as grades_bp
     from .routes.imports import bp as imports_bp
     from .routes.reports import bp as reports_bp
+    from .routes.notifications import bp as notifications_bp
 
     app.register_blueprint(licence_bp)
     app.register_blueprint(auth_bp)
@@ -77,5 +78,6 @@ def create_app() -> Flask:
     app.register_blueprint(grades_bp)
     app.register_blueprint(imports_bp)
     app.register_blueprint(reports_bp)
+    app.register_blueprint(notifications_bp)
     
     return app

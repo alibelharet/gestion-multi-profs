@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row mt-3 animate-fade-up">
+    <div class="col-12">
+        <div class="app-card p-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4 class="mb-0"><i class="bi bi-bell"></i> {{ tr('menu.notifications', 'Notifications') }}</h4>
+                {% if notifications %}
+                <form method="POST" action="{{ url_for('notifications.mark_all_read') }}">
+                    {{ csrf_field() }}
+                    <button class="btn btn-sm btn-outline-info">{{ tr('notif.mark_all_read', 'Tout marquer lu')
+                        }}</button>
+                </form>
+                {% endif %}
+            </div>
+
+            {% if not notifications %}
+            <p class="text-muted text-center py-4">{{ tr('notif.empty', 'Aucune notification.') }}</p>
+            {% else %}
+            <div class="list-group">
+                {% for n in notifications %}
+                <div class="list-group-item d-flex justify-content-between align-items-start {% if not n.is_read %}border-start border-3 border-primary{% endif %}"
+                    style="background: var(--surface-2); border-color: var(--border); color: var(--text);">
+                    <div class="ms-2 me-auto">
+                        <div class="fw-bold">
+                            {% if n.category == 'warning' %}
+                            <span class="badge bg-warning text-dark me-1">⚠</span>
+                            {% elif n.category == 'success' %}
+                            <span class="badge bg-success me-1">✓</span>
+                            {% elif n.category == 'danger' %}
+                            <span class="badge bg-danger me-1">✕</span>
+                            {% else %}
+                            <span class="badge bg-info me-1">ℹ</span>
+                            {% endif %}
+                            {{ n.title }}
+                        </div>
+                        {% if n.body %}
+                        <small class="text-muted">{{ n.body }}</small>
+                        {% endif %}
+                    </div>
+                    <div class="d-flex flex-column align-items-end gap-1">
+                        <small class="text-muted">{{ n.time }}</small>
+                        {% if not n.is_read %}
+                        <form method="POST" action="{{ url_for('notifications.mark_read', notif_id=n.id) }}">
+                            {{ csrf_field() }}
+                            <button class="btn btn-sm btn-outline-secondary py-0 px-2">✓</button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
