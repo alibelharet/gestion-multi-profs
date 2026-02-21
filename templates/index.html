@@ -240,6 +240,8 @@
                         <li><a class="dropdown-item"
                                 href="{{ url_for('reports.export_parents', trimestre=trimestre, niveau=niveau_actuel, recherche=recherche_actuelle, sort=sort, order=order, min_moy=min_moy, max_moy=max_moy, etat=etat, subject=subject_id, school_year=school_year) }}">Export
                                 Parents</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="printStudentList(); return false;"><i
+                                    class="bi bi-printer"></i> Imprimer liste (sans notes)</a></li>
                         {% if can_edit %}
                         <li>
                             <hr class="dropdown-divider">
@@ -459,5 +461,42 @@
 
 
 <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+
+<script>
+    function printStudentList() {
+        const rows = document.querySelectorAll('#formSaveAll tbody tr');
+        if (!rows.length) { alert('Aucun eleve a imprimer.'); return; }
+        let html = '<tr><th>#</th><th>Nom complet</th><th>Classe</th><th>Devoir</th><th>Activite</th><th>Compo</th><th>Moyenne</th><th>Remarques</th></tr>';
+        let i = 1;
+        rows.forEach(tr => {
+            const cells = tr.querySelectorAll('td');
+            if (cells.length < 3) return;
+            const nom = cells[2].querySelector('.fw-bold')?.childNodes[0]?.textContent?.trim() || cells[2].textContent.trim().split('\n')[0];
+            const classe = cells[2].querySelector('.badge')?.textContent?.trim() || '';
+            html += '<tr><td>' + i + '</td><td>' + nom + '</td><td>' + classe + '</td><td></td><td></td><td></td><td></td><td></td></tr>';
+            i++;
+        });
+        const w = window.open('', '_blank');
+        w.document.write('<!DOCTYPE html><html><head><title>Liste des eleves</title>');
+        w.document.write('<style>');
+        w.document.write('body{font-family:Arial,sans-serif;margin:20px;direction:ltr}');
+        w.document.write('h2{text-align:center;margin-bottom:5px}');
+        w.document.write('.meta{text-align:center;color:#666;margin-bottom:15px;font-size:13px}');
+        w.document.write('table{width:100%;border-collapse:collapse}');
+        w.document.write('th,td{border:1px solid #333;padding:6px 8px;font-size:12px}');
+        w.document.write('th{background:#eee;font-weight:bold;text-align:center}');
+        w.document.write('td:first-child{text-align:center;width:30px}');
+        w.document.write('td:nth-child(4),td:nth-child(5),td:nth-child(6),td:nth-child(7){text-align:center;width:60px}');
+        w.document.write('td:last-child{width:100px}');
+        w.document.write('@media print{body{margin:10px}}');
+        w.document.write('</style></head><body>');
+        w.document.write('<h2>Liste des eleves</h2>');
+        w.document.write('<div class="meta">{{ subject_name }} — {{ niveau_actuel if niveau_actuel != "all" else "Toutes classes" }} — T{{ trimestre }} — {{ school_year }}</div>');
+        w.document.write('<table>' + html + '</table>');
+        w.document.write('</body></html>');
+        w.document.close();
+        setTimeout(() => w.print(), 300);
+    }
+</script>
 
 {% endblock %}
