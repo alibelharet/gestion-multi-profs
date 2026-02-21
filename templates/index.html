@@ -289,9 +289,11 @@
                                 class="form-check-input check-delete">
                             {% endif %}
                             <input type="hidden" name="id_eleve" value="{{ eleve.id }}">
+                            {% if session.get('is_admin') %}
                             <a href="{{ url_for('reports.bulletin', id=eleve.id, trimestre=trimestre, subject=subject_id, school_year=school_year) }}"
                                 target="_blank" class="btn btn-sm btn-outline-info py-0 px-1" title="Imprimer Bulletin"
                                 style="height: 25px;"><i class="bi bi-file-text"></i></a>
+                            {% endif %}
                         </td>
                         <td class="text-body fw-bold">{{ ((page - 1) * per_page) + loop.index }}</td>
                         <td class="fw-bold text-body">{{ eleve.nom_complet }}<br><span
