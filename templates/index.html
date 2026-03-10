@@ -482,16 +482,40 @@
     {% if can_edit %}
     <div class="collapse" id="importBox">
         <div class="card-footer app-card-header p-3">
-            <form action="{{ url_for('imports.import_excel') }}" method="post" enctype="multipart/form-data"
-                class="d-flex gap-2 align-items-center">
-                {{ csrf_field() }}
-                <input class="form-control form-control-sm" type="file" name="fichier_excel" accept=".xlsx, .xls"
-                    required>
-                <input type="hidden" name="trimestre_import" value="{{ trimestre }}">
-                <input type="hidden" name="subject" value="{{ subject_id }}">
-                <input type="hidden" name="school_year" value="{{ school_year }}">
-                <button type="submit" class="btn btn-sm btn-success">Importer (avec correspondance)</button>
-            </form>
+            <div class="row g-3">
+                <div class="col-12 col-xl-6">
+                    <div class="border rounded-3 p-3 h-100">
+                        <div class="fw-semibold mb-1">Import Excel</div>
+                        <div class="text-muted small mb-3">Fichier structure avec correspondance de colonnes.</div>
+                        <form action="{{ url_for('imports.import_excel') }}" method="post" enctype="multipart/form-data"
+                            class="d-flex flex-wrap gap-2 align-items-center">
+                            {{ csrf_field() }}
+                            <input class="form-control form-control-sm" type="file" name="fichier_excel" accept=".xlsx, .xls"
+                                required>
+                            <input type="hidden" name="trimestre_import" value="{{ trimestre }}">
+                            <input type="hidden" name="subject" value="{{ subject_id }}">
+                            <input type="hidden" name="school_year" value="{{ school_year }}">
+                            <button type="submit" class="btn btn-sm btn-success">Importer Excel</button>
+                        </form>
+                    </div>
+                </div>
+                <div class="col-12 col-xl-6">
+                    <div class="border rounded-3 p-3 h-100">
+                        <div class="fw-semibold mb-1">PDF scanne</div>
+                        <div class="text-muted small mb-3">Lecture automatique des notes puis confirmation avant import.</div>
+                        <form action="{{ url_for('imports.import_scan_pdf') }}" method="post" enctype="multipart/form-data"
+                            class="d-flex flex-wrap gap-2 align-items-center">
+                            {{ csrf_field() }}
+                            <input class="form-control form-control-sm" type="file" name="fichier_pdf_scan" accept=".pdf"
+                                required>
+                            <input type="hidden" name="trimestre_import_scan" value="{{ trimestre }}">
+                            <input type="hidden" name="subject" value="{{ subject_id }}">
+                            <input type="hidden" name="school_year" value="{{ school_year }}">
+                            <button type="submit" class="btn btn-sm btn-warning text-dark">Analyser le scan</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
     {% endif %}

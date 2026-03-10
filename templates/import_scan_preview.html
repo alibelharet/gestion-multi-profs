@@ -1,0 +1,104 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="app-card p-3 p-md-4 mb-4">
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <div>
+      <h4 class="mb-1">Import PDF scanne</h4>
+      <div class="text-muted small">Verifie les notes detectees avant l'enregistrement definitif.</div>
+    </div>
+    <div class="small text-muted d-flex flex-wrap gap-2">
+      <span class="badge bg-secondary">{{ filename }}</span>
+      <span class="badge bg-dark">T{{ trim }}</span>
+      <span class="badge bg-primary">{{ subject_name }}</span>
+    </div>
+  </div>
+
+  <div class="alert alert-info py-2">
+    Lignes detectees: <strong>{{ detected_total }}</strong> - rapprochements trouves: <strong>{{ matched_total }}</strong>.
+    Corrige les lignes orange ou rouges avant de valider.
+  </div>
+
+  <form action="{{ url_for('imports.import_scan_apply') }}" method="post">
+    {{ csrf_field() }}
+    <input type="hidden" name="token" value="{{ token }}">
+    <input type="hidden" name="subject" value="{{ subject_id }}">
+    <input type="hidden" name="row_count" value="{{ rows|length }}">
+
+    <div class="table-responsive">
+      <table class="table table-sm align-middle mb-0">
+        <thead>
+          <tr>
+            <th style="width: 56px;">OK</th>
+            <th style="min-width: 180px;">Statut</th>
+            <th style="min-width: 220px;">Nom</th>
+            <th style="min-width: 110px;">Classe</th>
+            <th style="width: 110px;">Activite</th>
+            <th style="width: 110px;">Devoir</th>
+            <th style="width: 110px;">Compo</th>
+            <th style="min-width: 180px;">Remarques</th>
+            <th style="min-width: 160px;">Controle</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+          <tr>
+            <td class="text-center">
+              <input type="checkbox" class="form-check-input" name="row_{{ loop.index0 }}_selected" value="1" {% if row.selected %}checked{% endif %}>
+            </td>
+            <td>
+              {% if row.match_status == 'success' %}
+              <span class="badge bg-success">Trouve</span>
+              {% elif row.match_status == 'warning' %}
+              <span class="badge bg-warning text-dark">A verifier</span>
+              {% else %}
+              <span class="badge bg-danger">Non trouve</span>
+              {% endif %}
+              <div class="small mt-1">{{ row.match_reason }}</div>
+              {% if row.matched_label %}
+              <div class="small text-muted">{{ row.matched_label }}</div>
+              {% endif %}
+            </td>
+            <td>
+              <input type="text" name="row_{{ loop.index0 }}_full_name" value="{{ row.full_name }}" class="form-control form-control-sm">
+            </td>
+            <td>
+              <input type="text" name="row_{{ loop.index0 }}_classe" value="{{ row.classe }}" class="form-control form-control-sm">
+            </td>
+            <td>
+              <input type="number" step="0.01" min="0" max="20" name="row_{{ loop.index0 }}_activite" value="{{ '' if row.activite is none else row.activite }}" class="form-control form-control-sm">
+            </td>
+            <td>
+              <input type="number" step="0.01" min="0" max="20" name="row_{{ loop.index0 }}_devoir" value="{{ '' if row.devoir is none else row.devoir }}" class="form-control form-control-sm">
+            </td>
+            <td>
+              <input type="number" step="0.01" min="0" max="20" name="row_{{ loop.index0 }}_compo" value="{{ '' if row.compo is none else row.compo }}" class="form-control form-control-sm">
+            </td>
+            <td>
+              <input type="text" name="row_{{ loop.index0 }}_remarques" value="{{ row.remarques }}" class="form-control form-control-sm">
+            </td>
+            <td>
+              <div class="small">Confiance: {{ (row.confidence * 100)|round(0)|int }}%</div>
+              {% if row.issues_text %}
+              <div class="small text-warning">{{ row.issues_text }}</div>
+              {% else %}
+              <div class="small text-muted">Aucune alerte</div>
+              {% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="9" class="text-center text-muted py-4">Aucune ligne detectee.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="d-flex flex-wrap gap-2 justify-content-end mt-3">
+      <a href="{{ url_for('imports.import_scan_cancel', token=token) }}" class="btn btn-outline-secondary btn-sm">Annuler</a>
+      <button type="submit" class="btn btn-success btn-sm">Confirmer l'import du scan</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

@@ -1,4 +1,5 @@
 Flask
+openai
 pandas
 openpyxl
 reportlab
