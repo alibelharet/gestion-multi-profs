@@ -48,3 +48,59 @@
 .btn-loading .spinner-border {
     margin-right: 0.5rem;
 }
+
+/* Animations */
+/* Pulse effect for notifications */
+@keyframes pulseGlow {
+    0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 107, 107, 0.7); }
+    50% { transform: scale(1.05); box-shadow: 0 0 0 8px rgba(255, 107, 107, 0); }
+    100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 107, 107, 0); }
+}
+
+.pulse-glow {
+    animation: pulseGlow 2s infinite;
+}
+
+/* Hover lift effect for cards/buttons */
+.hover-lift {
+    transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}
+.hover-lift:hover {
+    transform: translateY(-4px) !important;
+    box-shadow: 0 16px 32px rgba(0, 0, 0, 0.2) !important;
+}
+[data-theme="light"] .hover-lift:hover {
+    box-shadow: 0 16px 32px rgba(16, 24, 40, 0.1) !important;
+}
+
+/* Row entrance animation for tables */
+@keyframes rowFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(15px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.table-animated tbody tr {
+    animation: rowFadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    opacity: 0;
+}
+/* Staggering the first 25 rows slightly so they don't load all at once */
+.table-animated tbody tr:nth-child(1) { animation-delay: 0.05s; }
+.table-animated tbody tr:nth-child(2) { animation-delay: 0.10s; }
+.table-animated tbody tr:nth-child(3) { animation-delay: 0.15s; }
+.table-animated tbody tr:nth-child(4) { animation-delay: 0.20s; }
+.table-animated tbody tr:nth-child(5) { animation-delay: 0.25s; }
+.table-animated tbody tr:nth-child(6) { animation-delay: 0.30s; }
+.table-animated tbody tr:nth-child(7) { animation-delay: 0.35s; }
+.table-animated tbody tr:nth-child(n+8) { animation-delay: 0.40s; }
+
+/* Smooth Global Transitions */
+a, button {
+    transition: all 0.2s ease-in-out;
+}
+

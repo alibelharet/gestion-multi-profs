@@ -287,9 +287,9 @@
     <a href="#main-content" class="visually-hidden-focusable position-absolute bg-primary text-white p-2"
         style="z-index:9999">Aller au contenu</a>
 
-    <nav class="navbar navbar-expand-lg navbar-dark sticky-top" role="navigation" aria-label="Navigation principale">
+    <nav class="navbar navbar-expand-lg navbar-dark sticky-top animate-fade-up" role="navigation" aria-label="Navigation principale">
         <div class="container-fluid">
-            <a class="navbar-brand" href="/">EduMaster</a>
+            <a class="navbar-brand hover-lift" href="/">EduMaster</a>
 
             {% if session.get('user_id') %}
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
@@ -334,7 +334,7 @@
                             aria-label="{{ tr('menu.notifications', 'Notifications') }}">
                             {{ tr('menu.notifications', 'Notif.') }}
                             <span id="notif-badge"
-                                class="badge bg-danger rounded-pill position-absolute top-0 start-100 translate-middle d-none"
+                                class="badge bg-danger rounded-pill position-absolute top-0 start-100 translate-middle d-none pulse-glow"
                                 style="font-size:0.65rem">0</span>
                         </a>
                     </li>
@@ -347,14 +347,14 @@
 
                 <div class="d-flex gap-2 align-items-center">
                     <a href="{{ url_for('dashboard.set_lang', lang='ar' if current_lang == 'fr' else 'fr') }}"
-                        class="btn btn-outline-secondary btn-sm px-3">{{ tr('lang.switch', 'AR') }}</a>
-                    <button type="button" id="themeToggle" class="btn btn-outline-info btn-sm px-3"
+                        class="btn btn-outline-secondary btn-sm px-3 hover-lift">{{ tr('lang.switch', 'AR') }}</a>
+                    <button type="button" id="themeToggle" class="btn btn-outline-info btn-sm px-3 hover-lift"
                         data-label-light="{{ tr('theme.light', 'Mode clair') }}"
                         data-label-dark="{{ tr('theme.dark', 'Mode sombre') }}">
                         {{ tr('theme.light', 'Mode clair') }}
                     </button>
-                    <a href="/profile" class="btn btn-outline-light btn-sm px-3">{{ tr('menu.profile', 'Profil') }}</a>
-                    <a href="/logout" class="btn btn-danger btn-sm px-3">{{ tr('menu.logout', 'Logout') }}</a>
+                    <a href="/profile" class="btn btn-outline-light btn-sm px-3 hover-lift">{{ tr('menu.profile', 'Profil') }}</a>
+                    <a href="/logout" class="btn btn-danger btn-sm px-3 hover-lift">{{ tr('menu.logout', 'Logout') }}</a>
                 </div>
             </div>
             {% endif %}

@@ -41,6 +41,268 @@
     .filter-actions .btn {
         min-width: 36px;
     }
+
+    .filters-panel .form-label {
+        font-size: 0.8rem;
+        margin-bottom: 0.25rem;
+    }
+
+    .filters-summary {
+        border-top: 1px dashed var(--border);
+        margin-top: 1rem;
+        padding-top: 0.85rem;
+    }
+
+    .summary-pill {
+        background: var(--surface-2);
+        border: 1px solid var(--border);
+        color: var(--muted);
+        border-radius: 999px;
+        padding: 0.4rem 0.8rem;
+        font-size: 0.82rem;
+    }
+
+    .compact-table td,
+    .compact-table th {
+        vertical-align: middle;
+        padding: 0.32rem 0.5rem;
+    }
+
+    .student-name-cell {
+        min-width: 220px;
+    }
+
+    .students-table-container {
+        position: relative;
+    }
+
+    .delete-mode-toolbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.7rem 0.9rem;
+        background: rgba(220, 53, 69, 0.1);
+        border: 1px solid rgba(220, 53, 69, 0.18);
+        border-bottom: 0;
+        border-radius: 12px 12px 0 0;
+    }
+
+    .index-header,
+    .row-index-cell {
+        width: 60px;
+        min-width: 60px;
+        padding-left: 0.35rem !important;
+        padding-right: 0.35rem !important;
+    }
+
+    .index-stack {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.3rem;
+        min-height: 30px;
+    }
+
+    .index-stack .form-check-input {
+        margin-top: 0;
+    }
+
+    .index-number {
+        min-width: 18px;
+        text-align: center;
+    }
+
+    .row-index-cell {
+        white-space: nowrap;
+    }
+
+    .students-table-container:not(.delete-mode) .index-header,
+    .students-table-container:not(.delete-mode) .row-index-cell {
+        display: none !important;
+    }
+
+    .students-table-container.delete-mode .name-inline-index {
+        display: none;
+    }
+
+    .student-name-inline {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 0.35rem;
+        flex-wrap: wrap;
+    }
+
+    .student-identity {
+        display: flex;
+        align-items: center;
+        gap: 0.32rem;
+        min-width: 0;
+        flex: 0 1 auto;
+    }
+
+    .student-name-inline .student-fullname {
+        flex: 0 1 auto;
+        min-width: 0;
+    }
+
+    .student-meta {
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+        flex-shrink: 0;
+    }
+
+    .name-inline-index {
+        min-width: 1.35rem;
+        font-size: 0.78rem;
+        color: var(--muted);
+        text-align: center;
+    }
+
+    .student-bulletin-btn {
+        flex-shrink: 0;
+    }
+
+    .activity-chip {
+        min-width: 66px;
+        display: inline-flex;
+        justify-content: center;
+        align-items: center;
+        padding: 0.24rem 0.5rem;
+        border-radius: 999px;
+        background: rgba(47, 123, 255, 0.14);
+        border: 1px solid rgba(47, 123, 255, 0.35);
+        color: #8ec5ff;
+        font-weight: 700;
+        font-size: 0.88rem;
+        line-height: 1.1;
+    }
+
+    .activity-cell-stack {
+        display: inline-flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 0.3rem;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .compact-table .details-toggle-btn {
+        padding: 0.1rem 0.45rem;
+        font-size: 0.78rem;
+        line-height: 1.1;
+    }
+
+    .detail-panel {
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(47, 123, 255, 0.04));
+        border-top: 1px dashed var(--border);
+    }
+
+    .detail-input label {
+        display: block;
+        font-size: 0.75rem;
+        color: var(--muted);
+        margin-bottom: 0.35rem;
+    }
+
+    .save-toolbar {
+        border-top: 1px solid var(--border);
+        background: color-mix(in srgb, var(--surface-2) 78%, transparent);
+    }
+
+    .compact-table .input-note {
+        min-width: 50px;
+        height: 32px;
+        font-size: 0.92rem;
+        padding: 0.2rem 0.35rem;
+    }
+
+    .compact-table .fw-bold {
+        line-height: 1.2;
+    }
+
+    .compact-table .badge {
+        font-size: 0.58rem !important;
+        padding: 0.25rem 0.45rem;
+    }
+
+    .compact-table .detail-panel {
+        padding-top: 0.8rem !important;
+        padding-bottom: 0.8rem !important;
+    }
+
+    .compact-table .detail-input label {
+        font-size: 0.72rem;
+        margin-bottom: 0.25rem;
+    }
+
+    @media (max-width: 768px) {
+        .student-name-cell {
+            min-width: 170px;
+        }
+
+        .student-name-inline {
+            align-items: flex-start;
+            gap: 0.35rem;
+        }
+
+        .student-meta {
+            flex-wrap: wrap;
+            justify-content: flex-start;
+        }
+
+        .compact-table th:nth-child(1),
+        .compact-table td:nth-child(1) {
+            display: table-cell !important;
+            min-width: 60px !important;
+            width: 60px !important;
+        }
+
+        .compact-table th:nth-child(2),
+        .compact-table td:nth-child(2) {
+            display: table-cell !important;
+            position: sticky;
+            left: 0;
+            z-index: 5;
+            background-color: var(--surface) !important;
+            border-right: 1px solid var(--border);
+            box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+            max-width: 180px;
+            white-space: normal;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .compact-table thead th:nth-child(2) {
+            background-color: var(--surface-2) !important;
+            z-index: 10;
+        }
+
+        .compact-table th:nth-child(3),
+        .compact-table td:nth-child(3) {
+            position: static !important;
+            left: auto !important;
+            box-shadow: none !important;
+            background-color: transparent !important;
+            border-right: none !important;
+        }
+
+        .compact-table thead th:nth-child(3) {
+            background-color: var(--surface-2) !important;
+        }
+
+        .summary-pill {
+            width: 100%;
+            justify-content: center;
+        }
+
+        .compact-table td,
+        .compact-table th {
+            padding: 0.3rem 0.38rem;
+        }
+    }
 </style>
 
 <div class="app-card hero-card mb-4 p-3 animate-fade-up" style="animation-delay: 0.1s;">
@@ -71,21 +333,45 @@
 </div>
 {% endif %}
 
-<div class="app-card mb-4 filters-sticky glass-panel animate-fade-up" style="animation-delay: 0.5s;">
+{% set advanced_filters_open = recherche_actuelle or sort != 'class' or order != 'asc' or per_page != 50 or etat != 'all' or min_moy is not none or max_moy is not none %}
+
+<div class="app-card mb-4 filters-sticky glass-panel animate-fade-up filters-panel" style="animation-delay: 0.5s;">
     <div class="card-body py-3 px-3">
         <form action="/" method="get">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                <div>
+                    <div class="fw-bold">Filtres rapides</div>
+                    <div class="text-muted small">On garde seulement l essentiel visible en haut.</div>
+                </div>
+                <div class="d-flex flex-wrap gap-2 align-items-center">
+                    <span class="summary-pill d-inline-flex align-items-center gap-2">Total <strong>{{ total }}</strong></span>
+                    <button class="btn btn-sm btn-outline-secondary hover-lift" type="button" data-bs-toggle="collapse"
+                        data-bs-target="#advancedFilters" aria-expanded="{{ 'true' if advanced_filters_open else 'false' }}">
+                        <i class="bi bi-sliders"></i> Filtres avances
+                    </button>
+                </div>
+            </div>
+
             <div class="row g-2 align-items-end">
-                <div class="col-6 col-lg-2">
-                    <label class="small text-muted">Trimestre</label>
+                <div class="col-6 col-lg-3">
+                    <label class="form-label text-muted">Trimestre</label>
                     <select name="trimestre" class="form-select form-select-sm" onchange="this.form.submit()">
                         <option value="1" {% if trimestre=='1' %}selected{% endif %}>T1</option>
                         <option value="2" {% if trimestre=='2' %}selected{% endif %}>T2</option>
                         <option value="3" {% if trimestre=='3' %}selected{% endif %}>T3</option>
                     </select>
                 </div>
-                <div class="col-6 col-lg-2">
-                    <label class="small text-muted">Annee</label>
-                    {% if session.get('is_admin') %}
+                <div class="col-6 col-lg-3">
+                    <label class="form-label text-muted">Classe</label>
+                    <select name="niveau" class="form-select form-select-sm" onchange="this.form.submit()">
+                        <option value="all">Tous</option>
+                        {% for classe in liste_classes %}<option value="{{ classe }}" {% if niveau_actuel==classe
+                            %}selected{% endif %}>{{ classe }}</option>{% endfor %}
+                    </select>
+                </div>
+                {% if session.get('is_admin') %}
+                <div class="col-6 col-lg-3">
+                    <label class="form-label text-muted">Annee</label>
                     <select name="school_year" class="form-select form-select-sm" onchange="this.form.submit()">
                         {% for sy in school_years %}
                         <option value="{{ sy.label }}" {% if school_year==sy.label %}selected{% endif %}>
@@ -93,97 +379,102 @@
                         </option>
                         {% endfor %}
                     </select>
-                    {% else %}
-                    <input type="text" class="form-control form-control-sm" value="{{ school_year }}" readonly>
-                    <input type="hidden" name="school_year" value="{{ school_year }}">
-                    {% endif %}
                 </div>
-                <div class="col-6 col-lg-2">
-                    <label class="small text-muted">Classe</label>
-                    <select name="niveau" class="form-select form-select-sm" onchange="this.form.submit()">
-                        <option value="all">Tous</option>
-                        {% for classe in liste_classes %}<option value="{{ classe }}" {% if niveau_actuel==classe
-                            %}selected{% endif %}>{{ classe }}</option>{% endfor %}
-                    </select>
-                </div>
-                <div class="col-6 col-lg-2">
-                    <label class="small text-muted">Matiere</label>
-                    {% if session.get('lock_subject') %}
-                    <input type="text" class="form-control form-control-sm" value="{{ subject_name }}" readonly>
-                    <input type="hidden" name="subject" value="{{ subject_id }}">
-                    {% else %}
+                {% else %}
+                <input type="hidden" name="school_year" value="{{ school_year }}">
+                {% endif %}
+                {% if session.get('lock_subject') %}
+                <input type="hidden" name="subject" value="{{ subject_id }}">
+                {% else %}
+                <div class="col-12 col-lg-3">
+                    <label class="form-label text-muted">Matiere</label>
                     <select name="subject" class="form-select form-select-sm" onchange="this.form.submit()">
                         {% for s in subjects %}
                         <option value="{{ s.id }}" {% if subject_id==s.id %}selected{% endif %}>{{ s.name }}</option>
                         {% endfor %}
                     </select>
-                    {% endif %}
                 </div>
-                <div class="col-12 col-lg-4">
-                    <label class="small text-muted">Recherche</label>
-                    <input type="text" name="recherche" value="{{ recherche_actuelle }}"
-                        class="form-control form-control-sm" placeholder="Rechercher..." />
-                </div>
-                <div class="col-12 col-lg-2 d-flex gap-1 justify-content-end filter-actions">
-                    <button type="submit" class="btn btn-sm btn-outline-info"><i class="bi bi-search"></i></button>
+                {% endif %}
+                <div class="col-12 col-lg d-flex gap-1 justify-content-end filter-actions">
+                    <button type="submit" class="btn btn-sm btn-outline-info hover-lift"><i
+                            class="bi bi-search"></i></button>
+                    <a href="{{ url_for('dashboard.index', trimestre=trimestre, subject=subject_id, school_year=school_year) }}"
+                        class="btn btn-sm btn-outline-secondary hover-lift" title="Reinitialiser">
+                        <i class="bi bi-arrow-counterclockwise"></i>
+                    </a>
                     {% if can_edit %}
-                    <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal"
+                    <button type="button" class="btn btn-sm btn-success hover-lift" data-bs-toggle="modal"
                         data-bs-target="#addStudentModal"><i class="bi bi-person-plus-fill"></i></button>
-                    <button class="btn btn-sm btn-secondary" type="button" data-bs-toggle="collapse"
+                    <button class="btn btn-sm btn-secondary hover-lift" type="button" data-bs-toggle="collapse"
                         data-bs-target="#importBox"><i class="bi bi-file-earmark-spreadsheet-fill"></i></button>
                     {% endif %}
                 </div>
             </div>
 
-            <div class="row g-2 align-items-end mt-2">
-                <div class="col-12 col-md-4">
-                    <label class="small text-muted">Tri</label>
-                    <select name="sort" class="form-select form-select-sm" onchange="this.form.submit()">
-                        <option value="class" {% if sort=='class' %}selected{% endif %}>Classe</option>
-                        <option value="name" {% if sort=='name' %}selected{% endif %}>Nom</option>
-                        <option value="moy" {% if sort=='moy' %}selected{% endif %}>Moyenne</option>
-                        <option value="id" {% if sort=='id' %}selected{% endif %}>ID</option>
-                    </select>
-                </div>
-                <div class="col-6 col-md-2">
-                    <label class="small text-muted">Ordre</label>
-                    <select name="order" class="form-select form-select-sm" onchange="this.form.submit()">
-                        <option value="asc" {% if order=='asc' %}selected{% endif %}>Asc</option>
-                        <option value="desc" {% if order=='desc' %}selected{% endif %}>Desc</option>
-                    </select>
-                </div>
-                <div class="col-6 col-md-2">
-                    <label class="small text-muted">Par page</label>
-                    <select name="per_page" class="form-select form-select-sm" onchange="this.form.submit()">
-                        <option value="25" {% if per_page==25 %}selected{% endif %}>25</option>
-                        <option value="50" {% if per_page==50 %}selected{% endif %}>50</option>
-                        <option value="100" {% if per_page==100 %}selected{% endif %}>100</option>
-                    </select>
-                </div>
-                <div class="col-12 col-md-4">
-                    <label class="small text-muted">Etat</label>
-                    <select name="etat" class="form-select form-select-sm" onchange="this.form.submit()">
-                        <option value="all" {% if etat=='all' %}selected{% endif %}>Tous</option>
-                        <option value="admis" {% if etat=='admis' %}selected{% endif %}>Admis (>=10)</option>
-                        <option value="echec" {% if etat=='echec' %}selected{% endif %}>Echec (&lt;10)</option>
-                        <option value="non_saisi" {% if etat=='non_saisi' %}selected{% endif %}>Non saisi</option>
-                    </select>
-                </div>
-            </div>
+            <div class="collapse {% if advanced_filters_open %}show{% endif %}" id="advancedFilters">
+                <div class="filters-summary">
+                    <div class="row g-2 align-items-end">
+                        <div class="col-12 col-lg-3">
+                            <label class="form-label text-muted">Recherche</label>
+                            <input type="text" name="recherche" value="{{ recherche_actuelle }}"
+                                class="form-control form-control-sm" placeholder="Rechercher..." />
+                        </div>
+                        {% if session.get('lock_subject') %}
+                        <div class="col-6 col-lg-2">
+                            <label class="form-label text-muted">Matiere</label>
+                            <input type="text" class="form-control form-control-sm" value="{{ subject_name }}" readonly>
+                        </div>
+                        {% endif %}
+                        <div class="col-6 col-lg-3">
+                            <label class="form-label text-muted">Etat</label>
+                            <select name="etat" class="form-select form-select-sm" onchange="this.form.submit()">
+                                <option value="all" {% if etat=='all' %}selected{% endif %}>Tous</option>
+                                <option value="admis" {% if etat=='admis' %}selected{% endif %}>Admis (>=10)</option>
+                                <option value="echec" {% if etat=='echec' %}selected{% endif %}>Echec (&lt;10)</option>
+                                <option value="non_saisi" {% if etat=='non_saisi' %}selected{% endif %}>Non saisi</option>
+                            </select>
+                        </div>
+                        <div class="col-6 col-lg-3">
+                            <label class="form-label text-muted">Par page</label>
+                            <select name="per_page" class="form-select form-select-sm" onchange="this.form.submit()">
+                                <option value="25" {% if per_page==25 %}selected{% endif %}>25</option>
+                                <option value="50" {% if per_page==50 %}selected{% endif %}>50</option>
+                                <option value="100" {% if per_page==100 %}selected{% endif %}>100</option>
+                            </select>
+                        </div>
+                    </div>
 
-            <div class="row g-2 align-items-end mt-2">
-                <div class="col-6 col-md-2">
-                    <label class="small text-muted">Min moy</label>
-                    <input type="number" step="0.01" name="min_moy" value="{{ min_moy if min_moy is not none else '' }}"
-                        class="form-control form-control-sm" onchange="this.form.submit()">
-                </div>
-                <div class="col-6 col-md-2">
-                    <label class="small text-muted">Max moy</label>
-                    <input type="number" step="0.01" name="max_moy" value="{{ max_moy if max_moy is not none else '' }}"
-                        class="form-control form-control-sm" onchange="this.form.submit()">
-                </div>
-                <div class="col-12 col-md-8 d-flex justify-content-end">
-                    <div class="text-muted small mt-2 mt-md-0">Total: {{ total }}</div>
+                    <div class="row g-2 align-items-end mt-1">
+                        <div class="col-6 col-lg-2">
+                            <label class="form-label text-muted">Tri</label>
+                            <select name="sort" class="form-select form-select-sm" onchange="this.form.submit()">
+                                <option value="class" {% if sort=='class' %}selected{% endif %}>Classe</option>
+                                <option value="name" {% if sort=='name' %}selected{% endif %}>Nom</option>
+                                <option value="moy" {% if sort=='moy' %}selected{% endif %}>Moyenne</option>
+                                <option value="id" {% if sort=='id' %}selected{% endif %}>ID</option>
+                            </select>
+                        </div>
+                        <div class="col-6 col-lg-2">
+                            <label class="form-label text-muted">Ordre</label>
+                            <select name="order" class="form-select form-select-sm" onchange="this.form.submit()">
+                                <option value="asc" {% if order=='asc' %}selected{% endif %}>Asc</option>
+                                <option value="desc" {% if order=='desc' %}selected{% endif %}>Desc</option>
+                            </select>
+                        </div>
+                        <div class="col-6 col-lg-2">
+                            <label class="form-label text-muted">Min moy</label>
+                            <input type="number" step="0.01" name="min_moy" value="{{ min_moy if min_moy is not none else '' }}"
+                                class="form-control form-control-sm" onchange="this.form.submit()">
+                        </div>
+                        <div class="col-6 col-lg-2">
+                            <label class="form-label text-muted">Max moy</label>
+                            <input type="number" step="0.01" name="max_moy" value="{{ max_moy if max_moy is not none else '' }}"
+                                class="form-control form-control-sm" onchange="this.form.submit()">
+                        </div>
+                        <div class="col-12 col-lg-4 d-flex align-items-center justify-content-lg-end">
+                            <div class="text-muted small pt-2">Astuces: utilise surtout `Classe`, `Trimestre` puis `Sauver`.</div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </form>
@@ -215,14 +506,13 @@
         <div
             class="card-header app-card-header d-flex justify-content-between align-items-center py-2 px-3 rounded-top">
             <div>
-                <h6 class="mb-0 text-body">Liste eleves</h6>
-                <div class="small text-muted">Activite = Participation(3) + Comportement(6) + Cahier(5) + Projet(4) +
-                    Abs/Outils(2)</div>
+                <h6 class="mb-0 text-body">Tableau simplifie</h6>
+                <div class="small text-muted">On affiche seulement le principal. Ouvre "Details activite" seulement si necessaire.</div>
             </div>
             <div class="d-flex gap-1">
                 {% if can_edit %}
-                <button type="submit" class="btn btn-sm btn-primary px-3">Sauver</button>
-                <button type="button" class="btn btn-sm btn-warning text-dark px-3" data-bs-toggle="modal"
+                <button type="submit" class="btn btn-sm btn-primary px-3 hover-lift">Sauver</button>
+                <button type="button" class="btn btn-sm btn-warning text-dark px-3 hover-lift" data-bs-toggle="modal"
                     data-bs-target="#fillOfficialModal">Remplir officiel</button>
                 {% else %}
                 <span class="badge bg-secondary align-self-center px-3 py-2">Lecture seule</span>
@@ -246,96 +536,153 @@
                         <li>
                             <hr class="dropdown-divider">
                         </li>
-                        <li><a class="dropdown-item text-danger" href="#" onclick="submitDelete()">Supprimer
-                                selection</a></li>
+                        <li><a class="dropdown-item text-danger" href="#" onclick="return enterDeleteMode(event)">Mode
+                                suppression</a></li>
                         {% endif %}
                     </ul>
                 </div>
             </div>
         </div>
 
-        <div class="table-responsive">
-            <table class="table table-hover mb-0 align-middle" style="min-width: 600px;">
-                <thead>
-                    <tr style="border-bottom: 1px solid var(--border); background-color: var(--surface-2);">
-                        <th class="text-center p-2" style="width: 80px;">
-                            {% if can_edit %}
-                            <input type="checkbox" class="form-check-input" onclick="toggle(this)"
-                                title="Tout selectionner">
-                            {% else %}
-                            Bulletin
-                            {% endif %}
-                        </th>
-                        <th class="text-body p-2">#</th>
-                        <th class="text-body p-2" style="min-width: 160px;">Nom</th>
-                        <th class="text-center text-muted p-2">Participation (3)</th>
-                        <th class="text-center text-muted p-2">Comportement (6)</th>
-                        <th class="text-center text-muted p-2">Cahier (5)</th>
-                        <th class="text-center text-muted p-2">Projet (4)</th>
-                        <th class="text-center text-muted p-2">Abs/Outils (2)</th>
-                        <th class="text-center text-info p-2">Activite /20</th>
-                        <th class="text-center text-muted p-2">Devoir</th>
-                        <th class="text-center text-muted p-2">Compo</th>
-                        <th class="text-center text-primary p-2">Moyenne</th>
-                        <th class="text-muted p-2" style="min-width: 150px;">Remarques</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for eleve in eleves %}
-                    <tr style="border-bottom: 1px solid var(--border);">
-                        <td class="text-center d-flex gap-2 justify-content-center pt-3">
-                            {% if can_edit %}
-                            <input type="checkbox" name="ids_delete" value="{{ eleve.id }}"
-                                class="form-check-input check-delete">
-                            {% endif %}
-                            <input type="hidden" name="id_eleve" value="{{ eleve.id }}">
-                            {% if session.get('is_admin') %}
-                            <a href="{{ url_for('reports.bulletin', id=eleve.id, trimestre=trimestre, subject=subject_id, school_year=school_year) }}"
-                                target="_blank" class="btn btn-sm btn-outline-info py-0 px-1" title="Imprimer Bulletin"
-                                style="height: 25px;"><i class="bi bi-file-text"></i></a>
-                            {% endif %}
-                        </td>
-                        <td class="text-body fw-bold">{{ ((page - 1) * per_page) + loop.index }}</td>
-                        <td class="fw-bold text-body">{{ eleve.nom_complet }}<br><span
-                                class="badge bg-secondary text-body border border-dark mt-1"
-                                style="font-size: 0.65em;">{{ eleve.niveau }}</span></td>
-                        <td class="p-1"><input type="number" step="0.01" min="0" max="3" id="part_{{eleve.id}}"
-                                name="participation" value="{{ eleve.participation }}" class="form-control input-note"
-                                oninput="calculLive({{eleve.id}})" {% if not can_edit %}readonly{% endif %}></td>
-                        <td class="p-1"><input type="number" step="0.01" min="0" max="6" id="comport_{{eleve.id}}"
-                                name="comportement" value="{{ eleve.comportement }}" class="form-control input-note"
-                                oninput="calculLive({{eleve.id}})" {% if not can_edit %}readonly{% endif %}></td>
-                        <td class="p-1"><input type="number" step="0.01" min="0" max="5" id="cah_{{eleve.id}}"
-                                name="cahier" value="{{ eleve.cahier }}" class="form-control input-note"
-                                oninput="calculLive({{eleve.id}})" {% if not can_edit %}readonly{% endif %}></td>
-                        <td class="p-1"><input type="number" step="0.01" min="0" max="4" id="proj_{{eleve.id}}"
-                                name="projet" value="{{ eleve.projet }}" class="form-control input-note"
-                                oninput="calculLive({{eleve.id}})" {% if not can_edit %}readonly{% endif %}></td>
-                        <td class="p-1"><input type="number" step="0.01" min="0" max="2" id="ao_{{eleve.id}}"
-                                name="assiduite_outils" value="{{ eleve.assiduite_outils }}"
-                                class="form-control input-note" oninput="calculLive({{eleve.id}})" {% if not can_edit
-                                %}readonly{% endif %}></td>
-                        <td class="text-center fw-bold fs-6 text-info"><span id="act_display_{{eleve.id}}">{{
-                                eleve.activite }}</span><input type="hidden" id="act_{{eleve.id}}" name="activite"
-                                value="{{ eleve.activite }}"></td>
-                        <td class="p-1"><input type="number" step="0.01" min="0" max="20" id="dev_{{eleve.id}}"
-                                name="devoir" value="{{ eleve.devoir }}" class="form-control input-note"
-                                oninput="calculLive({{eleve.id}})" {% if not can_edit %}readonly{% endif %}></td>
-                        <td class="p-1"><input type="number" step="0.01" min="0" max="20" id="comp_{{eleve.id}}"
-                                name="compo" value="{{ eleve.compo }}" class="form-control input-note"
-                                oninput="calculLive({{eleve.id}})" {% if not can_edit %}readonly{% endif %}></td>
-                        <td class="text-center fw-bold fs-5"><span id="moy_{{eleve.id}}"
-                                class="{% if eleve.moyenne < 10 %}text-danger{% else %}text-success{% endif %}">{{
-                                eleve.moyenne }}</span></td>
-                        <td class="small text-muted text-truncate" style="max-width: 150px;">{{ eleve.remarques }}</td>
-                    </tr>
-                    {% else %}
-                    <tr>
-                        <td colspan="13" class="text-center py-5 text-body">Aucun resultat.</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+        <div class="students-table-container" id="studentsTableContainer">
+            {% if can_edit %}
+            <div id="deleteModeToolbar" class="delete-mode-toolbar d-none">
+                <div class="small fw-semibold text-danger">Mode suppression actif</div>
+                <div class="d-flex flex-wrap align-items-center gap-2">
+                    <span class="small text-muted" id="deleteSelectionCount">Aucun eleve selectionne</span>
+                    <button type="button" class="btn btn-sm btn-danger hover-lift" id="deleteSelectedBtn"
+                        onclick="submitDelete()" disabled>Supprimer la selection</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary hover-lift"
+                        onclick="setDeleteMode(false)">Annuler</button>
+                </div>
+            </div>
+            {% endif %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0 align-middle table-animated compact-table" style="min-width: 720px;">
+                    <thead>
+                        <tr style="border-bottom: 1px solid var(--border); background-color: var(--surface-2);">
+                            <th class="text-body p-2 row-index-cell index-header text-center">
+                                <div class="index-stack">
+                                    <span>#</span>
+                                    {% if can_edit %}
+                                    <input type="checkbox" class="form-check-input select-all-delete" onclick="toggle(this)"
+                                        title="Tout selectionner">
+                                    {% endif %}
+                                </div>
+                            </th>
+                            <th class="text-body p-2 student-name-cell">Nom</th>
+                            <th class="text-center text-info p-2">Activite</th>
+                            <th class="text-center text-muted p-2">Devoir</th>
+                            <th class="text-center text-muted p-2">Compo</th>
+                            <th class="text-center text-primary p-2">Moyenne</th>
+                            <th class="text-muted p-2 d-none d-lg-table-cell" style="min-width: 150px;">Remarques</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for eleve in eleves %}
+                        {% set row_number = ((page - 1) * per_page) + loop.index %}
+                        <tr style="border-bottom: 1px solid var(--border);">
+                            <td class="text-body fw-bold row-index-cell">
+                                <div class="index-stack">
+                                    <span class="index-number">{{ row_number }}</span>
+                                    {% if can_edit %}
+                                    <input type="checkbox" name="ids_delete" value="{{ eleve.id }}"
+                                        class="form-check-input check-delete" onchange="syncDeleteSelectionState()">
+                                    {% endif %}
+                                    <input type="hidden" name="id_eleve" value="{{ eleve.id }}">
+                                </div>
+                            </td>
+                            <td class="fw-bold text-body student-name-cell">
+                                <div class="student-name-inline">
+                                    <div class="student-identity">
+                                        <span class="name-inline-index">{{ row_number }}</span>
+                                        <span class="student-fullname">{{ eleve.nom_complet }}</span>
+                                    </div>
+                                    <div class="student-meta">
+                                        <span class="badge bg-secondary text-body border border-dark">{{ eleve.niveau }}</span>
+                                        {% if session.get('is_admin') %}
+                                        <a href="{{ url_for('reports.bulletin', id=eleve.id, trimestre=trimestre, subject=subject_id, school_year=school_year) }}"
+                                            target="_blank" class="btn btn-sm btn-outline-info py-0 px-1 student-bulletin-btn"
+                                            title="Imprimer Bulletin" style="height: 24px;"><i class="bi bi-file-text"></i></a>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="text-center">
+                                <div class="activity-cell-stack">
+                                    <span class="activity-chip" id="act_display_{{eleve.id}}">{{ eleve.activite }}</span>
+                                    <input type="hidden" id="act_{{eleve.id}}" name="activite" value="{{ eleve.activite }}">
+                                    <button class="btn btn-sm btn-outline-secondary details-toggle-btn" type="button"
+                                        data-bs-toggle="collapse" data-bs-target="#details_{{ eleve.id }}">
+                                        Details
+                                    </button>
+                                </div>
+                            </td>
+                            <td class="p-1"><input type="number" step="0.01" min="0" max="20" id="dev_{{eleve.id}}"
+                                    name="devoir" value="{{ eleve.devoir }}" class="form-control input-note"
+                                    oninput="calculLive({{eleve.id}})" {% if not can_edit %}readonly{% endif %}></td>
+                            <td class="p-1"><input type="number" step="0.01" min="0" max="20" id="comp_{{eleve.id}}"
+                                    name="compo" value="{{ eleve.compo }}" class="form-control input-note"
+                                    oninput="calculLive({{eleve.id}})" {% if not can_edit %}readonly{% endif %}></td>
+                            <td class="text-center fw-bold fs-5"><span id="moy_{{eleve.id}}"
+                                    class="{% if eleve.moyenne < 10 %}text-danger{% else %}text-success{% endif %}">{{
+                                    eleve.moyenne }}</span></td>
+                            <td class="small text-muted text-truncate d-none d-lg-table-cell" style="max-width: 150px;">{{ eleve.remarques }}</td>
+                        </tr>
+                        <tr class="collapse" id="details_{{ eleve.id }}">
+                            <td colspan="7" class="p-0">
+                                <div class="detail-panel px-3 py-3">
+                                    <div class="row g-2">
+                                        <div class="col-6 col-xl detail-input">
+                                            <label for="part_{{eleve.id}}">Participation (3)</label>
+                                            <input type="number" step="0.01" min="0" max="3" id="part_{{eleve.id}}"
+                                                name="participation" value="{{ eleve.participation }}" class="form-control input-note"
+                                                oninput="calculLive({{eleve.id}})" {% if not can_edit %}readonly{% endif %}>
+                                        </div>
+                                        <div class="col-6 col-xl detail-input">
+                                            <label for="comport_{{eleve.id}}">Comportement (6)</label>
+                                            <input type="number" step="0.01" min="0" max="6" id="comport_{{eleve.id}}"
+                                                name="comportement" value="{{ eleve.comportement }}" class="form-control input-note"
+                                                oninput="calculLive({{eleve.id}})" {% if not can_edit %}readonly{% endif %}>
+                                        </div>
+                                        <div class="col-6 col-xl detail-input">
+                                            <label for="cah_{{eleve.id}}">Cahier (5)</label>
+                                            <input type="number" step="0.01" min="0" max="5" id="cah_{{eleve.id}}"
+                                                name="cahier" value="{{ eleve.cahier }}" class="form-control input-note"
+                                                oninput="calculLive({{eleve.id}})" {% if not can_edit %}readonly{% endif %}>
+                                        </div>
+                                        <div class="col-6 col-xl detail-input">
+                                            <label for="proj_{{eleve.id}}">Projet (4)</label>
+                                            <input type="number" step="0.01" min="0" max="4" id="proj_{{eleve.id}}"
+                                                name="projet" value="{{ eleve.projet }}" class="form-control input-note"
+                                                oninput="calculLive({{eleve.id}})" {% if not can_edit %}readonly{% endif %}>
+                                        </div>
+                                        <div class="col-12 col-xl detail-input">
+                                            <label for="ao_{{eleve.id}}">Abs/Outils (2)</label>
+                                            <input type="number" step="0.01" min="0" max="2" id="ao_{{eleve.id}}"
+                                                name="assiduite_outils" value="{{ eleve.assiduite_outils }}"
+                                                class="form-control input-note" oninput="calculLive({{eleve.id}})" {% if not can_edit
+                                                %}readonly{% endif %}>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="7" class="text-center py-5 text-body">Aucun resultat.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="save-toolbar d-flex flex-wrap justify-content-between align-items-center gap-2 py-2 px-3">
+            <div class="text-muted small">Classe {{ niveau_actuel if niveau_actuel != 'all' else 'Toutes' }} - {{ total }} eleves</div>
+            {% if can_edit %}
+            <button type="submit" class="btn btn-sm btn-primary px-3 hover-lift">Sauver toutes les notes</button>
+            {% endif %}
         </div>
 
         {% if pages > 1 %}
@@ -471,10 +818,13 @@
         let html = '<tr><th>الرقم</th><th>الاسم و اللقب</th><th>القسم</th><th>النشاط</th><th>الفرض</th><th>الاختبار</th><th>المعدل</th></tr>';
         let i = 1;
         rows.forEach(tr => {
+            if (tr.classList.contains('collapse')) return;
             const cells = tr.querySelectorAll('td');
-            if (cells.length < 3) return;
-            const nom = cells[2].querySelector('.fw-bold')?.childNodes[0]?.textContent?.trim() || cells[2].textContent.trim().split('\n')[0];
-            const classe = cells[2].querySelector('.badge')?.textContent?.trim() || '';
+            if (cells.length < 2) return;
+            const nameCell = tr.querySelector('.student-name-cell');
+            if (!nameCell) return;
+            const nom = nameCell.querySelector('.student-fullname')?.textContent?.trim() || nameCell.textContent.trim();
+            const classe = nameCell.querySelector('.badge')?.textContent?.trim() || '';
             html += '<tr><td>' + i + '</td><td>' + nom + '</td><td>' + classe + '</td><td></td><td></td><td></td><td></td></tr>';
             i++;
         });

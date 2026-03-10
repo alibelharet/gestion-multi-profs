@@ -73,6 +73,7 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     calculAddActivite();
+    initDeleteMode();
 });
 
 function toNum(value) {
@@ -140,35 +141,98 @@ function calculAddActivite() {
     if (hidden) hidden.value = total.toFixed(2);
 }
 
-function toggle(source) {
-    checkboxes = document.querySelectorAll('.check-delete');
-    for (var i = 0, n = checkboxes.length; i < n; i++) {
-        checkboxes[i].checked = source.checked;
+function initDeleteMode() {
+    syncDeleteSelectionState();
+    setDeleteMode(false);
+}
+
+function enterDeleteMode(event) {
+    if (event) event.preventDefault();
+    setDeleteMode(true);
+    return false;
+}
+
+function setDeleteMode(active) {
+    var container = document.getElementById('studentsTableContainer');
+    if (!container) return false;
+
+    container.classList.toggle('delete-mode', !!active);
+
+    var toolbar = document.getElementById('deleteModeToolbar');
+    if (toolbar) {
+        toolbar.classList.toggle('d-none', !active);
+    }
+
+    if (!active) {
+        var selectAll = document.querySelector('.select-all-delete');
+        if (selectAll) {
+            selectAll.checked = false;
+            selectAll.indeterminate = false;
+        }
+
+        var checkboxes = document.querySelectorAll('.check-delete');
+        for (var i = 0, n = checkboxes.length; i < n; i++) {
+            checkboxes[i].checked = false;
+        }
+    } else {
+        var firstCheckbox = container.querySelector('.check-delete');
+        if (firstCheckbox) firstCheckbox.focus();
+    }
+
+    syncDeleteSelectionState();
+    return false;
+}
+
+function syncDeleteSelectionState() {
+    var allCheckboxes = document.querySelectorAll('.check-delete');
+    var checkedCount = document.querySelectorAll('.check-delete:checked').length;
+
+    var counter = document.getElementById('deleteSelectionCount');
+    if (counter) {
+        if (checkedCount === 0) {
+            counter.textContent = 'Aucun eleve selectionne';
+        } else if (checkedCount === 1) {
+            counter.textContent = '1 eleve selectionne';
+        } else {
+            counter.textContent = checkedCount + ' eleves selectionnes';
+        }
+    }
+
+    var deleteButton = document.getElementById('deleteSelectedBtn');
+    if (deleteButton) {
+        deleteButton.disabled = checkedCount === 0;
+    }
+
+    var selectAll = document.querySelector('.select-all-delete');
+    if (selectAll) {
+        selectAll.checked = allCheckboxes.length > 0 && checkedCount === allCheckboxes.length;
+        selectAll.indeterminate = checkedCount > 0 && checkedCount < allCheckboxes.length;
     }
 }
 
-function submitDelete() {
-    if (!confirm('Supprimer les eleves selectionnes ?')) return;
-    var formDelete = document.getElementById('formMultiDelete');
-    if (!formDelete) return;
-
-    var csrfInputExisting = formDelete.querySelector('input[name=\'csrf_token\']');
-    var csrfVal = csrfInputExisting ? csrfInputExisting.value : null;
-    formDelete.innerHTML = '';
-
-    if (csrfVal) {
-        var csrfInput = document.createElement('input');
-        csrfInput.type = 'hidden';
-        csrfInput.name = 'csrf_token';
-        csrfInput.value = csrfVal;
-        formDelete.appendChild(csrfInput);
+function toggle(source) {
+    var checkboxes = document.querySelectorAll('.check-delete');
+    for (var i = 0, n = checkboxes.length; i < n; i++) {
+        checkboxes[i].checked = source.checked;
     }
+    syncDeleteSelectionState();
+}
 
+function submitDelete() {
     var checkboxes = document.querySelectorAll('.check-delete:checked');
     if (checkboxes.length === 0) {
         alert('Selectionnez au moins un eleve');
         return;
     }
+
+    if (!confirm('Supprimer les eleves selectionnes ?')) return;
+
+    var formDelete = document.getElementById('formMultiDelete');
+    if (!formDelete) return;
+
+    formDelete.querySelectorAll('input[name="ids"]').forEach(function (input) {
+        input.remove();
+    });
 
     checkboxes.forEach(function (chk) {
         var input = document.createElement('input');
