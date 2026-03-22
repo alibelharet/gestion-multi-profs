@@ -168,3 +168,42 @@ def supprimer_multi():
             db.rollback()
             flash("Erreur lors de la suppression.", "danger")
     return redirect(request.referrer or url_for("dashboard.index", school_year=selected_school_year))
+
+
+@bp.route("/modifier_eleve_nom", methods=["POST"])
+@login_required
+@write_required
+def modifier_eleve_nom():
+    user_id = session["user_id"]
+    db = get_db()
+    
+    eleve_id = request.form.get("eleve_id")
+    nouveau_nom = (request.form.get("nouveau_nom") or "").strip()
+    
+    if not eleve_id or not nouveau_nom:
+        flash("Informations manquantes pour la modification du nom.", "warning")
+        return redirect(request.referrer or url_for("dashboard.index"))
+        
+    try:
+        # Verify the student belongs to the user
+        eleve = db.execute(
+            "SELECT id FROM eleves WHERE id = ? AND user_id = ?",
+            (eleve_id, user_id)
+        ).fetchone()
+        
+        if not eleve:
+            flash("Élève introuvable ou vous n'avez pas la permission de le modifier.", "danger")
+            return redirect(request.referrer or url_for("dashboard.index"))
+            
+        db.execute(
+            "UPDATE eleves SET nom_complet = ? WHERE id = ? AND user_id = ?",
+            (nouveau_nom, eleve_id, user_id)
+        )
+        db.commit()
+        flash("Nom de l'élève mis à jour avec succès.", "success")
+        log_change("edit_student_name", user_id, details=nouveau_nom, eleve_id=eleve_id)
+    except Exception as e:
+        db.rollback()
+        flash("Erreur lors de la mise à jour du nom.", "danger")
+        
+    return redirect(request.referrer or url_for("dashboard.index"))

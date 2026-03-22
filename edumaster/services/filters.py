@@ -52,6 +52,14 @@ def build_filters(user_id, trim, args, school_year_label, moy_expr_override=None
     elif etat == "non_saisi":
         where += f" AND {moy_expr} <= 0"
 
+    # Specific exclusions based on trimester
+    if str(trim) == "1":
+        # Hide the new student (أمعزوز لين, id=2) from Trimestre 1
+        where += " AND e.id != 2"
+    elif str(trim) in ("2", "3"):
+        # Hide departed students (بوزوار زين الدين id=9, مزياني امين id=31) from T2 and T3
+        where += " AND e.id NOT IN (9, 31)"
+
     return {
         "niveau": niveau,
         "search": search,

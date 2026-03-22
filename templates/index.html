@@ -624,6 +624,13 @@
                                     </div>
                                     <div class="student-meta">
                                         <span class="badge bg-secondary text-body border border-dark">{{ eleve.niveau }}</span>
+                                        {% if can_edit %}
+                                        <button type="button" class="btn btn-sm btn-outline-warning py-0 px-1 ms-1" 
+                                            title="Modifier le nom" style="height: 24px;"
+                                            data-bs-toggle="modal" data-bs-target="#editNameModal_{{ eleve.id }}">
+                                            <i class="bi bi-pencil-square"></i>
+                                        </button>
+                                        {% endif %}
                                         {% if session.get('is_admin') %}
                                         <a href="{{ url_for('reports.bulletin', id=eleve.id, trimestre=trimestre, subject=subject_id, school_year=school_year) }}"
                                             target="_blank" class="btn btn-sm btn-outline-info py-0 px-1 student-bulletin-btn"
@@ -874,5 +881,39 @@
         setTimeout(() => w.print(), 300);
     }
 </script>
+
+{% if can_edit %}
+{% for eleve in eleves %}
+<!-- Edit Name Modal -->
+<div class="modal fade" id="editNameModal_{{ eleve.id }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="background-color: var(--surface); color: var(--text);">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title">Modifier le nom de l'élève</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('students.modifier_eleve_nom') }}" method="POST">
+                {{ csrf_field() }}
+                <div class="modal-body p-4">
+                    <input type="hidden" name="eleve_id" value="{{ eleve.id }}">
+                    <div class="mb-3">
+                        <label class="form-label text-muted">Nom complet actuel</label>
+                        <input type="text" class="form-control bg-dark text-white" value="{{ eleve.nom_complet }}" readonly disabled>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-muted">Nouveau nom complet</label>
+                        <input type="text" class="form-control" name="nouveau_nom" value="{{ eleve.nom_complet }}" required autofocus>
+                    </div>
+                </div>
+                <div class="modal-footer border-secondary">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-warning">Enregistrer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endfor %}
+{% endif %}
 
 {% endblock %}
