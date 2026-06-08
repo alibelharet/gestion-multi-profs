@@ -20,7 +20,21 @@
             // For now, let's just handle the theme switching logic.
             const labelLight = toggleBtn.getAttribute("data-label-light") || "Mode clair";
             const labelDark = toggleBtn.getAttribute("data-label-dark") || "Mode sombre";
-            toggleBtn.textContent = mode === "dark" ? labelLight : labelDark;
+            const nextLabel = mode === "dark" ? labelLight : labelDark;
+            const nextIcon = mode === "dark" ? "bi-sun-fill" : "bi-moon-stars-fill";
+            const icon = toggleBtn.querySelector("[data-theme-icon]");
+            const label = toggleBtn.querySelector("[data-theme-label]");
+
+            if (icon) {
+                icon.className = `bi ${nextIcon}`;
+            }
+            if (label) {
+                label.textContent = nextLabel;
+            } else {
+                toggleBtn.textContent = nextLabel;
+            }
+            toggleBtn.setAttribute("aria-label", nextLabel);
+            toggleBtn.setAttribute("title", nextLabel);
         };
 
         // Initial set if button exists (it might not if not logged in)

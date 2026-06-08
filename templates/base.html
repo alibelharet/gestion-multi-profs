@@ -21,7 +21,18 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
     {% endif %}
 
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script>
+        (function () {
+            try {
+                const savedTheme = localStorage.getItem("edumaster_theme");
+                if (savedTheme === "light" || savedTheme === "dark") {
+                    document.documentElement.setAttribute("data-theme", savedTheme);
+                }
+            } catch (e) { }
+        })();
+    </script>
 
     <style>
         :root {
@@ -85,11 +96,40 @@
 
         .nav-link {
             color: var(--muted) !important;
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+            border-radius: 8px;
+            padding: 0.45rem 0.7rem !important;
+            position: relative;
         }
 
         .nav-link.active,
         .nav-link:hover {
             color: var(--text) !important;
+        }
+
+        .nav-link.active {
+            background: rgba(47, 123, 255, 0.14);
+            box-shadow: inset 0 0 0 1px rgba(47, 123, 255, 0.28);
+        }
+
+        .nav-icon {
+            font-size: 0.95rem;
+            line-height: 1;
+            opacity: 0.88;
+        }
+
+        .navbar-actions {
+            flex-wrap: wrap;
+        }
+
+        .theme-toggle {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.35rem;
+            min-width: 116px;
         }
 
         .container {
@@ -298,41 +338,76 @@
 
             <div class="collapse navbar-collapse" id="navbarNav">
                 {% set current_school_year = request.args.get('school_year') %}
+                {% set endpoint = request.endpoint or '' %}
                 <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                     <li class="nav-item">
-                        <a class="nav-link active fw-bold"
-                            href="{{ url_for('dashboard.index', school_year=current_school_year) if current_school_year else url_for('dashboard.index') }}">{{
-                            tr('menu.dashboard', 'Tableau') }}</a>
+                        {% set is_active = endpoint == 'dashboard.index' %}
+                        <a class="nav-link {{ 'active fw-bold' if is_active else '' }}"
+                            {% if is_active %}aria-current="page"{% endif %}
+                            href="{{ url_for('dashboard.index', school_year=current_school_year) if current_school_year else url_for('dashboard.index') }}">
+                            <i class="bi bi-grid-1x2-fill nav-icon" aria-hidden="true"></i>
+                            <span>{{ tr('menu.dashboard', 'Tableau') }}</span>
+                        </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="/ressources">{{ tr('menu.resources', 'Ressources') }}</a>
+                        {% set is_active = endpoint == 'docs.ressources' %}
+                        <a class="nav-link {{ 'active fw-bold' if is_active else '' }}"
+                            {% if is_active %}aria-current="page"{% endif %} href="/ressources">
+                            <i class="bi bi-folder2-open nav-icon" aria-hidden="true"></i>
+                            <span>{{ tr('menu.resources', 'Ressources') }}</span>
+                        </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="/settings">{{ tr('menu.settings', 'Parametres') }}</a>
+                        {% set is_active = endpoint == 'dashboard.settings' %}
+                        <a class="nav-link {{ 'active fw-bold' if is_active else '' }}"
+                            {% if is_active %}aria-current="page"{% endif %} href="/settings">
+                            <i class="bi bi-gear nav-icon" aria-hidden="true"></i>
+                            <span>{{ tr('menu.settings', 'Parametres') }}</span>
+                        </a>
                     </li>
                     {% if session.get('is_admin') or not session.get('lock_subject') %}
                     <li class="nav-item">
-                        <a class="nav-link" href="/subjects">{{ tr('menu.subjects', 'Matieres') }}</a>
+                        {% set is_active = endpoint == 'dashboard.subjects' %}
+                        <a class="nav-link {{ 'active fw-bold' if is_active else '' }}"
+                            {% if is_active %}aria-current="page"{% endif %} href="/subjects">
+                            <i class="bi bi-journal-bookmark nav-icon" aria-hidden="true"></i>
+                            <span>{{ tr('menu.subjects', 'Matieres') }}</span>
+                        </a>
                     </li>
                     {% endif %}
                     <li class="nav-item">
-                        <a class="nav-link"
-                            href="{{ url_for('dashboard.timetable', school_year=current_school_year) if current_school_year else url_for('dashboard.timetable') }}">{{
-                            tr('menu.timetable', 'Emploi du temps') }}</a>
+                        {% set is_active = endpoint == 'dashboard.timetable' %}
+                        <a class="nav-link {{ 'active fw-bold' if is_active else '' }}"
+                            {% if is_active %}aria-current="page"{% endif %}
+                            href="{{ url_for('dashboard.timetable', school_year=current_school_year) if current_school_year else url_for('dashboard.timetable') }}">
+                            <i class="bi bi-calendar3 nav-icon" aria-hidden="true"></i>
+                            <span>{{ tr('menu.timetable', 'Emploi du temps') }}</span>
+                        </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="/history">{{ tr('menu.history', 'Historique') }}</a>
+                        {% set is_active = endpoint == 'dashboard.history' %}
+                        <a class="nav-link {{ 'active fw-bold' if is_active else '' }}"
+                            {% if is_active %}aria-current="page"{% endif %} href="/history">
+                            <i class="bi bi-clock-history nav-icon" aria-hidden="true"></i>
+                            <span>{{ tr('menu.history', 'Historique') }}</span>
+                        </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link"
-                            href="{{ url_for('dashboard.stats', school_year=current_school_year) if current_school_year else url_for('dashboard.stats') }}">{{
-                            tr('menu.stats', 'Statistiques')
-                            }}</a>
+                        {% set is_active = endpoint == 'dashboard.stats' %}
+                        <a class="nav-link {{ 'active fw-bold' if is_active else '' }}"
+                            {% if is_active %}aria-current="page"{% endif %}
+                            href="{{ url_for('dashboard.stats', school_year=current_school_year) if current_school_year else url_for('dashboard.stats') }}">
+                            <i class="bi bi-bar-chart-line nav-icon" aria-hidden="true"></i>
+                            <span>{{ tr('menu.stats', 'Statistiques') }}</span>
+                        </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link position-relative" href="/notifications"
+                        {% set is_active = endpoint == 'notifications.index' %}
+                        <a class="nav-link position-relative {{ 'active fw-bold' if is_active else '' }}" href="/notifications"
+                            {% if is_active %}aria-current="page"{% endif %}
                             aria-label="{{ tr('menu.notifications', 'Notifications') }}">
-                            {{ tr('menu.notifications', 'Notif.') }}
+                            <i class="bi bi-bell nav-icon" aria-hidden="true"></i>
+                            <span>{{ tr('menu.notifications', 'Notif.') }}</span>
                             <span id="notif-badge"
                                 class="badge bg-danger rounded-pill position-absolute top-0 start-100 translate-middle d-none pulse-glow"
                                 style="font-size:0.65rem">0</span>
@@ -340,21 +415,34 @@
                     </li>
                     {% if session.get('is_admin') %}
                     <li class="nav-item">
-                        <a class="nav-link text-warning" href="/admin">{{ tr('menu.admin', 'Admin') }}</a>
+                        {% set is_active = endpoint == 'admin.index' %}
+                        <a class="nav-link text-warning {{ 'active fw-bold' if is_active else '' }}"
+                            {% if is_active %}aria-current="page"{% endif %} href="/admin">
+                            <i class="bi bi-shield-lock nav-icon" aria-hidden="true"></i>
+                            <span>{{ tr('menu.admin', 'Admin') }}</span>
+                        </a>
                     </li>
                     {% endif %}
                 </ul>
 
-                <div class="d-flex gap-2 align-items-center">
+                <div class="navbar-actions d-flex gap-2 align-items-center">
                     <a href="{{ url_for('dashboard.set_lang', lang='ar' if current_lang == 'fr' else 'fr') }}"
                         class="btn btn-outline-secondary btn-sm px-3 hover-lift">{{ tr('lang.switch', 'AR') }}</a>
-                    <button type="button" id="themeToggle" class="btn btn-outline-info btn-sm px-3 hover-lift"
+                    <button type="button" id="themeToggle" class="btn btn-outline-info btn-sm px-3 hover-lift theme-toggle"
                         data-label-light="{{ tr('theme.light', 'Mode clair') }}"
                         data-label-dark="{{ tr('theme.dark', 'Mode sombre') }}">
-                        {{ tr('theme.light', 'Mode clair') }}
+                        <i class="bi bi-sun-fill" data-theme-icon aria-hidden="true"></i>
+                        <span data-theme-label>{{ tr('theme.light', 'Mode clair') }}</span>
                     </button>
-                    <a href="/profile" class="btn btn-outline-light btn-sm px-3 hover-lift">{{ tr('menu.profile', 'Profil') }}</a>
-                    <a href="/logout" class="btn btn-danger btn-sm px-3 hover-lift">{{ tr('menu.logout', 'Logout') }}</a>
+                    <a href="/profile"
+                        class="btn btn-outline-light btn-sm px-3 hover-lift {{ 'active' if endpoint == 'auth.profile' else '' }}">
+                        <i class="bi bi-person-circle" aria-hidden="true"></i>
+                        <span>{{ tr('menu.profile', 'Profil') }}</span>
+                    </a>
+                    <a href="/logout" class="btn btn-danger btn-sm px-3 hover-lift">
+                        <i class="bi bi-box-arrow-right" aria-hidden="true"></i>
+                        <span>{{ tr('menu.logout', 'Logout') }}</span>
+                    </a>
                 </div>
             </div>
             {% endif %}
@@ -380,7 +468,6 @@
 
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css"></script>
     {% if session.get('user_id') %}
     <script>
         // Fetch unread notification count
