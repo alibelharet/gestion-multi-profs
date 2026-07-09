@@ -64,14 +64,6 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    // Initial bindings for calculation
-    var partInputs = document.querySelectorAll('input[id^="part_"]');
-    partInputs.forEach(function (input) {
-        var id = input.id.replace('part_', '');
-        // We do not recalculate on load to avoid overwriting server data
-        // but we could if needed: calculLive(id);
-    });
-
     calculAddActivite();
     initDeleteMode();
     initSaveGuard();
@@ -103,22 +95,20 @@ function computeActivite(id) {
     var totalRounded = total.toFixed(2);
 
     var actInput = document.getElementById('act_' + id);
-    var actDisplay = document.getElementById('act_display_' + id);
     if (actInput) actInput.value = totalRounded;
-    if (actDisplay) actDisplay.innerText = totalRounded;
     return total;
 }
 
-function calculLive(id) {
+function updateMoyenne(id, activite) {
     var devInput = document.getElementById('dev_' + id);
     var compInput = document.getElementById('comp_' + id);
     var moySpan = document.getElementById('moy_' + id);
 
-    var act = computeActivite(id);
     var dev = clampInput(devInput, 20);
     var comp = clampInput(compInput, 20);
 
-    var moyenne = ((dev + act) / 2 + (comp * 2)) / 3;
+    var moyenne = ((dev + activite) / 2 + (comp * 2)) / 3;
+    if (!moySpan) return;
     moySpan.innerText = moyenne.toFixed(2);
 
     if (moyenne < 10) {
@@ -147,7 +137,7 @@ function initSaveGuard() {
     if (!form || form.dataset.canEdit !== 'true') return;
 
     var inputs = Array.prototype.slice.call(form.querySelectorAll(
-        'input[name="devoir"], input[name="compo"], input[name="participation"], input[name="comportement"], input[name="cahier"], input[name="projet"], input[name="assiduite_outils"]'
+        'input[name="activite"], input[name="devoir"], input[name="compo"], input[name="participation"], input[name="comportement"], input[name="cahier"], input[name="projet"], input[name="assiduite_outils"]'
     )).filter(function (input) {
         return !input.readOnly && !input.disabled;
     });
@@ -293,6 +283,33 @@ function syncDeleteSelectionState() {
         selectAll.checked = allCheckboxes.length > 0 && checkedCount === allCheckboxes.length;
         selectAll.indeterminate = checkedCount > 0 && checkedCount < allCheckboxes.length;
     }
+}
+
+function calculLive(id) {
+    updateMoyenne(id, computeActivite(id));
+}
+
+function updateActivityTotal(id) {
+    var actInput = document.getElementById('act_' + id);
+    var total = clampInput(actInput, 20);
+    var remaining = total;
+    var components = [
+        ['part_', 3],
+        ['comport_', 6],
+        ['cah_', 5],
+        ['proj_', 4],
+        ['ao_', 2]
+    ];
+
+    components.forEach(function (component) {
+        var input = document.getElementById(component[0] + id);
+        var value = Math.min(component[1], Math.max(0, remaining));
+        if (input) input.value = value.toFixed(2);
+        remaining -= value;
+    });
+
+    if (actInput) actInput.value = total.toFixed(2);
+    updateMoyenne(id, total);
 }
 
 function toggle(source) {

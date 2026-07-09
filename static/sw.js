@@ -1,8 +1,9 @@
-const CACHE_NAME = 'edu-v3';
+const CACHE_NAME = 'edu-v4';
 const STATIC_ASSETS = [
     '/',
     '/static/css/style.css',
     '/static/js/app.js',
+    '/static/js/dashboard.js',
     '/static/manifest.json',
     'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css',
     'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap',

@@ -164,19 +164,9 @@
         flex-shrink: 0;
     }
 
-    .activity-chip {
-        min-width: 66px;
-        display: inline-flex;
-        justify-content: center;
-        align-items: center;
-        padding: 0.24rem 0.5rem;
-        border-radius: 999px;
-        background: rgba(47, 123, 255, 0.14);
-        border: 1px solid rgba(47, 123, 255, 0.35);
-        color: #8ec5ff;
-        font-weight: 700;
-        font-size: 0.88rem;
-        line-height: 1.1;
+    .activity-input {
+        width: 74px;
+        min-width: 74px !important;
     }
 
     .activity-cell-stack {
@@ -695,8 +685,11 @@
                             </td>
                             <td class="text-center">
                                 <div class="activity-cell-stack">
-                                    <span class="activity-chip" id="act_display_{{eleve.id}}">{{ eleve.activite }}</span>
-                                    <input type="hidden" id="act_{{eleve.id}}" name="activite" value="{{ eleve.activite }}">
+                                    <input type="number" step="0.01" min="0" max="20" id="act_{{eleve.id}}"
+                                        name="activite" value="{{ eleve.activite }}"
+                                        class="form-control input-note activity-input grade-entry" data-grade-input
+                                        aria-label="Activite de {{ eleve.nom_complet }}" oninput="updateActivityTotal({{eleve.id}})"
+                                        {% if not can_edit %}readonly{% endif %}>
                                     <input type="hidden" id="part_{{eleve.id}}" name="participation" value="{{ eleve.participation }}">
                                     <input type="hidden" id="comport_{{eleve.id}}" name="comportement" value="{{ eleve.comportement }}">
                                     <input type="hidden" id="cah_{{eleve.id}}" name="cahier" value="{{ eleve.cahier }}">
