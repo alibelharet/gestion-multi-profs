@@ -12,7 +12,6 @@
     .dropdown,
     .badge:not(.print-badge),
     footer,
-    #themeToggle,
     #notif-badge,
     .no-print {
         display: none !important;

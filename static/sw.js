@@ -1,4 +1,4 @@
-const CACHE_NAME = 'edu-v5';
+const CACHE_NAME = 'edu-v6';
 const STATIC_ASSETS = [
     '/',
     '/static/css/style.css',
