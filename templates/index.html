@@ -188,24 +188,6 @@
         justify-content: center;
     }
 
-    .compact-table .details-toggle-btn {
-        padding: 0.1rem 0.45rem;
-        font-size: 0.78rem;
-        line-height: 1.1;
-    }
-
-    .detail-panel {
-        background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(47, 123, 255, 0.04));
-        border-top: 1px dashed var(--border);
-    }
-
-    .detail-input label {
-        display: block;
-        font-size: 0.75rem;
-        color: var(--muted);
-        margin-bottom: 0.35rem;
-    }
-
     .save-toolbar {
         border-top: 1px solid var(--border);
         background: color-mix(in srgb, var(--surface-2) 78%, transparent);
@@ -283,16 +265,6 @@
     .compact-table .badge {
         font-size: 0.58rem !important;
         padding: 0.25rem 0.45rem;
-    }
-
-    .compact-table .detail-panel {
-        padding-top: 0.8rem !important;
-        padding-bottom: 0.8rem !important;
-    }
-
-    .compact-table .detail-input label {
-        font-size: 0.72rem;
-        margin-bottom: 0.25rem;
     }
 
     @media (max-width: 768px) {
@@ -610,7 +582,7 @@
             class="card-header app-card-header d-flex justify-content-between align-items-center py-2 px-3 rounded-top">
             <div>
                 <h6 class="mb-0 text-body">Tableau simplifie</h6>
-                <div class="small text-muted">On affiche seulement le principal. Ouvre "Details activite" seulement si necessaire.</div>
+                <div class="small text-muted">Saisie rapide des notes et suivi des moyennes.</div>
             </div>
             <div class="d-flex gap-1">
                 {% if can_edit %}
@@ -725,10 +697,11 @@
                                 <div class="activity-cell-stack">
                                     <span class="activity-chip" id="act_display_{{eleve.id}}">{{ eleve.activite }}</span>
                                     <input type="hidden" id="act_{{eleve.id}}" name="activite" value="{{ eleve.activite }}">
-                                    <button class="btn btn-sm btn-outline-secondary details-toggle-btn" type="button"
-                                        data-bs-toggle="collapse" data-bs-target="#details_{{ eleve.id }}">
-                                        Details
-                                    </button>
+                                    <input type="hidden" id="part_{{eleve.id}}" name="participation" value="{{ eleve.participation }}">
+                                    <input type="hidden" id="comport_{{eleve.id}}" name="comportement" value="{{ eleve.comportement }}">
+                                    <input type="hidden" id="cah_{{eleve.id}}" name="cahier" value="{{ eleve.cahier }}">
+                                    <input type="hidden" id="proj_{{eleve.id}}" name="projet" value="{{ eleve.projet }}">
+                                    <input type="hidden" id="ao_{{eleve.id}}" name="assiduite_outils" value="{{ eleve.assiduite_outils }}">
                                 </div>
                             </td>
                             <td class="p-1"><input type="number" step="0.01" min="0" max="20" id="dev_{{eleve.id}}"
@@ -743,45 +716,6 @@
                                     class="{% if eleve.moyenne < 10 %}text-danger{% else %}text-success{% endif %}">{{
                                     eleve.moyenne }}</span></td>
                             <td class="small text-muted text-truncate d-none d-lg-table-cell" style="max-width: 150px;">{{ eleve.remarques }}</td>
-                        </tr>
-                        <tr class="collapse" id="details_{{ eleve.id }}">
-                            <td colspan="7" class="p-0">
-                                <div class="detail-panel px-3 py-3">
-                                    <div class="row g-2">
-                                        <div class="col-6 col-xl detail-input">
-                                            <label for="part_{{eleve.id}}">Participation (3)</label>
-                                            <input type="number" step="0.01" min="0" max="3" id="part_{{eleve.id}}"
-                                                name="participation" value="{{ eleve.participation }}" class="form-control input-note"
-                                                oninput="calculLive({{eleve.id}})" {% if not can_edit %}readonly{% endif %}>
-                                        </div>
-                                        <div class="col-6 col-xl detail-input">
-                                            <label for="comport_{{eleve.id}}">Comportement (6)</label>
-                                            <input type="number" step="0.01" min="0" max="6" id="comport_{{eleve.id}}"
-                                                name="comportement" value="{{ eleve.comportement }}" class="form-control input-note"
-                                                oninput="calculLive({{eleve.id}})" {% if not can_edit %}readonly{% endif %}>
-                                        </div>
-                                        <div class="col-6 col-xl detail-input">
-                                            <label for="cah_{{eleve.id}}">Cahier (5)</label>
-                                            <input type="number" step="0.01" min="0" max="5" id="cah_{{eleve.id}}"
-                                                name="cahier" value="{{ eleve.cahier }}" class="form-control input-note"
-                                                oninput="calculLive({{eleve.id}})" {% if not can_edit %}readonly{% endif %}>
-                                        </div>
-                                        <div class="col-6 col-xl detail-input">
-                                            <label for="proj_{{eleve.id}}">Projet (4)</label>
-                                            <input type="number" step="0.01" min="0" max="4" id="proj_{{eleve.id}}"
-                                                name="projet" value="{{ eleve.projet }}" class="form-control input-note"
-                                                oninput="calculLive({{eleve.id}})" {% if not can_edit %}readonly{% endif %}>
-                                        </div>
-                                        <div class="col-12 col-xl detail-input">
-                                            <label for="ao_{{eleve.id}}">Abs/Outils (2)</label>
-                                            <input type="number" step="0.01" min="0" max="2" id="ao_{{eleve.id}}"
-                                                name="assiduite_outils" value="{{ eleve.assiduite_outils }}"
-                                                class="form-control input-note" oninput="calculLive({{eleve.id}})" {% if not can_edit
-                                                %}readonly{% endif %}>
-                                        </div>
-                                    </div>
-                                </div>
-                            </td>
                         </tr>
                         {% else %}
                         <tr>
