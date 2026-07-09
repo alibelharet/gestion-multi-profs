@@ -24,6 +24,12 @@ class TestRoutes:
         response = auth_client.get("/settings")
         assert response.status_code == 200
 
+    def test_dashboard_shows_save_guard_for_teacher(self, auth_client):
+        response = auth_client.get("/")
+        assert response.status_code == 200
+        assert b'id="formSaveAll"' in response.data
+        assert b'id="unsavedChangesBar"' in response.data
+
     def test_stats_page(self, auth_client):
         response = auth_client.get("/stats")
         assert response.status_code == 200

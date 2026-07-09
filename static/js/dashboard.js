@@ -74,6 +74,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     calculAddActivite();
     initDeleteMode();
+    initSaveGuard();
 });
 
 function toNum(value) {
@@ -139,6 +140,90 @@ function calculAddActivite() {
     var hidden = document.getElementById('activite_hidden_add');
     if (display) display.value = 'Activite: ' + total.toFixed(2) + ' / 20';
     if (hidden) hidden.value = total.toFixed(2);
+}
+
+function initSaveGuard() {
+    var form = document.getElementById('formSaveAll');
+    if (!form || form.dataset.canEdit !== 'true') return;
+
+    var inputs = Array.prototype.slice.call(form.querySelectorAll(
+        'input[name="devoir"], input[name="compo"], input[name="participation"], input[name="comportement"], input[name="cahier"], input[name="projet"], input[name="assiduite_outils"]'
+    )).filter(function (input) {
+        return !input.readOnly && !input.disabled;
+    });
+    if (!inputs.length) return;
+
+    var initialValues = new Map();
+    var isSubmitting = false;
+    var status = document.getElementById('saveStatus');
+    var bar = document.getElementById('unsavedChangesBar');
+    var barText = document.getElementById('unsavedChangesText');
+
+    inputs.forEach(function (input) {
+        initialValues.set(input, input.value);
+        input.addEventListener('input', syncSaveState);
+        input.addEventListener('change', syncSaveState);
+    });
+
+    function changedInputsCount() {
+        return inputs.filter(function (input) {
+            return input.value !== initialValues.get(input);
+        }).length;
+    }
+
+    function syncSaveState() {
+        var count = changedInputsCount();
+        var hasChanges = count > 0;
+        var text = hasChanges
+            ? count + (count === 1 ? ' modification a sauvegarder.' : ' modifications a sauvegarder.')
+            : 'Aucune modification en attente.';
+
+        if (status) status.textContent = text;
+        if (barText) barText.textContent = text;
+        if (bar) {
+            bar.classList.toggle('is-visible', hasChanges);
+            bar.setAttribute('aria-hidden', hasChanges ? 'false' : 'true');
+        }
+        document.body.classList.toggle('has-unsaved-changes', hasChanges);
+    }
+
+    form.addEventListener('submit', function () {
+        isSubmitting = true;
+        document.body.classList.remove('has-unsaved-changes');
+        if (bar) {
+            bar.classList.remove('is-visible');
+            bar.setAttribute('aria-hidden', 'true');
+        }
+    });
+
+    document.addEventListener('keydown', function (event) {
+        if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
+            event.preventDefault();
+            if (changedInputsCount() > 0) form.requestSubmit();
+            return;
+        }
+
+        if (event.key !== 'Enter' || !event.target.matches('[data-grade-input]')) return;
+        event.preventDefault();
+
+        var gradeInputs = Array.prototype.slice.call(form.querySelectorAll('[data-grade-input]:not([readonly]):not([disabled])'));
+        var columnInputs = gradeInputs.filter(function (input) {
+            return input.name === event.target.name;
+        });
+        var next = columnInputs[columnInputs.indexOf(event.target) + 1];
+        if (next) {
+            next.focus();
+            next.select();
+        }
+    });
+
+    window.addEventListener('beforeunload', function (event) {
+        if (isSubmitting || changedInputsCount() === 0) return;
+        event.preventDefault();
+        event.returnValue = '';
+    });
+
+    syncSaveState();
 }
 
 function initDeleteMode() {

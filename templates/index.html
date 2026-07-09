@@ -211,6 +211,64 @@
         background: color-mix(in srgb, var(--surface-2) 78%, transparent);
     }
 
+    .save-toolbar-summary {
+        display: flex;
+        flex-direction: column;
+        gap: 0.12rem;
+    }
+
+    .save-status {
+        min-height: 1.15rem;
+        color: var(--muted);
+    }
+
+    .unsaved-changes-bar {
+        position: fixed;
+        left: 50%;
+        bottom: max(1rem, env(safe-area-inset-bottom));
+        z-index: 1060;
+        width: min(860px, calc(100% - 2rem));
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 0.7rem 0.8rem 0.7rem 1rem;
+        color: var(--text);
+        background: var(--surface);
+        border: 1px solid rgba(244, 194, 75, 0.5);
+        border-radius: 8px;
+        box-shadow: 0 16px 38px rgba(0, 0, 0, 0.32);
+        opacity: 0;
+        pointer-events: none;
+        transform: translate(-50%, calc(100% + 2rem));
+        transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+
+    .unsaved-changes-bar.is-visible {
+        opacity: 1;
+        pointer-events: auto;
+        transform: translate(-50%, 0);
+    }
+
+    .unsaved-changes-copy {
+        display: flex;
+        align-items: center;
+        min-width: 0;
+        gap: 0.55rem;
+        font-size: 0.9rem;
+        font-weight: 700;
+    }
+
+    .unsaved-changes-copy span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    body.has-unsaved-changes {
+        padding-bottom: 88px;
+    }
+
     .compact-table .input-note {
         min-width: 50px;
         height: 32px;
@@ -300,6 +358,27 @@
         .compact-table td,
         .compact-table th {
             padding: 0.3rem 0.38rem;
+        }
+
+        .unsaved-changes-bar {
+            align-items: stretch;
+            flex-direction: column;
+            gap: 0.65rem;
+            padding: 0.75rem;
+        }
+
+        .unsaved-changes-bar .btn {
+            width: 100%;
+        }
+
+        .unsaved-changes-copy {
+            width: 100%;
+        }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .unsaved-changes-bar {
+            transition: none;
         }
     }
 </style>
@@ -520,7 +599,8 @@
     {% endif %}
 </div>
 
-<form action="{{ url_for('grades.sauvegarder_tout') }}" method="POST" id="formSaveAll">
+<form action="{{ url_for('grades.sauvegarder_tout') }}" method="POST" id="formSaveAll"
+    data-can-edit="{{ 'true' if can_edit else 'false' }}">
     {{ csrf_field() }}
     <input type="hidden" name="trimestre_save" value="{{ trimestre }}">
     <input type="hidden" name="subject" value="{{ subject_id }}">
@@ -534,7 +614,10 @@
             </div>
             <div class="d-flex gap-1">
                 {% if can_edit %}
-                <button type="submit" class="btn btn-sm btn-primary px-3 hover-lift">Sauver</button>
+                <button type="submit" class="btn btn-sm btn-primary px-3 hover-lift" data-save-button>
+                    <i class="bi bi-check2-circle" aria-hidden="true"></i>
+                    <span>Sauver</span>
+                </button>
                 <button type="button" class="btn btn-sm btn-warning text-dark px-3 hover-lift" data-bs-toggle="modal"
                     data-bs-target="#fillOfficialModal">Remplir officiel</button>
                 {% else %}
@@ -649,10 +732,12 @@
                                 </div>
                             </td>
                             <td class="p-1"><input type="number" step="0.01" min="0" max="20" id="dev_{{eleve.id}}"
-                                    name="devoir" value="{{ eleve.devoir }}" class="form-control input-note"
+                                    name="devoir" value="{{ eleve.devoir }}" class="form-control input-note grade-entry"
+                                    data-grade-input
                                     oninput="calculLive({{eleve.id}})" {% if not can_edit %}readonly{% endif %}></td>
                             <td class="p-1"><input type="number" step="0.01" min="0" max="20" id="comp_{{eleve.id}}"
-                                    name="compo" value="{{ eleve.compo }}" class="form-control input-note"
+                                    name="compo" value="{{ eleve.compo }}" class="form-control input-note grade-entry"
+                                    data-grade-input
                                     oninput="calculLive({{eleve.id}})" {% if not can_edit %}readonly{% endif %}></td>
                             <td class="text-center fw-bold fs-5"><span id="moy_{{eleve.id}}"
                                     class="{% if eleve.moyenne < 10 %}text-danger{% else %}text-success{% endif %}">{{
@@ -709,11 +794,32 @@
         </div>
 
         <div class="save-toolbar d-flex flex-wrap justify-content-between align-items-center gap-2 py-2 px-3">
-            <div class="text-muted small">Classe {{ niveau_actuel if niveau_actuel != 'all' else 'Toutes' }} - {{ total }} eleves</div>
+            <div class="save-toolbar-summary small">
+                <span class="text-muted">Classe {{ niveau_actuel if niveau_actuel != 'all' else 'Toutes' }} - {{ total }} eleves</span>
+                {% if can_edit %}
+                <span id="saveStatus" class="save-status" aria-live="polite">Aucune modification en attente.</span>
+                {% endif %}
+            </div>
             {% if can_edit %}
-            <button type="submit" class="btn btn-sm btn-primary px-3 hover-lift">Sauver toutes les notes</button>
+            <button type="submit" class="btn btn-sm btn-primary px-3 hover-lift" data-save-button>
+                <i class="bi bi-cloud-arrow-up" aria-hidden="true"></i>
+                <span>Sauver toutes les notes</span>
+            </button>
             {% endif %}
         </div>
+
+        {% if can_edit %}
+        <div id="unsavedChangesBar" class="unsaved-changes-bar" aria-hidden="true">
+            <div class="unsaved-changes-copy">
+                <i class="bi bi-exclamation-circle-fill text-warning" aria-hidden="true"></i>
+                <span id="unsavedChangesText" role="status" aria-live="polite">Modifications non enregistrees</span>
+            </div>
+            <button type="submit" class="btn btn-primary px-3" data-save-button>
+                <i class="bi bi-cloud-arrow-up" aria-hidden="true"></i>
+                <span>Sauver</span>
+            </button>
+        </div>
+        {% endif %}
 
         {% if pages > 1 %}
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 py-2 px-2 app-card-header">
