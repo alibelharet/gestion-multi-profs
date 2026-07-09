@@ -14,6 +14,9 @@ from .config import LICENSE_FILE, CACHE_FILE, SECRET_LICENCE, DATABASE
 
 
 def get_machine_id():
+    configured_id = os.environ.get("LICENSE_MACHINE_ID", "").strip()
+    if configured_id:
+        return hashlib.sha256(configured_id.encode()).hexdigest().upper()[:12]
     node = uuid.getnode()
     return hashlib.md5(str(node).encode()).hexdigest().upper()[:12]
 
