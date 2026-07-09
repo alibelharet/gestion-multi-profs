@@ -1,7 +1,7 @@
 import os
 import uuid
 
-from flask import Blueprint, current_app, flash, redirect, render_template, request, session, url_for
+from flask import Blueprint, abort, current_app, flash, redirect, render_template, request, send_from_directory, session, url_for
 from werkzeug.utils import secure_filename
 
 from core.db import get_db
@@ -47,6 +47,29 @@ def upload():
     get_db().commit()
     flash("Fichier envoyé.", "success")
     return redirect(url_for("docs.ressources"))
+
+
+@bp.route("/documents/<int:doc_id>/download")
+@login_required
+def download(doc_id: int):
+    """Serve a document only to the account that owns it."""
+    doc = get_db().execute(
+        "SELECT filename FROM documents WHERE id = ? AND user_id = ?",
+        (doc_id, session["user_id"]),
+    ).fetchone()
+    if not doc:
+        abort(404)
+
+    path = os.path.join(current_app.config["UPLOAD_FOLDER"], doc["filename"])
+    if not os.path.isfile(path):
+        abort(404)
+
+    return send_from_directory(
+        current_app.config["UPLOAD_FOLDER"],
+        doc["filename"],
+        as_attachment=True,
+        download_name=doc["filename"],
+    )
 
 
 @bp.route("/supprimer_document/<int:id>", methods=["POST"])

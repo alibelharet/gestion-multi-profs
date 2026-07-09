@@ -6,19 +6,21 @@ import os
 import argparse
 from datetime import datetime
 
-# Essaie de recuperer le secret depuis la config, sinon fallback
-try:
-    sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-    from core.config import SECRET_LICENCE as SECRET_KEY
-except ImportError:
-    SECRET_KEY = "ALGERIE_ECOLE_PRO_2026_SUPER_SECRET"
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+from core.config import SECRET_LICENCE
+
+
+def _license_secret():
+    if not SECRET_LICENCE:
+        raise RuntimeError("SECRET_LICENCE doit etre configure avant de generer une cle.")
+    return SECRET_LICENCE
 
 def generer_cle(date_expiration):
     """
     Génère une clé de licence valide jusqu'à la date donnée (AAAA-MM-JJ).
     """
     # 1. Données
-    data = f"{date_expiration}|{SECRET_KEY}"
+    data = f"{date_expiration}|{_license_secret()}"
     
     # 2. Signature
     signature = hashlib.sha256(data.encode()).hexdigest()[:16].upper()
@@ -38,6 +40,7 @@ def generer_cle(date_expiration):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Generateur de licence EduMaster Pro")
     parser.add_argument("--date", help="Date d'expiration au format AAAA-MM-JJ")
+    parser.add_argument("--output", help="Fichier local optionnel dans lequel enregistrer la cle")
     args = parser.parse_args()
 
     print("\n========================================")
@@ -66,10 +69,10 @@ if __name__ == "__main__":
         print(cle)
         print("----------------------------------------------------------------")
         
-        # Sauvegarde optionnelle dans un fichier
-        with open("licence_generee.txt", "w") as f:
-            f.write(f"Date: {date_str}\nKey: {cle}\n")
-        print("(Clé sauvegardée dans 'licence_generee.txt')")
+        if args.output:
+            with open(args.output, "w", encoding="utf-8") as f:
+                f.write(f"Date: {date_str}\nKey: {cle}\n")
+            print(f"(Clé sauvegardée dans '{args.output}')")
         
     except ValueError:
         print("\n[ERREUR] Format de date invalide. Utilisez AAAA-MM-JJ (ex: 2025-12-31)")

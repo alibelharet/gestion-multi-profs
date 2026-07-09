@@ -36,7 +36,7 @@
                     <h5 class="text-white">{{ doc.titre }}</h5>
                     <span class="badge bg-secondary">{{ doc.type_doc }}</span>
                     <p class="text-white-50 small mt-2">{{ doc.filename }}</p>
-                    <a href="{{ url_for('static', filename='uploads/' + doc.filename) }}" class="btn btn-success btn-sm w-100 mb-1" download>Telecharger</a>
+                    <a href="{{ url_for('docs.download', doc_id=doc.id) }}" class="btn btn-success btn-sm w-100 mb-1">Telecharger</a>
                     {% if can_edit %}
                     <form action="/supprimer_document/{{ doc.id }}" method="POST">
                 {{ csrf_field() }}

@@ -75,9 +75,10 @@ Dans la section **Static files** (onglet Web) :
 2. Il doit contenir au minimum :
    ```
    SECRET_KEY=une_cle_tres_secrete_et_aleatoire
+   SECRET_LICENCE=un_secret_de_signature_long_et_aleatoire
    DATABASE_PATH=/home/votrenom/gestion-multi-profs/ecole_multi.db
    ```
-   *(Remplacez `votrenom` !)*
+   *(Remplacez `votrenom` !)* Ne publiez jamais ces valeurs dans Git. Pour creer le premier compte, configurez aussi temporairement `ADMIN_USER` et `ADMIN_PASS`; les comptes suivants se creent depuis l'espace administrateur.
 
 ## 8. Lancement
 1. Retournez dans l'onglet **Web**.

@@ -52,6 +52,8 @@ def verifier_manipulation_horloge():
 
 
 def verifier_validite_licence():
+    if not SECRET_LICENCE:
+        return False, "Configuration de licence manquante"
     if not verifier_manipulation_horloge():
         return False, "Erreur Date Système"
     if not os.path.exists(LICENSE_FILE):
@@ -182,6 +184,19 @@ def add_security_headers(response):
     response.headers.setdefault('X-Frame-Options', 'SAMEORIGIN')
     response.headers.setdefault('Referrer-Policy', 'strict-origin-when-cross-origin')
     response.headers.setdefault('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
+    response.headers.setdefault(
+        'Content-Security-Policy',
+        "default-src 'self'; base-uri 'self'; form-action 'self'; "
+        "frame-ancestors 'self'; img-src 'self' data:; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; "
+        "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+        "font-src 'self' data: https://fonts.gstatic.com https://cdn.jsdelivr.net; "
+        "connect-src 'self'"
+    )
+    if request.endpoint != 'static':
+        response.headers.setdefault('Cache-Control', 'no-store, max-age=0, private')
+    if request.is_secure and os.environ.get('ENABLE_HSTS', '').strip() == '1':
+        response.headers.setdefault('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
     return response
 
 

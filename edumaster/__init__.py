@@ -21,6 +21,10 @@ def create_app() -> Flask:
     app.config["SESSION_COOKIE_HTTPONLY"] = True
     app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
     app.config["SESSION_COOKIE_SECURE"] = True
+    app.config["ALLOW_SELF_REGISTRATION"] = (
+        os.environ.get("ALLOW_SELF_REGISTRATION", "0").strip().lower()
+        in {"1", "true", "yes", "on"}
+    )
 
     app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY")
     if not app.config["SECRET_KEY"]:

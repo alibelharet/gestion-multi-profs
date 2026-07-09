@@ -4,7 +4,7 @@ import secrets
 import tempfile
 from datetime import datetime
 
-from flask import Blueprint, abort, current_app, flash, redirect, render_template, request, send_file, session, url_for
+from flask import Blueprint, abort, current_app, flash, redirect, render_template, request, send_file, send_from_directory, session, url_for
 from werkzeug.security import generate_password_hash
 
 from core.audit import log_change
@@ -647,6 +647,29 @@ def admin_delete_user(user_id: int):
     log_change("delete_user", session["user_id"], details=username)
     flash(f"Utilisateur supprime: {user['username']}", "success")
     return redirect(url_for("admin.admin"))
+
+
+@bp.route("/admin/documents/<int:doc_id>/download")
+@login_required
+@admin_required
+def admin_download_document(doc_id: int):
+    doc = get_db().execute(
+        "SELECT filename FROM documents WHERE id = ?",
+        (doc_id,),
+    ).fetchone()
+    if not doc:
+        abort(404)
+
+    path = os.path.join(current_app.config["UPLOAD_FOLDER"], doc["filename"])
+    if not os.path.isfile(path):
+        abort(404)
+
+    return send_from_directory(
+        current_app.config["UPLOAD_FOLDER"],
+        doc["filename"],
+        as_attachment=True,
+        download_name=doc["filename"],
+    )
 
 
 @bp.route("/admin/delete_document/<int:doc_id>", methods=["POST"])

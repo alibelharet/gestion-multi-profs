@@ -1,16 +1,15 @@
-const CACHE_NAME = 'edu-v6';
+const CACHE_NAME = 'edu-v7';
 const STATIC_ASSETS = [
-    '/',
     '/static/css/style.css',
     '/static/css/professional.css',
+    '/static/css/print.css',
     '/static/js/app.js',
     '/static/js/dashboard.js',
     '/static/manifest.json',
-    'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css',
-    'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap',
+    '/static/img/icon-192.png',
+    '/static/img/icon-512.png',
 ];
 
-// Install: pre-cache static assets
 self.addEventListener('install', (event) => {
     event.waitUntil(
         caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS))
@@ -18,7 +17,6 @@ self.addEventListener('install', (event) => {
     self.skipWaiting();
 });
 
-// Activate: clean old caches
 self.addEventListener('activate', (event) => {
     event.waitUntil(
         caches.keys().then((names) =>
@@ -32,47 +30,23 @@ self.addEventListener('activate', (event) => {
     self.clients.claim();
 });
 
-// Fetch: strategy selection based on request type
 self.addEventListener('fetch', (event) => {
     const url = new URL(event.request.url);
-
-    // Skip non-GET requests (POST, PUT, etc.)
     if (event.request.method !== 'GET') return;
 
-    // API calls: Network-first with fallback
-    if (url.pathname.startsWith('/api/')) {
-        event.respondWith(networkFirst(event.request));
-        return;
-    }
-
-    // Static assets: Stale-while-revalidate
-    if (
-        url.pathname.startsWith('/static/') ||
-        url.hostname.includes('cdn.jsdelivr.net') ||
-        url.hostname.includes('fonts.googleapis.com') ||
-        url.hostname.includes('fonts.gstatic.com')
-    ) {
+    // Cache only public same-origin static assets. Authenticated HTML, API
+    // responses, reports, exports and uploaded documents are never cached.
+    if (url.origin === self.location.origin && url.pathname.startsWith('/static/')) {
         event.respondWith(staleWhileRevalidate(event.request));
         return;
     }
 
-    // HTML pages: Network-first with cache fallback
-    if (event.request.headers.get('Accept')?.includes('text/html')) {
-        event.respondWith(networkFirst(event.request));
-        return;
-    }
-
-    // Default: stale-while-revalidate
-    event.respondWith(staleWhileRevalidate(event.request));
+    event.respondWith(networkOnly(event.request));
 });
-
-// ─── Strategies ────────────────────────────────────────────────
 
 async function staleWhileRevalidate(request) {
     const cache = await caches.open(CACHE_NAME);
     const cachedResponse = await cache.match(request);
-
-    // Start network fetch in background
     const fetchPromise = fetch(request)
         .then((networkResponse) => {
             if (networkResponse && networkResponse.ok) {
@@ -82,27 +56,20 @@ async function staleWhileRevalidate(request) {
         })
         .catch(() => null);
 
-    // Return cached immediately, or wait for network
-    return cachedResponse || fetchPromise || offlineFallback();
+    return cachedResponse || fetchPromise || offlineResponse();
 }
 
-async function networkFirst(request) {
+async function networkOnly(request) {
     try {
-        const networkResponse = await fetch(request);
-        if (networkResponse.ok) {
-            const cache = await caches.open(CACHE_NAME);
-            cache.put(request, networkResponse.clone());
-        }
-        return networkResponse;
-    } catch (e) {
-        const cachedResponse = await caches.match(request);
-        return cachedResponse || offlineFallback();
+        return await fetch(request);
+    } catch {
+        return offlineResponse();
     }
 }
 
-function offlineFallback() {
-    return caches.match('/') || new Response(
-        '<h1>Hors ligne</h1><p>Veuillez verifier votre connexion.</p>',
-        { headers: { 'Content-Type': 'text/html; charset=utf-8' } }
+function offlineResponse() {
+    return new Response(
+        '<h1>Hors ligne</h1><p>Une connexion est necessaire pour afficher les donnees scolaires.</p>',
+        { status: 503, headers: { 'Content-Type': 'text/html; charset=utf-8' } }
     );
 }

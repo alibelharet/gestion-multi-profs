@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from flask import Blueprint, flash, redirect, render_template, request, session, url_for
+from flask import Blueprint, abort, current_app, flash, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from core.auth_security import (
@@ -20,6 +20,8 @@ bp = Blueprint("auth", __name__)
 
 @bp.route("/register", methods=["GET", "POST"])
 def register():
+    if not current_app.config.get("ALLOW_SELF_REGISTRATION"):
+        abort(404)
     is_valid, msg = verifier_validite_licence()
     if not is_valid:
         return redirect(url_for("licence.activation", error=msg))

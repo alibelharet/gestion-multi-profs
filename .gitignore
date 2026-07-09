@@ -2,9 +2,14 @@
 __pycache__/
 *.pyc
 .env
+.env.production
+.env.production.local
+licence_generee.txt
+licence_generee.local.txt
 build/
 dist/
 static/uploads/
+uploads/
 ecole_multi.db
 license.key
 .sys_check

@@ -312,7 +312,7 @@
           <td>{{ doc.titre }} <span class="badge bg-secondary">{{ doc.type_doc }}</span></td>
           <td>{{ doc.filename }}</td>
           <td class="text-end">
-            <a href="/static/uploads/{{ doc.filename }}" class="btn btn-sm btn-outline-primary" target="_blank">Voir</a>
+            <a href="{{ url_for('admin.admin_download_document', doc_id=doc.id) }}" class="btn btn-sm btn-outline-primary">Voir</a>
             <form action="/admin/delete_document/{{ doc.id }}" method="POST" style="display:inline;">
               {{ csrf_field() }}
               <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Supprimer ce document ?')">Supprimer</button>

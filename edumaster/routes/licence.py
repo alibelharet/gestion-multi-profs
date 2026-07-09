@@ -14,6 +14,11 @@ bp = Blueprint("licence", __name__)
 @bp.route("/activation", methods=["GET", "POST"])
 def activation():
     error = request.args.get("error")
+    if not SECRET_LICENCE:
+        return render_template(
+            "activation.html",
+            error="Configuration de licence manquante. Configurez SECRET_LICENCE avant l'activation.",
+        )
     if request.method == "POST":
         try:
             cle_input = request.form["cle_licence"].strip()
@@ -31,4 +36,3 @@ def activation():
         except Exception:
             flash("Clé non reconnue.", "danger")
     return render_template("activation.html", error=error)
-

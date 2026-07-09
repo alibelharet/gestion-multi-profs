@@ -12,9 +12,11 @@ DATABASE = os.environ.get("DATABASE_PATH", os.path.join(BASE_DIR, "ecole_multi.d
 
 LICENSE_FILE = os.path.join(BASE_DIR, "license.key")
 CACHE_FILE = os.path.join(BASE_DIR, ".sys_check")
-UPLOAD_FOLDER = os.path.join(BASE_DIR, "static", "uploads")
+UPLOAD_FOLDER = os.environ.get("UPLOAD_FOLDER", os.path.join(BASE_DIR, "uploads"))
 
-SECRET_LICENCE = os.environ.get("SECRET_LICENCE", "ALGERIE_ECOLE_PRO_2026_SUPER_SECRET")
+# This secret signs license keys. It must be configured per installation and
+# must never be committed with the application source.
+SECRET_LICENCE = os.environ.get("SECRET_LICENCE", "").strip()
 
 ALLOWED_UPLOAD_EXTENSIONS = {
     ".pdf", ".doc", ".docx", ".xlsx", ".xls", ".ppt", ".pptx", ".png", ".jpg", ".jpeg"
