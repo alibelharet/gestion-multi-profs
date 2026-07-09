@@ -386,6 +386,7 @@ def index():
         pages=pages,
         per_page=per_page,
         total=total,
+        stats=stats,
         base_args=base_args,
         min_moy=min_moy,
         max_moy=max_moy,
