@@ -253,9 +253,9 @@
         data: {
             labels: evolutionData.labels,
             datasets: [
-                { label: 'T1', data: evolutionData.t1, backgroundColor: 'rgba(54, 162, 235, 0.7)' },
-                { label: 'T2', data: evolutionData.t2, backgroundColor: 'rgba(75, 192, 192, 0.7)' },
-                { label: 'T3', data: evolutionData.t3, backgroundColor: 'rgba(255, 99, 132, 0.7)' }
+                { label: 'T1', data: evolutionData.t1, backgroundColor: 'rgba(92, 84, 189, 0.78)' },
+                { label: 'T2', data: evolutionData.t2, backgroundColor: 'rgba(222, 121, 189, 0.78)' },
+                { label: 'T3', data: evolutionData.t3, backgroundColor: 'rgba(232, 177, 78, 0.8)' }
             ]
         },
         options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, max: 20 } } }
@@ -272,8 +272,8 @@
                 datasets: [{
                     label: 'Moyenne T{{ trimestre }}',
                     data: chartData.classes.values,
-                    backgroundColor: 'rgba(47, 123, 255, 0.6)',
-                    borderColor: 'rgb(47, 123, 255)',
+                    backgroundColor: 'rgba(92, 84, 189, 0.68)',
+                    borderColor: 'rgb(92, 84, 189)',
                     borderWidth: 1
                 }]
             },
@@ -288,7 +288,7 @@
                 labels: chartData.distribution.labels,
                 datasets: [{
                     data: chartData.distribution.values,
-                    backgroundColor: ['#198754', '#dc3545', '#6c757d']
+                    backgroundColor: ['#5c54bd', '#de79bd', '#c5bddf']
                 }]
             },
             options: { responsive: true, maintainAspectRatio: false, cutout: '70%', plugins: { legend: { position: 'right' } } }

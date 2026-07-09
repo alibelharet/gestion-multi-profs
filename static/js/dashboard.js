@@ -20,7 +20,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 type: 'bar',
                 data: {
                     labels: data.classes.labels,
-                    datasets: [{ label: 'Moyenne', data: data.classes.values, backgroundColor: '#0d6efd' }]
+                    datasets: [{ label: 'Moyenne', data: data.classes.values, backgroundColor: '#5c54bd' }]
                 },
                 options: {
                     responsive: true,
@@ -36,7 +36,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (ctxDist) {
             new Chart(ctxDist, {
                 type: 'doughnut',
-                data: { labels: data.distribution.labels, datasets: [{ data: data.distribution.values, backgroundColor: ['#198754', '#dc3545', '#6c757d'] }] },
+                data: { labels: data.distribution.labels, datasets: [{ data: data.distribution.values, backgroundColor: ['#5c54bd', '#de79bd', '#c5bddf'] }] },
                 options: { responsive: true, plugins: { legend: { labels: { color: textColor } } } }
             });
         }
@@ -47,9 +47,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 data: {
                     labels: data.progression.labels,
                     datasets: [
-                        { label: 'T1', data: data.progression.t1, borderColor: '#0d6efd', backgroundColor: 'rgba(13,110,253,0.15)', tension: 0.25, fill: false },
-                        { label: 'T2', data: data.progression.t2, borderColor: '#20c997', backgroundColor: 'rgba(32,201,151,0.15)', tension: 0.25, fill: false },
-                        { label: 'T3', data: data.progression.t3, borderColor: '#fd7e14', backgroundColor: 'rgba(253,126,20,0.15)', tension: 0.25, fill: false }
+                        { label: 'T1', data: data.progression.t1, borderColor: '#5c54bd', backgroundColor: 'rgba(92,84,189,0.15)', tension: 0.25, fill: false },
+                        { label: 'T2', data: data.progression.t2, borderColor: '#de79bd', backgroundColor: 'rgba(222,121,189,0.15)', tension: 0.25, fill: false },
+                        { label: 'T3', data: data.progression.t3, borderColor: '#e8b14e', backgroundColor: 'rgba(232,177,78,0.15)', tension: 0.25, fill: false }
                     ]
                 },
                 options: {

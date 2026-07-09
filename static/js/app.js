@@ -5,7 +5,7 @@
     const key = "edumaster_theme";
     const root = document.documentElement;
     const saved = localStorage.getItem(key);
-    const initial = saved || "dark";
+    const initial = saved || "light";
     root.setAttribute("data-theme", initial);
 
     document.addEventListener("DOMContentLoaded", () => {
@@ -41,7 +41,7 @@
         if (toggleBtn) {
             setLabel(initial);
             toggleBtn.addEventListener("click", () => {
-                const current = root.getAttribute("data-theme") || "dark";
+                const current = root.getAttribute("data-theme") || "light";
                 const next = current === "dark" ? "light" : "dark";
                 root.setAttribute("data-theme", next);
                 localStorage.setItem(key, next);

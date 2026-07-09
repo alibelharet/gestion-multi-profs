@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="{{ current_lang }}" dir="{{ text_dir }}" data-theme="dark">
+<html lang="{{ current_lang }}" dir="{{ text_dir }}" data-theme="light">
 
 <head>
     <meta charset="utf-8">
@@ -320,6 +320,7 @@
             }
         }
     </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/professional.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/print.css') }}" media="print">
 </head>
 
@@ -327,9 +328,12 @@
     <a href="#main-content" class="visually-hidden-focusable position-absolute bg-primary text-white p-2"
         style="z-index:9999">Aller au contenu</a>
 
-    <nav class="navbar navbar-expand-lg navbar-dark sticky-top animate-fade-up" role="navigation" aria-label="Navigation principale">
+    <nav class="navbar navbar-expand-lg navbar-dark sticky-top animate-fade-up app-sidebar {{ 'app-sidebar-authenticated' if session.get('user_id') else 'app-sidebar-public' }}" role="navigation" aria-label="Navigation principale">
         <div class="container-fluid">
-            <a class="navbar-brand hover-lift" href="/">EduMaster</a>
+            <a class="navbar-brand" href="/">
+                <img src="{{ url_for('static', filename='img/icon-192.png') }}" class="brand-mark" alt="">
+                <span>EduMaster</span>
+            </a>
 
             {% if session.get('user_id') %}
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
@@ -449,7 +453,7 @@
         </div>
     </nav>
 
-    <div class="container" id="main-content" role="main">
+    <div class="container app-main" id="main-content" role="main">
 
         {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
