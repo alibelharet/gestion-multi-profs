@@ -67,10 +67,16 @@ def unread_count():
     return jsonify({"count": int(row["c"] or 0)})
 
 
-def create_notification(db, user_id, title, body="", category="info"):
-    """Helper to create a notification programmatically."""
-    db.execute(
-        "INSERT INTO notifications (user_id, title, body, category, created_at) VALUES (?, ?, ?, ?, ?)",
-        (user_id, title, body, category, int(time.time())),
-    )
-    db.commit()
+def create_notification(db, user_id, title, body="", category="info") -> bool:
+    """Create a bounded, best-effort notification without breaking user flows."""
+    safe_category = category if category in {"info", "success", "warning", "danger"} else "info"
+    try:
+        db.execute(
+            "INSERT INTO notifications (user_id, title, body, category, created_at) VALUES (?, ?, ?, ?, ?)",
+            (int(user_id), str(title or "")[:120], str(body or "")[:500], safe_category, int(time.time())),
+        )
+        db.commit()
+        return True
+    except Exception:
+        db.rollback()
+        return False

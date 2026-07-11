@@ -23,6 +23,7 @@ from edumaster.services.import_utils import (
     preview_dir, cleanup_import_previews, get_preview_meta, clear_preview_meta,
     prepare_import_dataframe, build_default_mapping, resolve_mapped_column, row_value
 )
+from edumaster.routes.notifications import create_notification
 from edumaster.services.scan_import import (
     ScanImportError,
     build_student_catalog,
@@ -445,6 +446,13 @@ def import_excel_apply():
         details=f"{selected_school_year}: {total} lignes (new {inserted}, upd {updated}, sheets {skipped_sheets}, rows {skipped_rows})",
         subject_id=subject_id,
     )
+    create_notification(
+        db,
+        user_id,
+        "Import Excel terminé",
+        f"{total} lignes traitées : {inserted} ajoutées, {updated} mises à jour, {skipped_rows} ignorées.",
+        "success" if total else "warning",
+    )
     flash(
         f"Import termine: {total} lignes (nouveaux {inserted}, maj {updated}, onglets ignores {skipped_sheets}, lignes ignorees {skipped_rows})",
         "success",
@@ -743,6 +751,13 @@ def import_scan_apply():
         user_id,
         details=f"{selected_school_year}: {updated} lignes maj, {unmatched} non rapprochees, {skipped} ignorees",
         subject_id=subject_id,
+    )
+    create_notification(
+        db,
+        user_id,
+        "Import PDF terminé",
+        f"{updated} lignes mises à jour, {unmatched} non rapprochées et {skipped} ignorées.",
+        "success" if updated else "warning",
     )
     category = "success" if updated else "warning"
     flash(

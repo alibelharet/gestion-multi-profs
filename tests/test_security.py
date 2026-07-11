@@ -11,6 +11,16 @@ class TestCSRF:
         response = client.get("/static/manifest.json")
         assert response.status_code == 200
 
+    def test_dynamic_pages_include_security_headers(self, client):
+        response = client.get("/login")
+        assert response.headers["X-Content-Type-Options"] == "nosniff"
+        assert response.headers["X-Frame-Options"] == "SAMEORIGIN"
+        assert "default-src 'self'" in response.headers["Content-Security-Policy"]
+
+    def test_dynamic_pages_are_not_stored(self, client):
+        response = client.get("/login")
+        assert response.headers["Cache-Control"] == "no-store, max-age=0, private"
+
 
 class TestLogin:
     def test_login_page(self, client):

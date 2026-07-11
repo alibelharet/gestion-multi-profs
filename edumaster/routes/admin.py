@@ -8,7 +8,7 @@ from flask import Blueprint, abort, current_app, flash, redirect, render_templat
 from werkzeug.security import generate_password_hash
 
 from core.audit import log_change
-from core.backup import create_backup_zip, restore_from_backup_zip
+from core.backup import create_backup_zip, get_backup_status, restore_from_backup_zip
 from core.db import close_db, get_db
 from core.password_reset import create_reset_token
 from core.security import admin_required, login_required
@@ -103,6 +103,7 @@ def admin():
         teacher_subjects=teacher_subjects,
         assignments=assignments,
         available_classes=available_classes,
+        backup_status=get_backup_status(),
     )
 
 

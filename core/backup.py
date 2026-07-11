@@ -8,7 +8,11 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from io import BytesIO
 
-from .config import DATABASE, UPLOAD_FOLDER
+from .config import BASE_DIR, DATABASE, UPLOAD_FOLDER
+
+
+BACKUP_DIR = os.environ.get("BACKUP_DIR", os.path.join(BASE_DIR, "backups"))
+BACKUP_STATUS_FILE = os.path.join(BACKUP_DIR, "last_backup.json")
 
 
 @dataclass(frozen=True)
@@ -16,6 +20,39 @@ class RestoreResult:
     db_backup_path: str | None
     uploads_backup_path: str | None
     restored_files: int
+
+
+def record_backup_status(success: bool, backup_path: str | None = None, error: str = "") -> dict:
+    """Persist a small, non-sensitive status record for the admin dashboard."""
+    os.makedirs(BACKUP_DIR, exist_ok=True)
+    payload = {
+        "success": bool(success),
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "filename": os.path.basename(backup_path) if backup_path else "",
+        "size_bytes": (
+            os.path.getsize(backup_path)
+            if success and backup_path and os.path.isfile(backup_path)
+            else 0
+        ),
+        "error": str(error or "")[:300],
+    }
+    tmp_path = f"{BACKUP_STATUS_FILE}.tmp"
+    with open(tmp_path, "w", encoding="utf-8") as handle:
+        json.dump(payload, handle, ensure_ascii=False, indent=2)
+    os.replace(tmp_path, BACKUP_STATUS_FILE)
+    return payload
+
+
+def get_backup_status() -> dict | None:
+    """Return the latest scheduled-backup status, if one has been recorded."""
+    try:
+        with open(BACKUP_STATUS_FILE, "r", encoding="utf-8") as handle:
+            payload = json.load(handle)
+        if not isinstance(payload, dict) or "success" not in payload:
+            return None
+        return payload
+    except (OSError, ValueError, TypeError):
+        return None
 
 
 def _create_sqlite_snapshot(source_db: str, target_db: str) -> None:

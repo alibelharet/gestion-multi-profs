@@ -8,12 +8,25 @@
 
 <div class="app-card p-3 mb-4">
   <h5 class="mb-3">Sauvegarde / Restauration</h5>
+  {% if backup_status %}
+  <div class="alert {{ 'alert-success' if backup_status.success else 'alert-danger' }} py-2 small" role="status">
+    <strong>Dernière sauvegarde automatique :</strong>
+    {{ 'réussie' if backup_status.success else 'échouée' }}
+    le {{ backup_status.created_at[:16].replace('T', ' ') }} UTC.
+    {% if backup_status.filename %}Fichier : {{ backup_status.filename }}.{% endif %}
+    {% if backup_status.error %}Erreur : {{ backup_status.error }}{% endif %}
+  </div>
+  {% else %}
+  <div class="alert alert-warning py-2 small" role="status">
+    Aucune sauvegarde automatique n’a encore été enregistrée.
+  </div>
+  {% endif %}
   <div class="d-flex flex-wrap gap-2 align-items-center">
-    <a href="/admin/backup" class="btn btn-success btn-sm">Telecharger sauvegarde (.zip)</a>
+    <a href="/admin/backup" class="btn btn-success btn-sm">Télécharger une sauvegarde (.zip)</a>
     <form action="/admin/restore" method="POST" enctype="multipart/form-data" class="d-flex gap-2 align-items-center">
       {{ csrf_field() }}
       <input type="file" name="backup_zip" class="form-control form-control-sm" accept=".zip" required>
-      <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Restaurer ecrase la base et les fichiers. Continuer ?')">Restaurer</button>
+      <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('La restauration remplace la base et les fichiers actuels. Continuer ?')">Restaurer</button>
     </form>
   </div>
 </div>

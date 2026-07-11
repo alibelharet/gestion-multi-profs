@@ -1,9 +1,9 @@
 import os
 
-from flask import Flask, render_template
+from flask import Flask, jsonify, render_template
 
 from core.config import BASE_DIR, MAX_CONTENT_LENGTH, UPLOAD_FOLDER
-from core.db import bootstrap_admin, close_db, init_db
+from core.db import bootstrap_admin, close_db, get_db, init_db
 from core.i18n import get_lang, get_text_dir, tr
 from core.security import init_security
 
@@ -56,6 +56,15 @@ def create_app() -> Flask:
     @app.errorhandler(500)
     def internal_error(e):
         return render_template("500.html"), 500
+
+    @app.get("/health")
+    def health():
+        """Minimal health check for uptime monitoring; exposes no private data."""
+        try:
+            get_db().execute("SELECT 1").fetchone()
+        except Exception:
+            return jsonify({"status": "error"}), 503
+        return jsonify({"status": "ok"}), 200
 
 
     # --- ROUTES ---
