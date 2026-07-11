@@ -18,7 +18,11 @@ from edumaster.services.common import (
 )
 from edumaster.services.filters import build_filters, build_history_filters
 from edumaster.services.grading import note_expr, split_activite_components
-from edumaster.services.stats_service import get_class_evolution, get_best_students_evolution
+from edumaster.services.stats_service import (
+    get_best_students_evolution,
+    get_class_evolution,
+    get_declining_students,
+)
 
 bp = Blueprint("dashboard", __name__)
 
@@ -197,6 +201,7 @@ def index():
     nb_admis = int(stats_row["nb_admis"] or 0)
     nb_total = total
 
+    nb_saisis = int(stats_row["nb_saisis"] or 0)
     stats = {
         "moyenne_generale": round(float(stats_row["moyenne_generale"] or 0), 2),
         "meilleure_note": round(float(stats_row["meilleure_note"] or 0), 2),
@@ -204,7 +209,9 @@ def index():
         "nb_admis": nb_admis,
         "taux_reussite": round((nb_admis / nb_total) * 100, 1) if nb_total else 0,
         "nb_total": nb_total,
-        "nb_saisis": int(stats_row["nb_saisis"] or 0),
+        "nb_saisis": nb_saisis,
+        "nb_non_saisis": max(0, total - nb_saisis),
+        "taux_saisie": round((nb_saisis / total) * 100, 1) if total else 0,
     }
 
     class_rows = db.execute(
@@ -716,6 +723,7 @@ def stats():
 
     total = int(stats_row["nb_total"] or 0)
     nb_admis = int(stats_row["nb_admis"] or 0)
+    nb_saisis = int(stats_row["nb_saisis"] or 0)
 
     stats = {
         "moyenne_generale": round(float(stats_row["moyenne_generale"] or 0), 2),
@@ -724,7 +732,9 @@ def stats():
         "nb_admis": nb_admis,
         "taux_reussite": round((nb_admis / total) * 100, 1) if total else 0,
         "nb_total": total,
-        "nb_saisis": int(stats_row["nb_saisis"] or 0),
+        "nb_saisis": nb_saisis,
+        "nb_non_saisis": max(0, total - nb_saisis),
+        "taux_saisie": round((nb_saisis / total) * 100, 1) if total else 0,
     }
 
     class_rows = db.execute(
@@ -791,6 +801,15 @@ def stats():
 
     evolution = get_class_evolution(user_id, subject_id, selected_school_year)
     top_students_annual = get_best_students_evolution(user_id, subject_id, selected_school_year, limit=5)
+    declining_students = get_declining_students(
+        user_id,
+        subject_id,
+        selected_school_year,
+        trim,
+        niveau=niveau,
+        allowed_classes=(assignment_scope["classes"] if assignment_scope["restricted"] else None),
+        search=search,
+    )
 
     class_lists = db.execute(
         "SELECT DISTINCT niveau FROM eleves WHERE user_id = ? AND school_year = ? ORDER BY niveau",
@@ -814,6 +833,7 @@ def stats():
         chart_data=chart_data,
         evolution=evolution,
         top_students=top_students_annual,
+        declining_students=declining_students,
         trimestre=trim,
         niveau_actuel=niveau,
         liste_classes=all_classes,

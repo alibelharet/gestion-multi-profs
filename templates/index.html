@@ -194,6 +194,33 @@
         color: var(--muted);
     }
 
+    .grade-completion-status {
+        min-height: 1.15rem;
+        color: var(--muted);
+    }
+
+    .compact-table tbody tr.grade-row-active {
+        background: color-mix(in srgb, var(--primary) 9%, transparent);
+        box-shadow: inset 3px 0 0 var(--primary);
+    }
+
+    .compact-table tbody tr.grade-row-incomplete .student-name-cell {
+        box-shadow: inset 3px 0 0 var(--warning);
+    }
+
+    .compact-table tbody tr.grade-row-incomplete .student-fullname::after {
+        content: "A verifier";
+        display: inline-block;
+        margin-inline-start: 0.45rem;
+        padding: 0.12rem 0.4rem;
+        border-radius: 999px;
+        color: #7a5200;
+        background: rgba(244, 194, 75, 0.22);
+        font-size: 0.65rem;
+        font-weight: 700;
+        vertical-align: middle;
+    }
+
     .unsaved-changes-bar {
         position: fixed;
         left: 50%;
@@ -680,7 +707,7 @@
                     <tbody>
                         {% for eleve in eleves %}
                         {% set row_number = ((page - 1) * per_page) + loop.index %}
-                        <tr style="border-bottom: 1px solid var(--border);">
+                        <tr data-grade-row style="border-bottom: 1px solid var(--border);">
                             <td class="text-body fw-bold row-index-cell">
                                 <div class="index-stack">
                                     <span class="index-number">{{ row_number }}</span>
@@ -754,6 +781,7 @@
         <div class="save-toolbar d-flex flex-wrap justify-content-between align-items-center gap-2 py-2 px-3">
             <div class="save-toolbar-summary small">
                 <span class="text-muted">Classe {{ niveau_actuel if niveau_actuel != 'all' else 'Toutes' }} - {{ total }} eleves</span>
+                <span id="gradeCompletionStatus" class="grade-completion-status" aria-live="polite"></span>
                 {% if can_edit %}
                 <span id="saveStatus" class="save-status" aria-live="polite">Aucune modification en attente.</span>
                 {% endif %}

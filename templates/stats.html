@@ -62,8 +62,9 @@
     </div>
     <div class="col-6 col-md-3">
         <div class="app-card p-3 h-100 text-center">
-            <div class="text-muted small">Admis / Total</div>
-            <h3 class="fw-bold text-body" dir="ltr">{{ stats.nb_admis }} / {{ stats.nb_total }}</h3>
+            <div class="text-muted small">Saisie des notes</div>
+            <h3 class="fw-bold text-body" dir="ltr">{{ stats.nb_saisis }} / {{ stats.nb_total }}</h3>
+            <div class="small text-muted">{{ stats.taux_saisie }}% saisi · {{ stats.nb_non_saisis }} à vérifier</div>
         </div>
     </div>
     <div class="col-6 col-md-3">
@@ -240,6 +241,47 @@
         </div>
     </div>
 </div>
+
+{% if trimestre != '1' %}
+<div class="app-card mb-4 border-warning border-opacity-25">
+    <div class="card-header app-card-header py-3 px-4 border-bottom d-flex justify-content-between align-items-center">
+        <h6 class="mb-0 fw-bold text-warning-emphasis">
+            <i class="bi bi-graph-down-arrow me-2"></i>Baisses à surveiller depuis T{{ (trimestre|int) - 1 }}
+        </h6>
+        <span class="badge bg-warning text-dark rounded-pill">{{ declining_students|length }}</span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 align-middle">
+                <thead class="bg-light">
+                    <tr>
+                        <th class="ps-4">Élève</th>
+                        <th>Classe</th>
+                        <th class="text-center">Avant</th>
+                        <th class="text-center">Maintenant</th>
+                        <th class="text-center">Écart</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for e in declining_students %}
+                    <tr>
+                        <td class="ps-4 fw-bold">{{ e.nom }}</td>
+                        <td><span class="badge bg-secondary">{{ e.niveau }}</span></td>
+                        <td class="text-center">{{ e.previous_average }}</td>
+                        <td class="text-center">{{ e.current_average }}</td>
+                        <td class="text-center fw-bold text-danger">{{ e.delta }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="text-center py-4 text-muted">Aucune baisse d'au moins 1 point.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script>

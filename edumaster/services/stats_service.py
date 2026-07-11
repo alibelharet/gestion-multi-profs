@@ -1,5 +1,96 @@
 from core.db import get_db
 
+
+def get_declining_students(
+    user_id,
+    subject_id,
+    school_year,
+    current_trim,
+    *,
+    niveau=None,
+    allowed_classes=None,
+    search="",
+    limit=8,
+    min_drop=1.0,
+):
+    """Return students whose average dropped versus the previous trimester."""
+    trim = str(current_trim)
+    if trim not in ("2", "3"):
+        return []
+
+    previous_trim = str(int(trim) - 1)
+    current_expr = (
+        f"((COALESCE(nc.devoir, e.devoir_t{trim}) + "
+        f"COALESCE(nc.activite, e.activite_t{trim}))/2.0 + "
+        f"(COALESCE(nc.compo, e.compo_t{trim}) * 2.0))/3.0"
+    )
+    previous_expr = (
+        f"((COALESCE(np.devoir, e.devoir_t{previous_trim}) + "
+        f"COALESCE(np.activite, e.activite_t{previous_trim}))/2.0 + "
+        f"(COALESCE(np.compo, e.compo_t{previous_trim}) * 2.0))/3.0"
+    )
+
+    where = ["e.user_id = ?", "e.school_year = ?"]
+    params = [subject_id, int(trim), subject_id, int(previous_trim), user_id, school_year]
+
+    if niveau and niveau != "all":
+        where.append("e.niveau = ?")
+        params.append(niveau)
+    elif allowed_classes is not None:
+        classes = sorted(set(allowed_classes))
+        if not classes:
+            return []
+        placeholders = ",".join("?" for _ in classes)
+        where.append(f"e.niveau IN ({placeholders})")
+        params.extend(classes)
+
+    if search:
+        where.append("e.nom_complet LIKE ?")
+        params.append(f"%{search}%")
+
+    params.extend([float(min_drop), max(1, int(limit))])
+    rows = get_db().execute(
+        f"""
+        SELECT
+            e.id,
+            e.nom_complet,
+            e.niveau,
+            ROUND({previous_expr}, 2) AS previous_average,
+            ROUND({current_expr}, 2) AS current_average,
+            ROUND({current_expr} - {previous_expr}, 2) AS delta
+        FROM eleves e
+        LEFT JOIN notes nc
+            ON nc.user_id = e.user_id
+            AND nc.eleve_id = e.id
+            AND nc.subject_id = ?
+            AND nc.trimestre = ?
+        LEFT JOIN notes np
+            ON np.user_id = e.user_id
+            AND np.eleve_id = e.id
+            AND np.subject_id = ?
+            AND np.trimestre = ?
+        WHERE {' AND '.join(where)}
+            AND {previous_expr} > 0
+            AND {current_expr} > 0
+            AND ({previous_expr} - {current_expr}) >= ?
+        ORDER BY delta ASC, e.nom_complet COLLATE NOCASE ASC
+        LIMIT ?
+        """,
+        params,
+    ).fetchall()
+
+    return [
+        {
+            "id": int(row["id"]),
+            "nom": row["nom_complet"],
+            "niveau": row["niveau"],
+            "previous_average": float(row["previous_average"] or 0),
+            "current_average": float(row["current_average"] or 0),
+            "delta": float(row["delta"] or 0),
+        }
+        for row in rows
+    ]
+
 def get_class_evolution(user_id, subject_id, school_year):
     """
     Récupère l'évolution de la moyenne de classe par trimestre.

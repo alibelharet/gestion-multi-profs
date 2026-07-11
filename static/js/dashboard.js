@@ -146,6 +146,7 @@ function initSaveGuard() {
     var initialValues = new Map();
     var isSubmitting = false;
     var status = document.getElementById('saveStatus');
+    var completionStatus = document.getElementById('gradeCompletionStatus');
     var bar = document.getElementById('unsavedChangesBar');
     var barText = document.getElementById('unsavedChangesText');
 
@@ -175,6 +176,32 @@ function initSaveGuard() {
             bar.setAttribute('aria-hidden', hasChanges ? 'false' : 'true');
         }
         document.body.classList.toggle('has-unsaved-changes', hasChanges);
+        syncGradeCompletion();
+    }
+
+    function syncGradeCompletion() {
+        var rows = Array.prototype.slice.call(form.querySelectorAll('[data-grade-row]'));
+        var rowsToCheck = rows.filter(function (row) {
+            return row.querySelector('[data-grade-input]');
+        });
+        var toVerify = 0;
+
+        rowsToCheck.forEach(function (row) {
+            var gradeInputs = Array.prototype.slice.call(row.querySelectorAll('[data-grade-input]'));
+            var hasEnteredGrade = gradeInputs.some(function (input) {
+                var value = Number.parseFloat(input.value);
+                return Number.isFinite(value) && value > 0;
+            });
+            row.classList.toggle('grade-row-incomplete', !hasEnteredGrade);
+            if (!hasEnteredGrade) toVerify += 1;
+        });
+
+        if (!completionStatus) return;
+        var complete = rowsToCheck.length - toVerify;
+        completionStatus.textContent = rowsToCheck.length
+            ? complete + ' ligne' + (complete === 1 ? '' : 's') + ' renseignee' + (complete === 1 ? '' : 's')
+                + ' - ' + toVerify + ' a verifier sur cette page.'
+            : '';
     }
 
     form.addEventListener('submit', function () {
@@ -200,11 +227,24 @@ function initSaveGuard() {
         var columnInputs = gradeInputs.filter(function (input) {
             return input.name === event.target.name;
         });
-        var next = columnInputs[columnInputs.indexOf(event.target) + 1];
+        var direction = event.shiftKey ? -1 : 1;
+        var next = columnInputs[columnInputs.indexOf(event.target) + direction];
         if (next) {
             next.focus();
             next.select();
         }
+    });
+
+    form.addEventListener('focusin', function (event) {
+        if (!event.target.matches('[data-grade-input]')) return;
+        var row = event.target.closest('[data-grade-row]');
+        if (row) row.classList.add('grade-row-active');
+    });
+
+    form.addEventListener('focusout', function (event) {
+        if (!event.target.matches('[data-grade-input]')) return;
+        var row = event.target.closest('[data-grade-row]');
+        if (row) row.classList.remove('grade-row-active');
     });
 
     window.addEventListener('beforeunload', function (event) {
