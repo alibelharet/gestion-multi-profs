@@ -1,387 +1,180 @@
-/**
- * Dashboard logic for grade calculations and interactions
- */
-
-// Initialize charts if data is present
-document.addEventListener('DOMContentLoaded', function () {
-    if (window.dashboardChartData && typeof Chart !== 'undefined') {
-        const data = window.dashboardChartData;
-        const ctxClasses = document.getElementById('chartClasses');
-        const ctxDist = document.getElementById('chartDist');
-        const ctxProgress = document.getElementById('chartProgress');
-
-        const css = getComputedStyle(document.documentElement);
-        const textColor = (css.getPropertyValue('--text') || '#f2f5f9').trim();
-        const gridColor = (css.getPropertyValue('--border') || '#283446').trim();
-        Chart.defaults.color = textColor;
-
-        if (ctxClasses) {
-            new Chart(ctxClasses, {
-                type: 'bar',
-                data: {
-                    labels: data.classes.labels,
-                    datasets: [{ label: 'Moyenne', data: data.classes.values, backgroundColor: '#5c54bd' }]
-                },
-                options: {
-                    responsive: true,
-                    plugins: { legend: { display: false } },
-                    scales: {
-                        y: { beginAtZero: true, max: 20, ticks: { color: textColor }, grid: { color: gridColor } },
-                        x: { ticks: { color: textColor }, grid: { color: gridColor } }
-                    }
-                }
-            });
-        }
-
-        if (ctxDist) {
-            new Chart(ctxDist, {
-                type: 'doughnut',
-                data: { labels: data.distribution.labels, datasets: [{ data: data.distribution.values, backgroundColor: ['#5c54bd', '#de79bd', '#c5bddf'] }] },
-                options: { responsive: true, plugins: { legend: { labels: { color: textColor } } } }
-            });
-        }
-
-        if (ctxProgress) {
-            new Chart(ctxProgress, {
-                type: 'line',
-                data: {
-                    labels: data.progression.labels,
-                    datasets: [
-                        { label: 'T1', data: data.progression.t1, borderColor: '#5c54bd', backgroundColor: 'rgba(92,84,189,0.15)', tension: 0.25, fill: false },
-                        { label: 'T2', data: data.progression.t2, borderColor: '#de79bd', backgroundColor: 'rgba(222,121,189,0.15)', tension: 0.25, fill: false },
-                        { label: 'T3', data: data.progression.t3, borderColor: '#e8b14e', backgroundColor: 'rgba(232,177,78,0.15)', tension: 0.25, fill: false }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    plugins: { legend: { labels: { color: textColor } } },
-                    scales: {
-                        y: { beginAtZero: true, max: 20, ticks: { color: textColor }, grid: { color: gridColor } },
-                        x: { ticks: { color: textColor }, grid: { color: gridColor } }
-                    }
-                }
-            });
-        }
+/* Grade editor: preserve drafts on error, send only changed rows, never overwrite stale versions. */
+(function () {
+'use strict';
+const form = document.getElementById('formSaveAll');
+if (!form) return;
+const text = window.gradeText;
+const rows = Array.from(form.querySelectorAll('[data-grade-row]'));
+const canEdit = form.dataset.canEdit === 'true';
+const status = document.getElementById('saveStatus');
+const errorBox = document.getElementById('saveError');
+const bar = document.getElementById('unsavedChangesBar');
+const buttons = Array.from(form.querySelectorAll('[data-save-button]'));
+const initial = new Map();
+let timer, saving = false, error = false, queueSave = false;
+let active = 0;
+function values(row) {
+    return {id: Number(row.dataset.studentId), version: Number(row.querySelector('[name="version"]').value),
+        activite: row.querySelector('[name="activite"]').value,
+        devoir: row.querySelector('[name="devoir"]').value,
+        compo: row.querySelector('[name="compo"]').value,
+        status: row.querySelector('[name="status"]').value};
+}
+function signature(row) { const {version, ...data} = values(row); return JSON.stringify(data); }
+function changed() { return rows.filter(row => signature(row) !== initial.get(row)); }
+function refreshRow(row, hideRemark = false) {
+    const data = values(row);
+    const inputs = Array.from(row.querySelectorAll('[data-grade-input]'));
+    const valid = inputs.every(input => input.validity.valid);
+    const filled = inputs.filter(input => input.value !== '').length;
+    const state = data.status === 'absent' ? 'absent' : filled === 3 && valid ? 'graded' : filled ? 'partial' : 'not_entered';
+    row.querySelector('[data-assessment-label]').textContent = text[state];
+    row.dataset.assessment = state;
+    row.classList.toggle('grade-row-incomplete', state === 'partial' || state === 'not_entered');
+    const average = row.querySelector('[data-average]');
+    average.textContent = state === 'graded' ? (((Number(data.activite) + Number(data.devoir))/2 + Number(data.compo)*2)/3).toFixed(2) : '—';
+    average.className = state === 'graded' ? (Number(average.textContent) < 10 ? 'text-danger' : 'text-success') : 'text-muted';
+    if (state !== 'graded' || hideRemark) row.querySelector('[data-remark]').textContent = '';
+}
+function updateState() {
+    const dirty = changed().length;
+    if (bar) bar.hidden = !dirty;
+    document.body.classList.toggle('has-unsaved-changes', !!dirty);
+    const barText = document.getElementById('unsavedChangesText');
+    if (barText) barText.textContent = text.pending + ' · ' + dirty;
+    if (!saving && !error) status.textContent = dirty ? text.pending : text.idle;
+    buttons.forEach(button => { button.disabled = saving; button.setAttribute('aria-busy', String(saving)); });
+    const complete = rows.filter(row => row.dataset.assessment === 'graded').length;
+    document.getElementById('gradeCompletionStatus').textContent = text.completion + ': ' + complete + ' / ' + rows.length;
+}
+function schedule() {
+    clearTimeout(timer);
+    if (!error && canEdit) timer = setTimeout(save, 1500);
+}
+async function save() {
+    clearTimeout(timer);
+    if (saving) { queueSave = true; return; }
+    const dirty = changed();
+    if (!dirty.length || !canEdit) return;
+    if (!form.checkValidity()) {
+        error = true; errorBox.hidden = false; errorBox.textContent = text.invalid; status.textContent = text.invalid;
+        const invalidRow = rows.find(row => row.querySelector('input:invalid'));
+        if (invalidRow) { active = rows.indexOf(invalidRow); showStudent(); }
+        form.reportValidity(); return;
     }
-
-    calculAddActivite();
-    initDeleteMode();
-    initSaveGuard();
-});
-
-function toNum(value) {
-    var parsed = parseFloat(value);
-    return isNaN(parsed) ? 0 : parsed;
-}
-
-function clampInput(input, maxValue) {
-    if (!input) return 0;
-    if (input.value === '') return 0;
-    var value = toNum(input.value);
-    if (value < 0) value = 0;
-    if (value > maxValue) value = maxValue;
-    input.value = value;
-    return value;
-}
-
-function computeActivite(id) {
-    var part = clampInput(document.getElementById('part_' + id), 3);
-    var comport = clampInput(document.getElementById('comport_' + id), 6);
-    var cah = clampInput(document.getElementById('cah_' + id), 5);
-    var proj = clampInput(document.getElementById('proj_' + id), 4);
-    var ao = clampInput(document.getElementById('ao_' + id), 2);
-
-    var total = part + comport + cah + proj + ao;
-    var totalRounded = total.toFixed(2);
-
-    var actInput = document.getElementById('act_' + id);
-    if (actInput) actInput.value = totalRounded;
-    return total;
-}
-
-function updateMoyenne(id, activite) {
-    var devInput = document.getElementById('dev_' + id);
-    var compInput = document.getElementById('comp_' + id);
-    var moySpan = document.getElementById('moy_' + id);
-
-    var dev = clampInput(devInput, 20);
-    var comp = clampInput(compInput, 20);
-
-    var moyenne = ((dev + activite) / 2 + (comp * 2)) / 3;
-    if (!moySpan) return;
-    moySpan.innerText = moyenne.toFixed(2);
-
-    if (moyenne < 10) {
-        moySpan.className = 'text-danger fw-bold fs-5';
-    } else {
-        moySpan.className = 'text-success fw-bold fs-5';
-    }
-}
-
-function calculAddActivite() {
-    var fields = document.querySelectorAll('#addStudentModal .activite-part');
-    var caps = [3, 6, 5, 4, 2];
-    var total = 0;
-    fields.forEach(function (input, index) {
-        total += clampInput(input, caps[index] || 20);
-    });
-
-    var display = document.getElementById('activite_total_add');
-    var hidden = document.getElementById('activite_hidden_add');
-    if (display) display.value = 'Activite: ' + total.toFixed(2) + ' / 20';
-    if (hidden) hidden.value = total.toFixed(2);
-}
-
-function initSaveGuard() {
-    var form = document.getElementById('formSaveAll');
-    if (!form || form.dataset.canEdit !== 'true') return;
-
-    var inputs = Array.prototype.slice.call(form.querySelectorAll(
-        'input[name="activite"], input[name="devoir"], input[name="compo"], input[name="participation"], input[name="comportement"], input[name="cahier"], input[name="projet"], input[name="assiduite_outils"]'
-    )).filter(function (input) {
-        return !input.readOnly && !input.disabled;
-    });
-    if (!inputs.length) return;
-
-    var initialValues = new Map();
-    var isSubmitting = false;
-    var status = document.getElementById('saveStatus');
-    var completionStatus = document.getElementById('gradeCompletionStatus');
-    var bar = document.getElementById('unsavedChangesBar');
-    var barText = document.getElementById('unsavedChangesText');
-
-    inputs.forEach(function (input) {
-        initialValues.set(input, input.value);
-        input.addEventListener('input', syncSaveState);
-        input.addEventListener('change', syncSaveState);
-    });
-
-    function changedInputsCount() {
-        return inputs.filter(function (input) {
-            return input.value !== initialValues.get(input);
-        }).length;
-    }
-
-    function syncSaveState() {
-        var count = changedInputsCount();
-        var hasChanges = count > 0;
-        var text = hasChanges
-            ? count + (count === 1 ? ' modification a sauvegarder.' : ' modifications a sauvegarder.')
-            : 'Aucune modification en attente.';
-
-        if (status) status.textContent = text;
-        if (barText) barText.textContent = text;
-        if (bar) {
-            bar.classList.toggle('is-visible', hasChanges);
-            bar.setAttribute('aria-hidden', hasChanges ? 'false' : 'true');
-        }
-        document.body.classList.toggle('has-unsaved-changes', hasChanges);
-        syncGradeCompletion();
-    }
-
-    function syncGradeCompletion() {
-        var rows = Array.prototype.slice.call(form.querySelectorAll('[data-grade-row]'));
-        var rowsToCheck = rows.filter(function (row) {
-            return row.querySelector('[data-grade-input]');
+    const sent = dirty.map(row => ({row, data: values(row), signature: signature(row)}));
+    saving = true; error = false; errorBox.hidden = true;
+    status.textContent = text.saving; updateState();
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 20000);
+    try {
+        const response = await fetch(form.action, {
+            method:'POST', credentials:'same-origin', signal:controller.signal,
+            headers:{'Content-Type':'application/json','Accept':'application/json','X-CSRF-Token':form.querySelector('[name="csrf_token"]').value},
+            body:JSON.stringify({trimestre_save:form.querySelector('[name="trimestre_save"]').value,
+                subject:form.querySelector('[name="subject"]').value, school_year:form.querySelector('[name="school_year"]').value,
+                rows:sent.map(item => item.data)})
         });
-        var toVerify = 0;
-
-        rowsToCheck.forEach(function (row) {
-            var gradeInputs = Array.prototype.slice.call(row.querySelectorAll('[data-grade-input]'));
-            var hasEnteredGrade = gradeInputs.some(function (input) {
-                var value = Number.parseFloat(input.value);
-                return Number.isFinite(value) && value > 0;
-            });
-            row.classList.toggle('grade-row-incomplete', !hasEnteredGrade);
-            if (!hasEnteredGrade) toVerify += 1;
-        });
-
-        if (!completionStatus) return;
-        var complete = rowsToCheck.length - toVerify;
-        completionStatus.textContent = rowsToCheck.length
-            ? complete + ' ligne' + (complete === 1 ? '' : 's') + ' renseignee' + (complete === 1 ? '' : 's')
-                + ' - ' + toVerify + ' a verifier sur cette page.'
-            : '';
-    }
-
-    form.addEventListener('submit', function () {
-        isSubmitting = true;
-        document.body.classList.remove('has-unsaved-changes');
-        if (bar) {
-            bar.classList.remove('is-visible');
-            bar.setAttribute('aria-hidden', 'true');
+        if (!response.headers.get('content-type')?.includes('application/json')) throw new Error(text.error);
+        const data = await response.json();
+        if (!response.ok) {
+            if (data.error === 'conflict') document.getElementById('compareCurrent').hidden = false;
+            const row = rows.find(row => Number(row.dataset.studentId) === data.student_id);
+            if (row) { active=rows.indexOf(row); showStudent(); row.classList.add('grade-error-row'); }
+            throw new Error(data.message || text.error);
         }
+        if (!Array.isArray(data.saved) || data.saved.length !== sent.length) throw new Error(text.error);
+        for (const item of sent) {
+            const result = data.saved.find(result => result.id === item.data.id);
+            if (!result || !Number.isInteger(result.version)) throw new Error(text.error);
+            item.row.querySelector('[name="version"]').value = result.version;
+            initial.set(item.row, item.signature);
+            item.row.classList.remove('grade-error-row');
+            item.row.querySelector('.legacy-note')?.remove();
+            if (signature(item.row) === item.signature) item.row.querySelector('[data-remark]').textContent = result.remark || '';
+        }
+        document.getElementById('metricsHint').textContent = text.refreshStats;
+        status.textContent = text.saved + ' · ' + new Date().toLocaleTimeString(document.documentElement.lang, {hour:'2-digit',minute:'2-digit'});
+    } catch (failure) {
+        error = true; errorBox.hidden = false; errorBox.textContent = failure.message === 'The user aborted a request.' ? text.error : (failure.message || text.error);
+        status.textContent = text.error;
+    } finally {
+        clearTimeout(timeout); saving = false;
+        const savedMessage = status.textContent;
+        updateState();
+        if (!error && !changed().length) status.textContent = savedMessage;
+        if (!error && (queueSave || changed().length)) schedule();
+        queueSave = false;
+    }
+}
+rows.forEach(row => { initial.set(row, signature(row)); refreshRow(row); });
+if (canEdit) {
+    form.addEventListener('input', event => {
+        const row = event.target.closest('[data-grade-row]');
+        if (!row || !event.target.matches('[data-grade-input], [name="status"]')) return;
+        refreshRow(row, true); error=false; errorBox.hidden=true; updateState(); schedule();
     });
-
-    document.addEventListener('keydown', function (event) {
-        if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
+    form.addEventListener('change', event => {
+        if (event.target.name === 'status') { refreshRow(event.target.closest('[data-grade-row]'), true); error=false; updateState(); schedule(); }
+    });
+    form.addEventListener('submit', event => { event.preventDefault(); save(); });
+    document.addEventListener('keydown', event => {
+        if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') { event.preventDefault(); save(); }
+        if (event.key === 'Enter' && event.target.matches('[data-grade-input]')) {
             event.preventDefault();
-            if (changedInputsCount() > 0) form.requestSubmit();
-            return;
-        }
-
-        if (event.key !== 'Enter' || !event.target.matches('[data-grade-input]')) return;
-        event.preventDefault();
-
-        var gradeInputs = Array.prototype.slice.call(form.querySelectorAll('[data-grade-input]:not([readonly]):not([disabled])'));
-        var columnInputs = gradeInputs.filter(function (input) {
-            return input.name === event.target.name;
-        });
-        var direction = event.shiftKey ? -1 : 1;
-        var next = columnInputs[columnInputs.indexOf(event.target) + direction];
-        if (next) {
-            next.focus();
-            next.select();
+            const index = rows.indexOf(event.target.closest('[data-grade-row]')) + (event.shiftKey ? -1 : 1);
+            if (rows[index]) { active=index; showStudent(); const input=rows[index].querySelector('[name="'+event.target.name+'"]'); input.focus(); input.select(); }
         }
     });
-
-    form.addEventListener('focusin', function (event) {
-        if (!event.target.matches('[data-grade-input]')) return;
-        var row = event.target.closest('[data-grade-row]');
-        if (row) row.classList.add('grade-row-active');
+    window.addEventListener('beforeunload', event => {
+        if (changed().length || saving) { event.preventDefault(); event.returnValue=''; }
     });
-
-    form.addEventListener('focusout', function (event) {
-        if (!event.target.matches('[data-grade-input]')) return;
-        var row = event.target.closest('[data-grade-row]');
-        if (row) row.classList.remove('grade-row-active');
-    });
-
-    window.addEventListener('beforeunload', function (event) {
-        if (isSubmitting || changedInputsCount() === 0) return;
-        event.preventDefault();
-        event.returnValue = '';
-    });
-
-    syncSaveState();
 }
-
-function initDeleteMode() {
-    syncDeleteSelectionState();
-    setDeleteMode(false);
+const phone = window.matchMedia('(max-width: 700px)');
+const picker = document.getElementById('studentPicker');
+function showStudent() {
+    const deleting = document.getElementById('studentsTableContainer').classList.contains('delete-mode');
+    form.classList.toggle('student-mode', phone.matches && !deleting);
+    document.querySelector('.student-pager').hidden = !phone.matches || deleting || !rows.length;
+    rows.forEach((row,index) => row.classList.toggle('current-student', index === active));
+    picker.value=String(active);
+    document.getElementById('previousStudent').disabled=active<=0;
+    document.getElementById('nextStudent').disabled=active>=rows.length-1;
 }
-
-function enterDeleteMode(event) {
-    if (event) event.preventDefault();
-    setDeleteMode(true);
-    return false;
-}
-
-function setDeleteMode(active) {
-    var container = document.getElementById('studentsTableContainer');
-    if (!container) return false;
-
-    container.classList.toggle('delete-mode', !!active);
-
-    var toolbar = document.getElementById('deleteModeToolbar');
-    if (toolbar) {
-        toolbar.classList.toggle('d-none', !active);
-    }
-
-    if (!active) {
-        var selectAll = document.querySelector('.select-all-delete');
-        if (selectAll) {
-            selectAll.checked = false;
-            selectAll.indeterminate = false;
-        }
-
-        var checkboxes = document.querySelectorAll('.check-delete');
-        for (var i = 0, n = checkboxes.length; i < n; i++) {
-            checkboxes[i].checked = false;
-        }
-    } else {
-        var firstCheckbox = container.querySelector('.check-delete');
-        if (firstCheckbox) firstCheckbox.focus();
-    }
-
-    syncDeleteSelectionState();
-    return false;
-}
-
-function syncDeleteSelectionState() {
-    var allCheckboxes = document.querySelectorAll('.check-delete');
-    var checkedCount = document.querySelectorAll('.check-delete:checked').length;
-
-    var counter = document.getElementById('deleteSelectionCount');
-    if (counter) {
-        if (checkedCount === 0) {
-            counter.textContent = 'Aucun eleve selectionne';
-        } else if (checkedCount === 1) {
-            counter.textContent = '1 eleve selectionne';
-        } else {
-            counter.textContent = checkedCount + ' eleves selectionnes';
-        }
-    }
-
-    var deleteButton = document.getElementById('deleteSelectedBtn');
-    if (deleteButton) {
-        deleteButton.disabled = checkedCount === 0;
-    }
-
-    var selectAll = document.querySelector('.select-all-delete');
-    if (selectAll) {
-        selectAll.checked = allCheckboxes.length > 0 && checkedCount === allCheckboxes.length;
-        selectAll.indeterminate = checkedCount > 0 && checkedCount < allCheckboxes.length;
-    }
-}
-
-function calculLive(id) {
-    updateMoyenne(id, computeActivite(id));
-}
-
-function updateActivityTotal(id) {
-    var actInput = document.getElementById('act_' + id);
-    var total = clampInput(actInput, 20);
-    var remaining = total;
-    var components = [
-        ['part_', 3],
-        ['comport_', 6],
-        ['cah_', 5],
-        ['proj_', 4],
-        ['ao_', 2]
-    ];
-
-    components.forEach(function (component) {
-        var input = document.getElementById(component[0] + id);
-        var value = Math.min(component[1], Math.max(0, remaining));
-        if (input) input.value = value.toFixed(2);
-        remaining -= value;
-    });
-
-    if (actInput) actInput.value = total.toFixed(2);
-    updateMoyenne(id, total);
-}
-
-function toggle(source) {
-    var checkboxes = document.querySelectorAll('.check-delete');
-    for (var i = 0, n = checkboxes.length; i < n; i++) {
-        checkboxes[i].checked = source.checked;
-    }
-    syncDeleteSelectionState();
-}
-
-function submitDelete() {
-    var checkboxes = document.querySelectorAll('.check-delete:checked');
-    if (checkboxes.length === 0) {
-        alert('Selectionnez au moins un eleve');
-        return;
-    }
-
-    if (!confirm('Supprimer les eleves selectionnes ?')) return;
-
-    var formDelete = document.getElementById('formMultiDelete');
-    if (!formDelete) return;
-
-    formDelete.querySelectorAll('input[name="ids"]').forEach(function (input) {
-        input.remove();
-    });
-
-    checkboxes.forEach(function (chk) {
-        var input = document.createElement('input');
-        input.type = 'hidden';
-        input.name = 'ids';
-        input.value = chk.value;
-        formDelete.appendChild(input);
-    });
-    formDelete.submit();
-}
+picker.addEventListener('change', () => {active=Number(picker.value); showStudent();});
+document.getElementById('previousStudent').addEventListener('click', () => {active=Math.max(0,active-1);showStudent();});
+document.getElementById('nextStudent').addEventListener('click', () => {active=Math.min(rows.length-1,active+1);showStudent();});
+phone.addEventListener('change',showStudent); showStudent(); updateState();
+window.setDeleteMode = enabled => {
+    if (enabled && (changed().length || saving)) { alert(text.saveFirst); return; }
+    document.getElementById('studentsTableContainer').classList.toggle('delete-mode',enabled);
+    document.getElementById('deleteModeToolbar')?.classList.toggle('d-none',!enabled);
+    if (!enabled) document.querySelectorAll('.check-delete,.select-all-delete').forEach(input=>{input.checked=false;input.indeterminate=false;});
+    window.syncDeleteSelectionState();showStudent();
+};
+window.enterDeleteMode = event => { event?.preventDefault(); window.setDeleteMode(true); return false; };
+window.syncDeleteSelectionState = () => {
+    const checked = document.querySelectorAll('.check-delete:checked').length;
+    const count=document.getElementById('deleteSelectionCount');if(count)count.textContent=checked+' '+text.selected;
+    const btn=document.getElementById('deleteSelectedBtn');if(btn)btn.disabled=!checked;
+    const all=document.querySelector('.select-all-delete');if(all){all.checked=checked>0&&checked===rows.length;all.indeterminate=checked>0&&checked<rows.length;}
+};
+window.toggle = source => {document.querySelectorAll('.check-delete').forEach(input=>input.checked=source.checked);window.syncDeleteSelectionState();};
+window.submitDelete = () => {
+    if (changed().length || saving) {alert(text.saveFirst);return;}
+    const selected=Array.from(document.querySelectorAll('.check-delete:checked'));
+    if(!selected.length || !confirm(text.trashConfirm))return;
+    const target=document.getElementById('formMultiDelete');target.querySelectorAll('[name="ids"]').forEach(input=>input.remove());
+    selected.forEach(checkbox=>{const input=document.createElement('input');input.type='hidden';input.name='ids';input.value=checkbox.value;target.append(input);});
+    target.requestSubmit();
+};
+window.printStudentList = () => {
+    const popup=window.open('','_blank');if(!popup)return;
+    const doc=popup.document;doc.title=text.printTitle;doc.documentElement.lang=document.documentElement.lang;doc.documentElement.dir=document.documentElement.dir;
+    const heading=doc.createElement('h1');heading.textContent=text.printTitle;doc.body.append(heading);
+    const table=doc.createElement('table');table.style.cssText='width:100%;border-collapse:collapse;font:14px Arial';
+    const head=doc.createElement('tr');['#',text.name,text.class].forEach(value=>{const th=doc.createElement('th');th.textContent=value;head.append(th);});table.append(head);
+    rows.forEach((row,index)=>{const tr=doc.createElement('tr');[index+1,row.querySelector('.student-fullname').textContent,row.querySelector('.student-name-cell bdi').textContent].forEach(value=>{const td=doc.createElement('td');td.textContent=value;td.style.cssText='border:1px solid #999;padding:6px';tr.append(td);});table.append(tr);});
+    doc.body.append(table);popup.print();
+};
+})();

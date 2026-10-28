@@ -1,5 +1,6 @@
 """Unit tests for edumaster.services.common and core.security modules."""
 from edumaster.services.common import list_school_years, parse_trim, resolve_school_year, school_year
+from edumaster.services.filters import build_filters
 from datetime import datetime
 
 
@@ -30,6 +31,15 @@ class TestSchoolYear:
     def test_january(self):
         dt = datetime(2026, 1, 1)
         assert school_year(dt) == "2025/2026"
+
+
+class TestStudentFilters:
+    def test_no_student_is_hidden_by_hard_coded_id(self):
+        for trim in ("1", "2", "3"):
+            filters = build_filters(1, trim, {}, "2025/2026")
+            assert "e.id !=" not in filters["where"]
+            assert "e.id NOT IN" not in filters["where"]
+
 
 def _school_year_database():
     import sqlite3

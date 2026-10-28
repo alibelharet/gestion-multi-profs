@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>تفعيل البرنامج - Activation</title>
+    <title>{{ t('Activation du logiciel', 'تفعيل البرنامج') }}</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css">
     <style>
@@ -15,7 +15,7 @@
 
     <div class="card-activation text-center">
         <h1 class="mb-3 text-danger">⚠️</h1>
-        <h3 class="fw-bold mb-3">تفعيل البرنامج مطلوب<br>Activation Requise</h3>
+        <h3 class="fw-bold mb-3">تفعيل البرنامج مطلوب<br>{{ t('Activation Requise', 'التفعيل مطلوب') }}</h3>
         
         {% if error %}
         <div class="alert alert-danger">{{ error }}</div>
@@ -26,14 +26,14 @@
         <form method="POST">
                 {{ csrf_field() }}
             <div class="mb-3 text-start">
-                <label class="form-label fw-bold">مفتاح التفعيل (Clé de Licence)</label>
+                <label class="form-label fw-bold">{{ t('Clé de licence', 'مفتاح التفعيل') }}</label>
                 <textarea name="cle_licence" class="form-control" rows="4" placeholder="Collez la clé ici..." required></textarea>
             </div>
-            <button type="submit" class="btn btn-primary w-100 py-2">تفعيل (Activer)</button>
+            <button type="submit" class="btn btn-primary w-100 py-2">{{ t('Activer', 'تفعيل') }}</button>
         </form>
         
         <div class="mt-4 pt-3 border-top">
-            <small class="text-muted">Contactez l'administrateur pour obtenir une clé.</small>
+            <small class="text-muted">{{ t("Contactez l'administrateur pour obtenir une clé.", 'اتصل بالمسؤول للحصول على مفتاح.') }}</small>
         </div>
     </div>
 

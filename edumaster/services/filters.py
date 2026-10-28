@@ -48,9 +48,9 @@ def build_filters(user_id, trim, args, school_year_label, moy_expr_override=None
     if etat == "admis":
         where += f" AND {moy_expr} >= 10"
     elif etat == "echec":
-        where += f" AND {moy_expr} > 0 AND {moy_expr} < 10"
+        where += f" AND {moy_expr} IS NOT NULL AND {moy_expr} < 10"
     elif etat == "non_saisi":
-        where += f" AND {moy_expr} <= 0"
+        where += f" AND {moy_expr} IS NULL"
 
     return {
         "niveau": niveau,

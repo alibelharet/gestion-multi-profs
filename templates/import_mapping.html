@@ -8,13 +8,13 @@
       <div class="text-muted small">{{ tr('import.mapping.subtitle', 'Associez les colonnes avant validation.') }}</div>
     </div>
     <div class="small text-muted">
-      <span class="badge bg-secondary">Onglet: {{ source_sheet }}</span>
+      <span class="badge bg-secondary">{{ t('Onglet:', 'الورقة:') }} {{ source_sheet }}</span>
       <span class="badge bg-dark">T{{ trim }}</span>
     </div>
   </div>
 
   <div class="alert alert-info py-2">
-    Renseignez au minimum <strong>Nom complet</strong> ou bien <strong>Nom + Prenom</strong>.
+    {{ t('Renseignez au minimum', 'أدخل على الأقل') }} <strong>{{ t('Nom complet', 'الاسم الكامل') }}</strong> {{ t('ou bien', 'أو') }} <strong>{{ t('Nom + Prenom', 'اللقب والاسم') }}</strong>.
   </div>
 
   <form action="{{ url_for('imports.import_excel_apply') }}" method="post" class="mb-3">
@@ -27,7 +27,7 @@
       <div class="col-12 col-md-6 col-lg-4">
         <label class="small text-muted">{{ label }}</label>
         <select name="map_{{ key }}" class="form-select form-select-sm">
-          <option value="">-- Ignorer --</option>
+          <option value="">{{ t('-- Ignorer --', '-- تجاهل --') }}</option>
           {% for col in columns %}
           <option value="{{ col }}" {% if defaults.get(key) == col %}selected{% endif %}>{{ col }}</option>
           {% endfor %}
@@ -59,7 +59,7 @@
           {% endfor %}
         </tr>
         {% else %}
-        <tr><td colspan="{{ sample_headers|length }}" class="text-center text-muted">Aucune ligne de previsualisation.</td></tr>
+        <tr><td colspan="{{ sample_headers|length }}" class="text-center text-muted">{{ t('Aucune ligne de previsualisation.', 'لا توجد أسطر للمعاينة.') }}</td></tr>
         {% endfor %}
       </tbody>
     </table>

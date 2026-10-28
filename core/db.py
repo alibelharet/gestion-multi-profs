@@ -15,7 +15,7 @@ def _current_school_year_label() -> str:
 def get_db():
     db = getattr(g, "_database", None)
     if db is None:
-        db = g._database = sqlite3.connect(DATABASE, check_same_thread=False)
+        db = g._database = sqlite3.connect(DATABASE, timeout=30.0, check_same_thread=False)
         db.row_factory = sqlite3.Row
         try:
             db.execute("PRAGMA foreign_keys = ON")

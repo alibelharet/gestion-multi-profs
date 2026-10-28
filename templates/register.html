@@ -10,32 +10,32 @@
                 <form method="POST">
                 {{ csrf_field() }}
                     <div class="mb-3">
-                        <label class="form-label">Nom d'utilisateur (Login)</label>
+                        <label class="form-label">{{ t("Nom d'utilisateur (Login)", 'اسم المستخدم للدخول') }}</label>
                         <input type="text" name="username" class="form-control" autocomplete="username" placeholder="ex: prof.maths" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Nom affiché (ex: الأستاذ محمد)</label>
+                        <label class="form-label">{{ t('Nom affiché (ex: الأستاذ محمد)', 'الاسم المعروض (مثال: الأستاذ محمد)') }}</label>
                         <input type="text" name="nom_affichage" class="form-control" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Nom de l'etablissement</label>
+                        <label class="form-label">{{ t("Nom de l'etablissement", 'اسم المؤسسة') }}</label>
                         <input type="text" name="school_name" class="form-control" placeholder="ex: College El Amal" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Matiere (ex: Sciences physiques)</label>
+                        <label class="form-label">{{ t('Matiere (ex: Sciences physiques)', 'المادة (مثال: العلوم الفيزيائية)') }}</label>
                         <input type="text" name="subject_name" class="form-control" placeholder="ex: Sciences physiques" required>
                     </div>
                     <div class="mb-4">
-                        <label class="form-label">Mot de passe</label>
+                        <label class="form-label">{{ t('Mot de passe', 'كلمة المرور') }}</label>
                         <input type="password" name="password" class="form-control" autocomplete="new-password" required>
                     </div>
                     <div class="d-grid gap-2">
-                        <button type="submit" class="btn btn-success btn-lg">S'inscrire</button>
+                        <button type="submit" class="btn btn-success btn-lg">{{ t("S'inscrire", 'إنشاء حساب') }}</button>
                     </div>
                 </form>
             </div>
             <div class="card-footer text-center bg-light">
-                <p class="mb-0">لديك حساب؟ <a href="/login" class="text-success fw-bold">Se connecter</a></p>
+                <p class="mb-0">لديك حساب؟ <a href="/login" class="text-success fw-bold">{{ t('Se connecter', 'تسجيل الدخول') }}</a></p>
             </div>
         </div>
     </div>

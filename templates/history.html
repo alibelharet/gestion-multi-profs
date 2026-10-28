@@ -1,11 +1,12 @@
 {% extends 'base.html' %}
 
 {% block content %}
+<div class="d-flex flex-wrap gap-2 mb-3"><a class="btn btn-primary" href="{{ url_for('grades.revisions') }}">{{ t('Détail et annulation des notes', 'تفاصيل العلامات والتراجع') }}</a><a class="btn btn-outline-secondary" href="{{ url_for('students.trash') }}">{{ t('Corbeille des élèves', 'سلة محذوفات التلاميذ') }}</a></div>
 <div class="app-card mb-4">
   <div class="card-body">
     <form method="get" class="row g-2 align-items-end">
       <div class="col-6 col-md-3">
-        <label class="small text-muted">Action</label>
+        <label class="small text-muted">{{ t('Action', 'الإجراء') }}</label>
         <select name="action" class="form-select form-select-sm">
           <option value="">Toutes</option>
           {% for a in actions %}
@@ -14,7 +15,7 @@
         </select>
       </div>
       <div class="col-6 col-md-3">
-        <label class="small text-muted">Matiere</label>
+        <label class="small text-muted">{{ t('Matiere', 'المادة') }}</label>
         <select name="subject" class="form-select form-select-sm">
           <option value="">Toutes</option>
           {% for s in subjects %}
@@ -23,21 +24,21 @@
         </select>
       </div>
       <div class="col-12 col-md-4">
-        <label class="small text-muted">Recherche</label>
+        <label class="small text-muted">{{ t('Recherche', 'البحث') }}</label>
         <input type="text" name="q" value="{{ filters.q }}" class="form-control form-control-sm" placeholder="Nom eleve, details...">
       </div>
       <div class="col-6 col-md-2">
-        <label class="small text-muted">Du</label>
+        <label class="small text-muted">{{ t('Du', 'من') }}</label>
         <input type="date" name="from" value="{{ filters.date_from }}" class="form-control form-control-sm">
       </div>
       <div class="col-6 col-md-2">
-        <label class="small text-muted">Au</label>
+        <label class="small text-muted">{{ t('Au', 'إلى') }}</label>
         <input type="date" name="to" value="{{ filters.date_to }}" class="form-control form-control-sm">
       </div>
       <div class="col-12 col-md-4 d-flex gap-2 justify-content-end">
-        <button type="submit" class="btn btn-sm btn-primary">Filtrer</button>
-        <a href="{{ url_for('dashboard.history') }}" class="btn btn-sm btn-outline-secondary">Reset</a>
-        <a href="{{ export_url }}" class="btn btn-sm btn-success">Export CSV</a>
+        <button type="submit" class="btn btn-sm btn-primary">{{ t('Filtrer', 'تصفية') }}</button>
+        <a href="{{ url_for('dashboard.history') }}" class="btn btn-sm btn-outline-secondary">{{ t('Reset', 'إعادة ضبط') }}</a>
+        <a href="{{ export_url }}" class="btn btn-sm btn-success">{{ t('Export CSV', 'تصدير CSV') }}</a>
       </div>
     </form>
   </div>
@@ -45,18 +46,18 @@
 
 <div class="app-card">
   <div class="card-header app-card-header d-flex justify-content-between align-items-center">
-    <h6 class="mb-0 text-body">Historique ({{ total }} derniers)</h6>
+    <h6 class="mb-0 text-body">{{ t('Historique (', 'السجل (') }}{{ total }} {{ t('derniers)', 'الأخيرة)') }}</h6>
   </div>
   <div class="card-body">
     <div class="table-responsive">
       <table class="table table-sm mb-0 align-middle">
         <thead>
           <tr>
-            <th>Date</th>
-            <th>Action</th>
-            <th>Eleve</th>
-            <th>Matiere</th>
-            <th>Details</th>
+            <th>{{ t('Date', 'التاريخ') }}</th>
+            <th>{{ t('Action', 'الإجراء') }}</th>
+            <th>{{ t('Eleve', 'التلميذ') }}</th>
+            <th>{{ t('Matiere', 'المادة') }}</th>
+            <th>{{ t('Details', 'التفاصيل') }}</th>
           </tr>
         </thead>
         <tbody>
@@ -69,7 +70,7 @@
             <td>{{ l.details }}</td>
           </tr>
           {% else %}
-          <tr><td colspan="5" class="text-center text-muted py-3">Aucun historique</td></tr>
+          <tr><td colspan="5" class="text-center text-muted py-3">{{ t('Aucun historique', 'لا يوجد سجل') }}</td></tr>
           {% endfor %}
         </tbody>
       </table>

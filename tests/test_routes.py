@@ -35,7 +35,7 @@ class TestRoutes:
         assert b'id="formSaveAll"' in response.data
         assert b'id="unsavedChangesBar"' in response.data
         assert b'id="gradeCompletionStatus"' in response.data
-        assert b'data-grade-row' in response.data or b"Aucun resultat" in response.data
+        assert b'data-grade-row' in response.data or "Aucun élève pour ces filtres." in response.get_data(as_text=True)
 
     def test_stats_page(self, auth_client):
         response = auth_client.get("/stats")

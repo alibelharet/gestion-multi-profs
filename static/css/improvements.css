@@ -1,0 +1,49 @@
+/* Responsive grade entry and readable bilingual content. */
+[hidden] { display: none !important; }
+.grade-editor-header { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:1rem; }
+.grade-feedback { display:grid; gap:.4rem; }
+.grade-table { min-width:900px; }
+.grade-table th { white-space:normal; font-size:.8rem; }
+.grade-table td { padding:.6rem; }
+.grade-table .input-note { width:100%; min-width:74px; height:44px; font-size:1rem; text-align:center; }
+.grade-table .student-name-cell { min-width:190px; }
+.grade-table .assessment-select { min-width:130px; font-size:.85rem; }
+.grade-table [data-assessment-label] { display:block; margin-top:.25rem; }
+.grade-table .row-index-cell { display:none; }
+.delete-mode .row-index-cell { display:table-cell; }
+.grade-error-row { outline:2px solid var(--danger); outline-offset:-2px; }
+.student-pager { display:flex; gap:.5rem; align-items:center; }
+.student-pager select { min-width:0; flex:1; }
+.unsaved-changes-bar { position:fixed; bottom:max(.5rem,env(safe-area-inset-bottom)); inset-inline:1rem; z-index:1050; display:flex; gap:1rem; justify-content:space-between; align-items:center; padding:.7rem 1rem; background:var(--surface); color:var(--text); border:1px solid var(--primary); border-radius:12px; box-shadow:0 4px 18px #0002; }
+body.has-unsaved-changes { padding-bottom:90px; }
+:focus-visible { outline:3px solid #2559c3 !important; outline-offset:3px; }
+.form-control:focus,.form-select:focus { box-shadow:0 0 0 3px #2559c333; }
+.recovery-card { padding:1rem; margin-bottom:1rem; }
+.recovery-values { display:flex; flex-wrap:wrap; gap:1rem; }
+.recovery-values bdi { display:block; font-weight:700; }
+@media(max-width:700px) {
+ .dashboard-summary { grid-template-columns:repeat(2,minmax(0,1fr)) !important; gap:.6rem; }
+ .dashboard-metric { min-height:90px; padding:.8rem; }
+ .dashboard-metric-value { font-size:1.15rem; }
+ .dashboard-metric-label { line-height:1.4; font-size:.78rem; }
+ .dashboard-welcome h1 { font-size:1.15rem; }
+ .grade-editor-header { padding:.85rem !important; }
+ .grade-editor-header>.d-flex { width:100%; }
+ .grade-editor-header .btn { white-space:normal; min-height:44px; }
+ .student-mode .table-responsive { overflow:visible; }
+ .student-mode .grade-table { display:block; min-width:0; width:100%; }
+ .student-mode .grade-table thead { display:none; }
+ .student-mode .grade-table tbody { display:block; }
+ .student-mode .grade-table tr[data-grade-row] { display:none; }
+ .student-mode .grade-table tr.current-student { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:.8rem; padding:1rem; border:0; }
+ .student-mode .grade-table td { display:block !important; position:static !important; min-width:0 !important; width:auto !important; max-width:none !important; padding:0 !important; border:0; background:transparent !important; box-shadow:none !important; }
+ .student-mode .grade-table .row-index-cell { display:none !important; }
+ .student-mode .grade-table .student-name-cell { grid-column:1/-1; padding-bottom:.6rem !important; border-bottom:1px solid var(--border); }
+ .student-mode .grade-table td[data-label]::before { content:attr(data-label); display:block; margin-bottom:.4rem; font-size:.85rem; }
+ .student-mode .grade-table td:has(.assessment-select),.student-mode .grade-table td[data-remark] { grid-column:1/-1; }
+ .student-mode .grade-table .input-note { min-width:0; height:48px; font-size:1.15rem; }
+ .student-mode [data-average] { display:block; padding:.7rem; background:var(--surface-2); text-align:center; border-radius:8px; }
+ .student-pager .btn { min-height:44px; padding:.5rem; }
+ .unsaved-changes-bar { inset-inline:.5rem; font-size:.8rem; gap:.5rem; }
+}
+@media(prefers-reduced-motion:reduce) { *,*::before,*::after { animation:none !important; transition:none !important; scroll-behavior:auto !important; } .animate-fade-up { opacity:1 !important; } }

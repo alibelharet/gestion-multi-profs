@@ -1,3 +1,4 @@
+import sqlite3
 from datetime import datetime
 from flask import has_request_context, session
 
@@ -31,6 +32,22 @@ def ensure_school_years(db):
     Returns the active school year label.
     """
     current_label = school_year(datetime.now())
+
+    # Try a read-only fast path first to avoid write locks on every request
+    try:
+        active = db.execute(
+            "SELECT label FROM school_years WHERE COALESCE(is_active, 0) = 1 ORDER BY id LIMIT 1"
+        ).fetchone()
+        existing_current = db.execute(
+            "SELECT id FROM school_years WHERE label = ?",
+            (current_label,),
+        ).fetchone()
+        if active and existing_current:
+            return active["label"]
+    except sqlite3.OperationalError:
+        # If the table doesn't exist yet, we fallback to the creation logic below
+        pass
+
     db.execute(
         """
         CREATE TABLE IF NOT EXISTS school_years (
@@ -45,11 +62,11 @@ def ensure_school_years(db):
         "SELECT id FROM school_years WHERE label = ?",
         (current_label,),
     ).fetchone()
-    db.execute(
-        "INSERT OR IGNORE INTO school_years (label, is_active) VALUES (?, 0)",
-        (current_label,),
-    )
     if not existing_current:
+        db.execute(
+            "INSERT OR IGNORE INTO school_years (label, is_active) VALUES (?, 0)",
+            (current_label,),
+        )
         changed = True
     active = db.execute(
         "SELECT id, label FROM school_years WHERE COALESCE(is_active, 0) = 1 ORDER BY id LIMIT 1"

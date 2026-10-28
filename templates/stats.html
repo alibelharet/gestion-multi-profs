@@ -1,34 +1,36 @@
 {% extends 'base.html' %}
 
 {% block content %}
+<p class="alert alert-info small">{{ t('Les moyennes et le taux de réussite utilisent les évaluations complètes, y compris les vrais zéros. Les absences et les notes incomplètes sont exclues.', 'تُحسب المعدلات ونسبة النجاح من التقييمات المكتملة، بما فيها الأصفار الفعلية. يُستثنى الغياب والعلامات غير المكتملة.') }} {{ t('Élèves évalués :', 'التلاميذ المقيّمون:') }} {{ stats.nb_saisis }} / {{ stats.nb_total }}.</p>
 
 <div class="app-card hero-card mb-4 p-3">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
         <div>
-            <div class="text-uppercase small text-muted">Statistiques</div>
-            <h2 class="fw-bold mb-1">Détails & Évolution</h2>
-            <div class="text-muted small">Analyse approfondie par matière</div>
+            <div class="text-uppercase small text-muted">{{ t('Statistiques', 'الإحصائيات') }}</div>
+            <h2 class="fw-bold mb-1">{{ t('Détails & Évolution', 'التفاصيل والتطور') }}</h2>
+            <div class="text-muted small">{{ t('Analyse approfondie par matière', 'تحليل مفصل حسب المادة') }}</div>
         </div>
         <div class="d-flex align-items-center gap-2">
             <a href="{{ url_for('reports.export_stats_pdf', trimestre=trimestre, subject=subject_id, school_year=school_year, niveau=niveau_actuel) }}"
                 class="btn btn-sm btn-danger text-white">
-                <i class="bi bi-file-pdf-fill me-1"></i> Télécharger PDF
+                <i class="bi bi-file-pdf-fill me-1"></i> {{ t('Télécharger PDF', 'تنزيل PDF') }}
             </a>
             <form action="{{ url_for('dashboard.stats') }}" method="get" class="d-flex gap-2">
                 <select name="school_year" class="form-select form-select-sm" onchange="this.form.submit()">
                     {% for sy in school_years %}
                     <option value="{{ sy.label }}" {% if school_year==sy.label %}selected{% endif %}>
-                        {{ sy.label }}{% if sy.is_active %} (active){% endif %}
+                        {{ sy.label }}{% if sy.is_active %} {{ t('(active)', '(نشطة)') }}{% endif %}
                     </option>
                     {% endfor %}
                 </select>
+
                 <select name="trimestre" class="form-select form-select-sm" onchange="this.form.submit()">
                     <option value="1" {% if trimestre=='1' %}selected{% endif %}>T1</option>
                     <option value="2" {% if trimestre=='2' %}selected{% endif %}>T2</option>
                     <option value="3" {% if trimestre=='3' %}selected{% endif %}>T3</option>
                 </select>
                 <select name="niveau" class="form-select form-select-sm" onchange="this.form.submit()">
-                    <option value="all">Toutes les classes</option>
+                    <option value="all">{{ t('Toutes les classes', 'كل الأقسام') }}</option>
                     {% for classe in liste_classes %}
                     <option value="{{ classe }}" {% if niveau_actuel==classe %}selected{% endif %}>{{ classe }}</option>
                     {% endfor %}
@@ -46,45 +48,45 @@
 <div class="row g-3 mb-4 animate-fade-up">
     <div class="col-6 col-md-3">
         <div class="app-card p-3 h-100 text-center">
-            <div class="text-muted small">Moyenne générale</div>
-            <h3 class="fw-bold text-primary">{{ stats.moyenne_generale }}</h3>
+            <div class="text-muted small">{{ t('Moyenne générale', 'المعدل العام') }}</div>
+            <h3 class="fw-bold text-primary">{{ stats.moyenne_generale if stats.moyenne_generale is not none else '—' }}</h3>
         </div>
     </div>
     <div class="col-6 col-md-3">
         <div class="app-card p-3 h-100 text-center">
-            <div class="text-muted small">Taux de réussite</div>
-            <h3 class="fw-bold text-success">{{ stats.taux_reussite }}%</h3>
+            <div class="text-muted small">{{ t('Taux de réussite', 'نسبة النجاح بين التلاميذ المقيّمين') }}</div>
+            <h3 class="fw-bold text-success">{{ stats.taux_reussite if stats.taux_reussite is not none else '—' }}%</h3>
         </div>
     </div>
     <div class="col-6 col-md-3">
         <div class="app-card p-3 h-100 text-center">
-            <div class="text-muted small">Saisie des notes</div>
+            <div class="text-muted small">{{ t('Saisie des notes', 'إدخال العلامات') }}</div>
             <h3 class="fw-bold text-body" dir="ltr">{{ stats.nb_saisis }} / {{ stats.nb_total }}</h3>
-            <div class="small text-muted">{{ stats.taux_saisie }}% saisi · {{ stats.nb_non_saisis }} à vérifier</div>
+            <div class="small text-muted">{{ stats.taux_saisie }}{{ t('% saisi ·', '% مكتمل ·') }} {{ stats.nb_non_saisis }} {{ t('à vérifier', 'للمراجعة') }}</div>
         </div>
     </div>
     <div class="col-6 col-md-3">
         <div class="app-card p-3 h-100 text-center">
-            <div class="text-muted small">Max / Min</div>
-            <h3 class="fw-bold text-body" dir="ltr">{{ stats.meilleure_note }} / {{ stats.pire_note }}</h3>
+            <div class="text-muted small">{{ t('Max / Min', 'الأعلى / الأدنى') }}</div>
+            <h3 class="fw-bold text-body" dir="ltr">{{ stats.meilleure_note if stats.meilleure_note is not none else '—' }} / {{ stats.pire_note if stats.pire_note is not none else '—' }}</h3>
         </div>
     </div>
 </div>
 
 <div class="app-card mb-4 animate-fade-up">
     <div class="card-header app-card-header d-flex justify-content-between align-items-center py-2 px-3 rounded-top">
-        <h6 class="mb-0 text-body">Statistiques Avancées T{{ trimestre }}</h6>
+        <h6 class="mb-0 text-body">{{ t('Statistiques Avancées T', 'إحصائيات مفصلة للفصل') }}{{ trimestre }}</h6>
     </div>
     <div class="card-body">
         <div class="row g-3">
             <div class="col-12 col-lg-6">
-                <div class="text-muted small mb-2 text-center">Moyenne par classe</div>
+                <div class="text-muted small mb-2 text-center">{{ t('Moyenne par classe', 'المعدل حسب القسم') }}</div>
                 <div style="position: relative; height: 250px; width: 100%;">
                     <canvas id="chartClasses"></canvas>
                 </div>
             </div>
             <div class="col-12 col-lg-6">
-                <div class="text-muted small mb-2 text-center">Répartition des notes</div>
+                <div class="text-muted small mb-2 text-center">{{ t('Répartition des notes', 'توزيع العلامات') }}</div>
                 <div style="position: relative; height: 250px; width: 100%;">
                     <canvas id="chartDist"></canvas>
                 </div>
@@ -98,7 +100,7 @@
     <div class="col-12 col-lg-8">
         <div class="app-card h-100">
             <div class="card-header app-card-header py-3 px-4 border-bottom">
-                <h6 class="mb-0 fw-bold">Évolution des Moyennes par Classe (T1 à T3)</h6>
+                <h6 class="mb-0 fw-bold">{{ t('Évolution des Moyennes par Classe (T1 à T3)', 'تطور معدلات الأقسام من الفصل الأول إلى الثالث') }}</h6>
             </div>
             <div class="card-body p-4">
                 <div style="position: relative; height: 350px; width: 100%;">
@@ -112,16 +114,16 @@
     <div class="col-12 col-lg-4">
         <div class="app-card h-100">
             <div class="card-header app-card-header py-3 px-4 border-bottom">
-                <h6 class="mb-0 fw-bold">Top 5 Élèves (Annuel)</h6>
+                <h6 class="mb-0 fw-bold">{{ t('Top 5 Élèves (Annuel)', 'أفضل 5 تلاميذ حسب الفصول المقيّمة') }}</h6>
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive">
                     <table class="table table-hover mb-0 align-middle">
                         <thead class="bg-light">
                             <tr>
-                                <th class="ps-4">Élève</th>
-                                <th class="text-center">Classe</th>
-                                <th class="text-center fw-bold text-primary">Moy. An</th>
+                                <th class="ps-4">{{ t('Élève', 'التلميذ') }}</th>
+                                <th class="text-center">{{ t('Classe', 'القسم') }}</th>
+                                <th class="text-center fw-bold text-primary">{{ t('Moy. An', 'معدل الفصول المقيّمة') }}</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -130,9 +132,9 @@
                                 <td class="ps-4">
                                     <div class="fw-bold">{{ eleve.nom }}</div>
                                     <div class="small text-muted">
-                                        <span class="badgex border rounded px-1">T1: {{ eleve.t1 }}</span>
-                                        <span class="badgex border rounded px-1">T2: {{ eleve.t2 }}</span>
-                                        <span class="badgex border rounded px-1">T3: {{ eleve.t3 }}</span>
+                                        <span class="badgex border rounded px-1">T1: {{ eleve.t1 if eleve.t1 is not none else '—' }}</span>
+                                        <span class="badgex border rounded px-1">T2: {{ eleve.t2 if eleve.t2 is not none else '—' }}</span>
+                                        <span class="badgex border rounded px-1">T3: {{ eleve.t3 if eleve.t3 is not none else '—' }}</span>
                                     </div>
                                 </td>
                                 <td class="text-center"><span class="badge bg-secondary">{{ eleve.niveau }}</span></td>
@@ -140,7 +142,7 @@
                             </tr>
                             {% else %}
                             <tr>
-                                <td colspan="3" class="text-center py-4 text-muted">Aucune donnée disponible</td>
+                                <td colspan="3" class="text-center py-4 text-muted">{{ t('Aucune donnée disponible', 'لا توجد بيانات') }}</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -155,7 +157,7 @@
     <div class="col-12 col-lg-6">
         <div class="app-card h-100">
             <div class="card-header app-card-header py-3 px-4 border-bottom">
-                <h6 class="mb-0 fw-bold">Top Élèves T{{ trimestre }}</h6>
+                <h6 class="mb-0 fw-bold">{{ t('Top Élèves T', 'أفضل التلاميذ في الفصل') }}{{ trimestre }}</h6>
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive">
@@ -163,9 +165,9 @@
                         <thead class="bg-light">
                             <tr>
                                 <th class="ps-4">#</th>
-                                <th>Élève</th>
-                                <th>Classe</th>
-                                <th class="text-center">Moyenne</th>
+                                <th>{{ t('Élève', 'التلميذ') }}</th>
+                                <th>{{ t('Classe', 'القسم') }}</th>
+                                <th class="text-center">{{ t('Moyenne', 'المعدل') }}</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -178,7 +180,7 @@
                             </tr>
                             {% else %}
                             <tr>
-                                <td colspan="4" class="text-center py-4 text-muted">Aucun résultat</td>
+                                <td colspan="4" class="text-center py-4 text-muted">{{ t('Aucun résultat', 'لا توجد نتائج') }}</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -192,8 +194,7 @@
         <div class="app-card h-100 border-danger border-opacity-25">
             <div
                 class="card-header app-card-header py-3 px-4 border-bottom d-flex justify-content-between align-items-center">
-                <h6 class="mb-0 fw-bold text-danger"><i class="bi bi-exclamation-triangle-fill me-2"></i>Élèves à Risque
-                    T{{ trimestre }}</h6>
+                <h6 class="mb-0 fw-bold text-danger"><i class="bi bi-exclamation-triangle-fill me-2"></i>{{ t('Élèves à Risque T', 'التلاميذ الذين يحتاجون إلى دعم في الفصل') }}{{ trimestre }}</h6>
                 <span class="badge bg-danger rounded-pill">{{ risk_count }}</span>
             </div>
             <div class="card-body p-0">
@@ -201,9 +202,9 @@
                     <table class="table table-hover mb-0 align-middle">
                         <thead class="bg-light">
                             <tr>
-                                <th class="ps-4">Élève</th>
-                                <th>Classe</th>
-                                <th class="text-center">Moyenne</th>
+                                <th class="ps-4">{{ t('Élève', 'التلميذ') }}</th>
+                                <th>{{ t('Classe', 'القسم') }}</th>
+                                <th class="text-center">{{ t('Moyenne', 'المعدل') }}</th>
                                 <th></th>
                             </tr>
                         </thead>
@@ -221,7 +222,7 @@
                             </tr>
                             {% else %}
                             <tr>
-                                <td colspan="4" class="text-center py-4 text-muted">Aucun élève en difficulté.</td>
+                                <td colspan="4" class="text-center py-4 text-muted">{{ t('Aucun élève en difficulté.', 'لا يوجد تلميذ يحتاج إلى دعم حسب العلامات المكتملة.') }}</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -229,8 +230,8 @@
                 </div>
                 {% if risk_count > 8 %}
                 <div class="card-footer text-center bg-transparent">
-                    <a href="{{ risk_url }}" class="small text-danger text-decoration-none">Voir les {{ risk_count }}
-                        élèves</a>
+                    <a href="{{ risk_url }}" class="small text-danger text-decoration-none">{{ t('Voir les', 'عرض') }} {{ risk_count }}
+                        {{ t('élèves', 'تلاميذ') }}</a>
                 </div>
                 {% endif %}
             </div>
@@ -242,7 +243,7 @@
 <div class="app-card mb-4 border-warning border-opacity-25">
     <div class="card-header app-card-header py-3 px-4 border-bottom d-flex justify-content-between align-items-center">
         <h6 class="mb-0 fw-bold text-warning-emphasis">
-            <i class="bi bi-graph-down-arrow me-2"></i>Baisses à surveiller depuis T{{ (trimestre|int) - 1 }}
+            <i class="bi bi-graph-down-arrow me-2"></i>{{ t('Baisses à surveiller depuis T', 'انخفاضات تستدعي المتابعة منذ الفصل') }}{{ (trimestre|int) - 1 }}
         </h6>
         <span class="badge bg-warning text-dark rounded-pill">{{ declining_students|length }}</span>
     </div>
@@ -251,11 +252,11 @@
             <table class="table table-hover mb-0 align-middle">
                 <thead class="bg-light">
                     <tr>
-                        <th class="ps-4">Élève</th>
-                        <th>Classe</th>
-                        <th class="text-center">Avant</th>
-                        <th class="text-center">Maintenant</th>
-                        <th class="text-center">Écart</th>
+                        <th class="ps-4">{{ t('Élève', 'التلميذ') }}</th>
+                        <th>{{ t('Classe', 'القسم') }}</th>
+                        <th class="text-center">{{ t('Avant', 'سابقاً') }}</th>
+                        <th class="text-center">{{ t('Maintenant', 'حالياً') }}</th>
+                        <th class="text-center">{{ t('Écart', 'الفارق') }}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -269,7 +270,7 @@
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="5" class="text-center py-4 text-muted">Aucune baisse d'au moins 1 point.</td>
+                        <td colspan="5" class="text-center py-4 text-muted">{{ t("Aucune baisse d'au moins 1 point.", 'لا يوجد انخفاض بنقطة واحدة أو أكثر.') }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -308,7 +309,7 @@
             data: {
                 labels: chartData.classes.labels,
                 datasets: [{
-                    label: 'Moyenne T{{ trimestre }}',
+                    label: {{ t('Moyenne', 'المعدل')|tojson }} + ' T{{ trimestre }}',
                     data: chartData.classes.values,
                     backgroundColor: 'rgba(92, 84, 189, 0.68)',
                     borderColor: 'rgb(92, 84, 189)',

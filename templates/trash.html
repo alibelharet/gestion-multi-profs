@@ -1,0 +1,8 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1 class="h4">{{ t('Corbeille des élèves', 'سلة محذوفات التلاميذ') }}</h1>
+<p class="text-muted">{{ t('Restaurez un élève avec ses notes. Les dossiers restent ici jusqu’à leur restauration.', 'استرجع التلميذ مع علاماته. تبقى الملفات هنا إلى حين استرجاعها.') }}</p>
+<a class="btn btn-outline-primary mb-3" href="{{ url_for('dashboard.index') }}">{{ t('Retour aux notes', 'العودة إلى العلامات') }}</a>
+{% for entry in entries %}<article class="app-card recovery-card d-flex flex-wrap justify-content-between gap-2 align-items-center"><div><h2 class="h6 mb-1">{{ entry.student_name }}</h2><bdi>{{ entry.niveau }} · {{ entry.school_year }}</bdi></div>{% if can_edit %}<form action="{{ url_for('students.restore_student', trash_id=entry.id) }}" method="post">{{ csrf_field() }}<button type="submit" class="btn btn-success">{{ t('Restaurer l’élève et ses notes', 'استرجاع التلميذ وعلاماته') }}</button></form>{% endif %}</article>
+{% else %}<div class="app-card p-4">{{ t('La corbeille est vide.', 'سلة المحذوفات فارغة.') }}</div>{% endfor %}
+{% endblock %}

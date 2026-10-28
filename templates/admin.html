@@ -2,52 +2,52 @@
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-  <h2 class="fw-bold text-danger mb-0">Panneau Admin</h2>
-  <a href="/" class="btn btn-outline-secondary btn-sm">Retour dashboard</a>
+  <h2 class="fw-bold text-danger mb-0">{{ t('Panneau Admin', 'لوحة الإدارة') }}</h2>
+  <a href="/" class="btn btn-outline-secondary btn-sm">{{ t('Retour dashboard', 'العودة إلى لوحة التحكم') }}</a>
 </div>
 
 <div class="app-card p-3 mb-4">
-  <h5 class="mb-3">Sauvegarde / Restauration</h5>
+  <h5 class="mb-3">{{ t('Sauvegarde / Restauration', 'النسخ الاحتياطي / الاسترجاع') }}</h5>
   {% if backup_status %}
   <div class="alert {{ 'alert-success' if backup_status.success else 'alert-danger' }} py-2 small" role="status">
-    <strong>Dernière sauvegarde automatique :</strong>
+    <strong>{{ t('Dernière sauvegarde automatique :', 'آخر نسخة احتياطية تلقائية:') }}</strong>
     {{ 'réussie' if backup_status.success else 'échouée' }}
-    le {{ backup_status.created_at[:16].replace('T', ' ') }} UTC.
-    {% if backup_status.filename %}Fichier : {{ backup_status.filename }}.{% endif %}
-    {% if backup_status.error %}Erreur : {{ backup_status.error }}{% endif %}
+    {{ t('le', 'بتاريخ') }} {{ backup_status.created_at[:16].replace('T', ' ') }} UTC.
+    {% if backup_status.filename %}{{ t('Fichier :', 'الملف:') }} {{ backup_status.filename }}.{% endif %}
+    {% if backup_status.error %}{{ t('Erreur :', 'خطأ:') }} {{ backup_status.error }}{% endif %}
   </div>
   {% else %}
   <div class="alert alert-warning py-2 small" role="status">
-    Aucune sauvegarde automatique n’a encore été enregistrée.
+    {{ t('Aucune sauvegarde automatique n’a encore été enregistrée.', 'لم تُسجّل أي نسخة احتياطية تلقائية بعد.') }}
   </div>
   {% endif %}
   <div class="d-flex flex-wrap gap-2 align-items-center">
-    <a href="/admin/backup" class="btn btn-success btn-sm">Télécharger une sauvegarde (.zip)</a>
+    <a href="/admin/backup" class="btn btn-success btn-sm">{{ t('Télécharger une sauvegarde (.zip)', 'تنزيل نسخة احتياطية (.zip)') }}</a>
     <form action="/admin/restore" method="POST" enctype="multipart/form-data" class="d-flex gap-2 align-items-center">
       {{ csrf_field() }}
       <input type="file" name="backup_zip" class="form-control form-control-sm" accept=".zip" required>
-      <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('La restauration remplace la base et les fichiers actuels. Continuer ?')">Restaurer</button>
+      <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('La restauration remplace la base et les fichiers actuels. Continuer ?')">{{ t('Restaurer', 'استرجاع') }}</button>
     </form>
   </div>
 </div>
 
 <div class="app-card p-3 mb-4">
-  <h5 class="mb-3">Annees scolaires</h5>
+  <h5 class="mb-3">{{ t('Annees scolaires', 'السنوات الدراسية') }}</h5>
   <form action="{{ url_for('admin.admin_add_school_year') }}" method="POST" class="row g-2 align-items-end mb-3">
     {{ csrf_field() }}
     <div class="col-12 col-md-4">
-      <label class="small text-muted">Nouvelle annee</label>
+      <label class="small text-muted">{{ t('Nouvelle annee', 'سنة جديدة') }}</label>
       <input type="text" name="label" class="form-control form-control-sm" placeholder="2026/2027" required>
     </div>
     <div class="col-12 col-md-2 d-grid">
-      <button type="submit" class="btn btn-primary btn-sm">Ajouter</button>
+      <button type="submit" class="btn btn-primary btn-sm">{{ t('Ajouter', 'إضافة') }}</button>
     </div>
   </form>
 
   <form action="{{ url_for('admin.admin_clone_school_year') }}" method="POST" class="row g-2 align-items-end mb-3">
     {{ csrf_field() }}
     <div class="col-12 col-md-2">
-      <label class="small text-muted">Annee source</label>
+      <label class="small text-muted">{{ t('Annee source', 'السنة المصدر') }}</label>
       <select name="from_year" class="form-select form-select-sm" required>
         {% for sy in school_years %}
         <option value="{{ sy.label }}" {% if sy.label == active_school_year %}selected{% endif %}>{{ sy.label }}</option>
@@ -55,7 +55,7 @@
       </select>
     </div>
     <div class="col-12 col-md-2">
-      <label class="small text-muted">Annee cible</label>
+      <label class="small text-muted">{{ t('Annee cible', 'السنة المستهدفة') }}</label>
       <select name="to_year" class="form-select form-select-sm" required>
         {% for sy in school_years %}
         <option value="{{ sy.label }}">{{ sy.label }}</option>
@@ -63,38 +63,38 @@
       </select>
     </div>
     <div class="col-12 col-md-2">
-      <label class="small text-muted">Mode classes</label>
+      <label class="small text-muted">{{ t('Mode classes', 'طريقة نقل الأقسام') }}</label>
       <select name="class_mode" class="form-select form-select-sm">
-        <option value="keep" selected>Conserver</option>
-        <option value="auto_promote">Promotion +1</option>
+        <option value="keep" selected>{{ t('Conserver', 'الاحتفاظ') }}</option>
+        <option value="auto_promote">{{ t('Promotion +1', 'ترقية بمستوى واحد') }}</option>
       </select>
     </div>
     <div class="col-12 col-md-4">
-      <label class="small text-muted d-block">Options</label>
+      <label class="small text-muted d-block">{{ t('Options', 'الخيارات') }}</label>
       <div class="form-check mt-1">
         <input class="form-check-input" type="checkbox" id="copy_assignments" name="copy_assignments" value="1" checked>
-        <label class="form-check-label" for="copy_assignments">Copier les affectations</label>
+        <label class="form-check-label" for="copy_assignments">{{ t('Copier les affectations', 'نسخ الإسنادات') }}</label>
       </div>
       <div class="form-check mt-1">
         <input class="form-check-input" type="checkbox" id="activate_target" name="activate_target" value="1">
-        <label class="form-check-label" for="activate_target">Activer l annee cible</label>
+        <label class="form-check-label" for="activate_target">{{ t('Activer l annee cible', 'تفعيل السنة المستهدفة') }}</label>
       </div>
     </div>
     <div class="col-12 col-md-2 d-grid">
-      <button type="submit" class="btn btn-outline-primary btn-sm" onclick="return confirm('Copier les eleves de l annee source vers l annee cible ?')">Passage d annee</button>
+      <button type="submit" class="btn btn-outline-primary btn-sm" onclick="return confirm('Copier les eleves de l annee source vers l annee cible ?')">{{ t('Passage d annee', 'الانتقال إلى سنة جديدة') }}</button>
     </div>
   </form>
   <div class="small text-muted mb-3">
-    Le passage copie uniquement les eleves (nom/classe/contacts) vers l annee cible, sans notes. En mode "Promotion +1", la classe 2M2 devient 3M2.
+    {{ t('Le passage copie uniquement les eleves (nom/classe/contacts) vers l annee cible, sans notes. En mode "Promotion +1", la classe 2M2 devient 3M2.', 'يُنسخ التلاميذ فقط (الاسم والقسم والاتصال) إلى السنة الجديدة دون العلامات. في وضع الترقية، يصبح القسم 2M2 هو 3M2.') }}
   </div>
 
   <div class="table-responsive">
     <table class="table table-sm align-middle mb-0">
       <thead>
         <tr>
-          <th>Annee</th>
-          <th>Etat</th>
-          <th class="text-end">Action</th>
+          <th>{{ t('Annee', 'السنة') }}</th>
+          <th>{{ t('Etat', 'الحالة') }}</th>
+          <th class="text-end">{{ t('Action', 'الإجراء') }}</th>
         </tr>
       </thead>
       <tbody>
@@ -103,24 +103,24 @@
           <td class="fw-bold">{{ sy.label }}</td>
           <td>
             {% if sy.is_active %}
-            <span class="badge bg-success">Active</span>
+            <span class="badge bg-success">{{ t('Active', 'نشطة') }}</span>
             {% else %}
-            <span class="badge bg-secondary">Inactive</span>
+            <span class="badge bg-secondary">{{ t('Inactive', 'غير نشطة') }}</span>
             {% endif %}
           </td>
           <td class="text-end">
             {% if not sy.is_active %}
             <form action="{{ url_for('admin.admin_activate_school_year', year_id=sy.id) }}" method="POST" style="display:inline;">
               {{ csrf_field() }}
-              <button type="submit" class="btn btn-outline-success btn-sm">Activer</button>
+              <button type="submit" class="btn btn-outline-success btn-sm">{{ t('Activer', 'تفعيل') }}</button>
             </form>
             {% else %}
-            <span class="text-muted small">Courante</span>
+            <span class="text-muted small">{{ t('Courante', 'الحالية') }}</span>
             {% endif %}
           </td>
         </tr>
         {% else %}
-        <tr><td colspan="3" class="text-center text-muted">Aucune annee.</td></tr>
+        <tr><td colspan="3" class="text-center text-muted">{{ t('Aucune annee.', 'لا توجد سنة.') }}</td></tr>
         {% endfor %}
       </tbody>
     </table>
@@ -128,13 +128,13 @@
 </div>
 
 <div class="app-card p-3 mb-4">
-  <h5 class="mb-3">Affectations enseignants</h5>
+  <h5 class="mb-3">{{ t('Affectations enseignants', 'إسنادات الأساتذة') }}</h5>
   <form action="{{ url_for('admin.admin_add_assignment') }}" method="POST" class="row g-2 align-items-end mb-3">
     {{ csrf_field() }}
     <div class="col-12 col-md-4">
-      <label class="small text-muted">Enseignant / Matiere</label>
+      <label class="small text-muted">{{ t('Enseignant / Matiere', 'الأستاذ / المادة') }}</label>
       <select name="teacher_subject" class="form-select form-select-sm" required>
-        <option value="">Choisir...</option>
+        <option value="">{{ t('Choisir...', 'اختر...') }}</option>
         {% for ts in teacher_subjects %}
         <option value="{{ ts.user_id }}|{{ ts.subject_id }}">
           {{ ts.nom_affichage }} ({{ ts.username }}) - {{ ts.subject_name }}
@@ -143,7 +143,7 @@
       </select>
     </div>
     <div class="col-12 col-md-3">
-      <label class="small text-muted">Annee scolaire</label>
+      <label class="small text-muted">{{ t('Annee scolaire', 'السنة الدراسية') }}</label>
       <select name="school_year" class="form-select form-select-sm" required>
         {% for sy in school_years %}
         <option value="{{ sy.label }}" {% if sy.label == active_school_year %}selected{% endif %}>{{ sy.label }}</option>
@@ -151,7 +151,7 @@
       </select>
     </div>
     <div class="col-12 col-md-3">
-      <label class="small text-muted">Classe</label>
+      <label class="small text-muted">{{ t('Classe', 'القسم') }}</label>
       <input type="text" name="class_name" class="form-control form-control-sm" list="classes_admin_list" placeholder="Ex: 2M2" required>
       <datalist id="classes_admin_list">
         {% for c in available_classes %}
@@ -160,7 +160,7 @@
       </datalist>
     </div>
     <div class="col-12 col-md-2 d-grid">
-      <button type="submit" class="btn btn-primary btn-sm">Affecter</button>
+      <button type="submit" class="btn btn-primary btn-sm">{{ t('Affecter', 'إسناد') }}</button>
     </div>
   </form>
 
@@ -168,11 +168,11 @@
     <table class="table table-sm align-middle mb-0">
       <thead>
         <tr>
-          <th>Annee</th>
-          <th>Enseignant</th>
-          <th>Matiere</th>
-          <th>Classe</th>
-          <th class="text-end">Action</th>
+          <th>{{ t('Annee', 'السنة') }}</th>
+          <th>{{ t('Enseignant', 'الأستاذ') }}</th>
+          <th>{{ t('Matiere', 'المادة') }}</th>
+          <th>{{ t('Classe', 'القسم') }}</th>
+          <th class="text-end">{{ t('Action', 'الإجراء') }}</th>
         </tr>
       </thead>
       <tbody>
@@ -185,12 +185,12 @@
           <td class="text-end">
             <form action="{{ url_for('admin.admin_delete_assignment', assignment_id=a.id) }}" method="POST" style="display:inline;">
               {{ csrf_field() }}
-              <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Supprimer cette affectation ?')">Supprimer</button>
+              <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Supprimer cette affectation ?')">{{ t('Supprimer', 'حذف') }}</button>
             </form>
           </td>
         </tr>
         {% else %}
-        <tr><td colspan="5" class="text-center text-muted">Aucune affectation.</td></tr>
+        <tr><td colspan="5" class="text-center text-muted">{{ t('Aucune affectation.', 'لا توجد إسنادات.') }}</td></tr>
         {% endfor %}
       </tbody>
     </table>
@@ -198,54 +198,54 @@
 </div>
 
 <div class="app-card p-3 mb-4">
-  <h5 class="mb-3">Ajouter utilisateur</h5>
+  <h5 class="mb-3">{{ t('Ajouter utilisateur', 'إضافة مستخدم') }}</h5>
   <form action="/admin/create_user" method="POST" class="row g-2 align-items-end">
     {{ csrf_field() }}
     <div class="col-12 col-md-2">
-      <label class="small text-muted">Username</label>
+      <label class="small text-muted">{{ t('Username', 'اسم المستخدم') }}</label>
       <input type="text" name="username" class="form-control form-control-sm" required>
     </div>
     <div class="col-12 col-md-2">
-      <label class="small text-muted">Nom affiche</label>
+      <label class="small text-muted">{{ t('Nom affiche', 'الاسم المعروض') }}</label>
       <input type="text" name="display_name" class="form-control form-control-sm" required>
     </div>
     <div class="col-12 col-md-2">
-      <label class="small text-muted">Etablissement</label>
+      <label class="small text-muted">{{ t('Etablissement', 'المؤسسة') }}</label>
       <input type="text" name="school_name" class="form-control form-control-sm" required>
     </div>
     <div class="col-12 col-md-2">
-      <label class="small text-muted">Matiere</label>
+      <label class="small text-muted">{{ t('Matiere', 'المادة') }}</label>
       <input type="text" name="subject_name" class="form-control form-control-sm" required>
     </div>
     <div class="col-12 col-md-2">
-      <label class="small text-muted">Mot de passe</label>
+      <label class="small text-muted">{{ t('Mot de passe', 'كلمة المرور') }}</label>
       <input type="password" name="password" class="form-control form-control-sm" required>
     </div>
     <div class="col-6 col-md-1">
-      <label class="small text-muted">Role</label>
+      <label class="small text-muted">{{ t('Role', 'الدور') }}</label>
       <select name="role" class="form-select form-select-sm">
-        <option value="prof" selected>Prof</option>
-        <option value="read_only">Lecture seule</option>
-        <option value="admin">Admin</option>
+        <option value="prof" selected>{{ t('Prof', 'أستاذ') }}</option>
+        <option value="read_only">{{ t('Lecture seule', 'قراءة فقط') }}</option>
+        <option value="admin">{{ t('Admin', 'الإدارة') }}</option>
       </select>
     </div>
     <div class="col-6 col-md-1 d-grid">
-      <button type="submit" class="btn btn-primary btn-sm">Ajouter</button>
+      <button type="submit" class="btn btn-primary btn-sm">{{ t('Ajouter', 'إضافة') }}</button>
     </div>
   </form>
 </div>
 
 <div class="app-card p-3 mb-4">
-  <h5 class="mb-3">Utilisateurs</h5>
+  <h5 class="mb-3">{{ t('Utilisateurs', 'المستخدمون') }}</h5>
   <div class="table-responsive">
     <table class="table table-sm align-middle mb-0">
       <thead>
         <tr>
           <th>ID</th>
-          <th>Username</th>
-          <th>Nom affiche</th>
-          <th>Role</th>
-          <th class="text-end">Actions</th>
+          <th>{{ t('Username', 'اسم المستخدم') }}</th>
+          <th>{{ t('Nom affiche', 'الاسم المعروض') }}</th>
+          <th>{{ t('Role', 'الدور') }}</th>
+          <th class="text-end">{{ t('Actions', 'الإجراءات') }}</th>
         </tr>
       </thead>
       <tbody>
@@ -256,47 +256,47 @@
           <td>{{ user.nom_affichage }}</td>
           <td>
             {% if user.role == 'admin' %}
-            <span class="badge bg-danger">Admin</span>
+            <span class="badge bg-danger">{{ t('Admin', 'الإدارة') }}</span>
             {% elif user.role == 'read_only' %}
-            <span class="badge bg-secondary">Lecture seule</span>
+            <span class="badge bg-secondary">{{ t('Lecture seule', 'قراءة فقط') }}</span>
             {% else %}
-            <span class="badge bg-primary">Prof</span>
+            <span class="badge bg-primary">{{ t('Prof', 'أستاذ') }}</span>
             {% endif %}
           </td>
           <td class="text-end">
             {% if user.id != session.get('user_id') %}
-            <a href="{{ url_for('admin.admin_voir_eleves', user_id=user.id, school_year=active_school_year) }}" class="btn btn-info btn-sm text-white">Voir classe</a>
+            <a href="{{ url_for('admin.admin_voir_eleves', user_id=user.id, school_year=active_school_year) }}" class="btn btn-info btn-sm text-white">{{ t('Voir classe', 'عرض القسم') }}</a>
 
             {% if user.role != 'admin' %}
             <form action="/admin/reset_password/{{ user.id }}" method="POST" style="display:inline;">
               {{ csrf_field() }}
-              <button type="submit" class="btn btn-warning btn-sm" onclick="return confirm('Generer un mot de passe temporaire ?')">Reset mdp</button>
+              <button type="submit" class="btn btn-warning btn-sm" onclick="return confirm('Generer un mot de passe temporaire ?')">{{ t('Reset mdp', 'إعادة تعيين كلمة المرور') }}</button>
             </form>
             {% endif %}
 
             <form action="/admin/reset_link/{{ user.id }}" method="POST" style="display:inline;">
               {{ csrf_field() }}
-              <button type="submit" class="btn btn-outline-secondary btn-sm">Lien reset</button>
+              <button type="submit" class="btn btn-outline-secondary btn-sm">{{ t('Lien reset', 'رابط إعادة التعيين') }}</button>
             </form>
 
             <form action="/admin/set_role/{{ user.id }}" method="POST" style="display:inline;" class="ms-1">
               {{ csrf_field() }}
               <select name="role" class="form-select form-select-sm d-inline-block" style="width: 145px;">
-                <option value="prof" {% if user.role == 'prof' %}selected{% endif %}>Prof</option>
-                <option value="read_only" {% if user.role == 'read_only' %}selected{% endif %}>Lecture seule</option>
-                <option value="admin" {% if user.role == 'admin' %}selected{% endif %}>Admin</option>
+                <option value="prof" {% if user.role == 'prof' %}selected{% endif %}>{{ t('Prof', 'أستاذ') }}</option>
+                <option value="read_only" {% if user.role == 'read_only' %}selected{% endif %}>{{ t('Lecture seule', 'قراءة فقط') }}</option>
+                <option value="admin" {% if user.role == 'admin' %}selected{% endif %}>{{ t('Admin', 'الإدارة') }}</option>
               </select>
-              <button type="submit" class="btn btn-outline-primary btn-sm">Appliquer role</button>
+              <button type="submit" class="btn btn-outline-primary btn-sm">{{ t('Appliquer role', 'تطبيق الدور') }}</button>
             </form>
 
             {% if user.role != 'admin' %}
             <form action="/admin/delete_user/{{ user.id }}" method="POST" style="display:inline;">
               {{ csrf_field() }}
-              <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Supprimer ce compte et ses donnees ?')">Supprimer</button>
+              <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Supprimer ce compte et ses donnees ?')">{{ t('Supprimer', 'حذف') }}</button>
             </form>
             {% endif %}
             {% else %}
-            <span class="text-muted">Compte courant</span>
+            <span class="text-muted">{{ t('Compte courant', 'الحساب الحالي') }}</span>
             {% endif %}
           </td>
         </tr>
@@ -307,15 +307,15 @@
 </div>
 
 <div class="app-card p-3 mb-4">
-  <h5 class="mb-3">Documents serveur</h5>
+  <h5 class="mb-3">{{ t('Documents serveur', 'ملفات الخادم') }}</h5>
   <div class="table-responsive">
     <table class="table table-sm align-middle mb-0">
       <thead>
         <tr>
-          <th>Professeur</th>
-          <th>Titre</th>
-          <th>Fichier</th>
-          <th class="text-end">Action</th>
+          <th>{{ t('Professeur', 'الأستاذ') }}</th>
+          <th>{{ t('Titre', 'العنوان') }}</th>
+          <th>{{ t('Fichier', 'الملف') }}</th>
+          <th class="text-end">{{ t('Action', 'الإجراء') }}</th>
         </tr>
       </thead>
       <tbody>
@@ -325,15 +325,15 @@
           <td>{{ doc.titre }} <span class="badge bg-secondary">{{ doc.type_doc }}</span></td>
           <td>{{ doc.filename }}</td>
           <td class="text-end">
-            <a href="{{ url_for('admin.admin_download_document', doc_id=doc.id) }}" class="btn btn-sm btn-outline-primary">Voir</a>
+            <a href="{{ url_for('admin.admin_download_document', doc_id=doc.id) }}" class="btn btn-sm btn-outline-primary">{{ t('Voir', 'عرض') }}</a>
             <form action="/admin/delete_document/{{ doc.id }}" method="POST" style="display:inline;">
               {{ csrf_field() }}
-              <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Supprimer ce document ?')">Supprimer</button>
+              <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Supprimer ce document ?')">{{ t('Supprimer', 'حذف') }}</button>
             </form>
           </td>
         </tr>
         {% else %}
-        <tr><td colspan="4" class="text-center text-muted">Aucun fichier.</td></tr>
+        <tr><td colspan="4" class="text-center text-muted">{{ t('Aucun fichier.', 'لا يوجد ملف.') }}</td></tr>
         {% endfor %}
       </tbody>
     </table>

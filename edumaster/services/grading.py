@@ -1,3 +1,4 @@
+import math
 from core.utils import clean_note
 
 # ── Safe trimester column mapping ──────────────────────────────────
@@ -66,12 +67,42 @@ def split_activite_components(total):
         remaining = round(max(0.0, remaining - take), 2)
     return tuple(values)
 
-def note_expr(trim):
-    """Build SQL expressions for a given trimester using safe column mapping."""
+def optional_note(value, maximum=20):
+    """An empty cell is missing, while an explicit zero is a valid mark."""
+    if value is None or str(value).strip().lower() in ('', 'nan', 'none'):
+        return None
+    try:
+        number = float(str(value).replace(',', '.').strip())
+    except (ValueError, TypeError):
+        raise ValueError('invalid_note') from None
+    if not math.isfinite(number) or not 0 <= number <= maximum:
+        raise ValueError('invalid_note')
+    return round(number, 2)
+
+
+def assessment_state(activite, devoir, compo, absent=False):
+    if absent:
+        return 'absent'
+    values = (activite, devoir, compo)
+    if all(v is not None for v in values):
+        return 'graded'
+    return 'partial' if any(v is not None for v in values) else 'not_entered'
+
+
+def note_expr(trim, alias='n'):
+    """Missing and absent assessments have no average, including legacy zero rows."""
+    if alias not in ('n', 'n1', 'n2', 'n3', 'nc', 'np'):
+        raise ValueError('Invalid note alias')
     cols = trim_columns(trim)
-    devoir = f"COALESCE(n.devoir, e.{cols['devoir']})"
-    activite = f"COALESCE(n.activite, e.{cols['activite']})"
-    compo = f"COALESCE(n.compo, e.{cols['compo']})"
-    remarques = f"COALESCE(n.remarques, e.{cols['remarques']})"
-    moy_expr = f"(({devoir} + {activite})/2.0 + ({compo}*2.0))/3.0"
+    old_entered = ' OR '.join(f'COALESCE(e.{cols[k]}, 0) > 0' for k in ('devoir', 'activite', 'compo'))
+    legacy_entered = ' OR '.join(f'COALESCE({alias}.{k}, 0) > 0' for k in ('devoir', 'activite', 'compo'))
+    def field(key):
+        return (f"(CASE WHEN {alias}.id IS NOT NULL THEN CASE "
+                f"WHEN {alias}.assessment_status = 'legacy' AND NOT ({legacy_entered}) THEN NULL "
+                f"ELSE {alias}.{key} END "
+                f"WHEN ({old_entered}) THEN e.{cols[key]} ELSE NULL END)")
+    devoir, activite, compo = (field(k) for k in ('devoir', 'activite', 'compo'))
+    raw_average = f"(({devoir} + {activite})/2.0 + ({compo}*2.0))/3.0"
+    moy_expr = f"(CASE WHEN {alias}.assessment_status = 'absent' THEN NULL ELSE {raw_average} END)"
+    remarques = f"(CASE WHEN {moy_expr} IS NULL THEN '' WHEN {alias}.id IS NOT NULL THEN {alias}.remarques ELSE e.{cols['remarques']} END)"
     return devoir, activite, compo, remarques, moy_expr

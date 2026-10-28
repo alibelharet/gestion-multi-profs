@@ -5,18 +5,18 @@
     <div class="card shadow-lg border-0">
       <div class="card-header bg-info text-white text-center py-4">
         <h4 class="mb-0 fw-bold">نسيت كلمة المرور؟</h4>
-        <div class="small">Mot de passe oublié</div>
+        <div class="small">{{ t('Mot de passe oublié', 'نسيت كلمة المرور') }}</div>
       </div>
       <div class="card-body p-4">
         <div class="alert alert-secondary mb-0">
-          <div class="fw-bold mb-2">Pour réinitialiser votre mot de passe :</div>
-          <div>Contactez l’administrateur.</div>
+          <div class="fw-bold mb-2">{{ t('Pour réinitialiser votre mot de passe :', 'لإعادة تعيين كلمة المرور:') }}</div>
+          <div>{{ t('Contactez l’administrateur.', 'اتصل بالمسؤول.') }}</div>
           <hr class="my-3">
-          <div class="small text-muted">L’administrateur peut générer un lien de réinitialisation (valide temporairement).</div>
+          <div class="small text-muted">{{ t('L’administrateur peut générer un lien de réinitialisation (valide temporairement).', 'يمكن للمسؤول إنشاء رابط مؤقت لإعادة تعيين كلمة المرور.') }}</div>
         </div>
       </div>
       <div class="card-footer text-center bg-light">
-        <a href="/login" class="fw-bold">Retour login</a>
+        <a href="/login" class="fw-bold">{{ t('Retour login', 'العودة إلى تسجيل الدخول') }}</a>
       </div>
     </div>
   </div>

@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Bulletin - {{ eleve.nom_complet }}</title>
+    <title>{{ t('Bulletin -', 'كشف العلامات -') }} {{ eleve.nom_complet }}</title>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Tajawal', sans-serif; background: #4f4f4f; margin: 0; padding: 20px; }
@@ -36,27 +36,27 @@
 </head>
 <body>
     <div class="toolbar">
-        <button class="btn btn-print" onclick="window.print()">Imprimer</button>
+        <button class="btn btn-print" onclick="window.print()">{{ t('Imprimer', 'طباعة') }}</button>
         <a class="btn btn-pdf" href="/bulletin_pdf/{{ eleve.id }}?trimestre={{ trimestre }}">Exporter PDF</a>
     </div>
 
     <div class="sheet">
         <div class="head">
-            <h1>Bulletin de notes</h1>
-            <div class="muted">Trimestre {{ trimestre }}</div>
+            <h1>{{ t('Bulletin de notes', 'كشف العلامات') }}</h1>
+            <div class="muted">{{ t('Trimestre', 'الفصل') }} {{ trimestre }}</div>
         </div>
 
         <table class="info">
             <tr>
-                <td class="label">Eleve</td>
+                <td class="label">{{ t('Eleve', 'التلميذ') }}</td>
                 <td><strong>{{ eleve.nom_complet }}</strong></td>
-                <td class="label">Classe</td>
+                <td class="label">{{ t('Classe', 'القسم') }}</td>
                 <td><strong>{{ eleve.niveau }}</strong></td>
             </tr>
             <tr>
-                <td class="label">Professeur</td>
+                <td class="label">{{ t('Professeur', 'الأستاذ') }}</td>
                 <td>{{ nom_prof }}</td>
-                <td class="label">Matieres</td>
+                <td class="label">{{ t('Matieres', 'المواد') }}</td>
                 <td>{{ subject_lines|length }}</td>
             </tr>
         </table>
@@ -64,42 +64,42 @@
         <table class="marks">
             <thead>
                 <tr>
-                    <th style="width: 24%;">Matiere</th>
-                    <th style="width: 12%;">Activite</th>
-                    <th style="width: 12%;">Devoir</th>
-                    <th style="width: 12%;">Compo</th>
-                    <th style="width: 12%;">Moyenne</th>
-                    <th style="width: 28%;">Remarques</th>
+                    <th style="width: 24%;">{{ t('Matiere', 'المادة') }}</th>
+                    <th style="width: 12%;">{{ t('Activite', 'النشاط') }}</th>
+                    <th style="width: 12%;">{{ t('Devoir', 'الفرض') }}</th>
+                    <th style="width: 12%;">{{ t('Compo', 'الاختبار') }}</th>
+                    <th style="width: 12%;">{{ t('Moyenne', 'المعدل') }}</th>
+                    <th style="width: 28%;">{{ t('Remarques', 'الملاحظات') }}</th>
                 </tr>
             </thead>
             <tbody>
                 {% for line in subject_lines %}
                 <tr>
                     <td class="subject">{{ line.subject_name }}</td>
-                    <td>{{ line.activite }}</td>
-                    <td>{{ line.devoir }}</td>
-                    <td>{{ line.compo }}</td>
-                    <td><strong>{{ line.moyenne }}</strong></td>
+                    <td>{{ line.activite if line.activite is not none else '—' }}</td>
+                    <td>{{ line.devoir if line.devoir is not none else '—' }}</td>
+                    <td>{{ line.compo if line.compo is not none else '—' }}</td>
+                    <td><strong>{{ line.moyenne if line.moyenne is not none else '—' }}</strong></td>
                     <td>{{ line.remarques }}</td>
                 </tr>
                 {% else %}
-                <tr><td colspan="6">Aucune matiere disponible.</td></tr>
+                <tr><td colspan="6">{{ t('Aucune matiere disponible.', 'لا توجد مادة متاحة.') }}</td></tr>
                 {% endfor %}
             </tbody>
         </table>
 
         <div class="summary">
             <div class="summary-box">
-                <div class="title">Moyenne classe</div>
-                <div class="value">{{ moyenne_classe }}</div>
+                <div class="title">{{ t('Moyenne classe', 'معدل القسم') }}</div>
+                <div class="value">{{ moyenne_classe if moyenne_classe is not none else '—' }}</div>
             </div>
             <div class="summary-box">
-                <div class="title">Rang</div>
-                <div class="value">{{ rank }} <span style="font-size: 14px;">/ {{ total_eleves }}</span></div>
+                <div class="title">{{ t('Rang', 'الترتيب') }}</div>
+                <div class="value">{{ rank if rank is not none else '—' }} <span style="font-size: 14px;">/ {{ total_eleves }}</span></div>
             </div>
             <div class="summary-box primary">
-                <div class="title">Moyenne generale</div>
-                <div class="value">{{ moyenne_generale }}</div>
+                <div class="title">{{ t('Moyenne generale', 'المعدل العام') }}</div>
+                <div class="value">{{ moyenne_generale if moyenne_generale is not none else '—' }}</div>
             </div>
         </div>
     </div>

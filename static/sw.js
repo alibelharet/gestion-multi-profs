@@ -1,8 +1,9 @@
-const CACHE_NAME = 'edu-v7';
+const CACHE_NAME = 'edu-v8';
 const STATIC_ASSETS = [
     '/static/css/style.css',
     '/static/css/professional.css',
     '/static/css/print.css',
+    '/static/css/improvements.css',
     '/static/js/app.js',
     '/static/js/dashboard.js',
     '/static/manifest.json',

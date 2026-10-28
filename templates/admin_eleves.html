@@ -5,20 +5,20 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
         <h2 class="text-info fw-bold">👁 M. {{ prof.nom_affichage }}</h2>
-        <span class="text-muted">Consultation Administrateur (Lecture seule)</span>
+        <span class="text-muted">{{ t('Consultation Administrateur (Lecture seule)', 'عرض المسؤول (للقراءة فقط)') }}</span>
     </div>
-    <a href="/admin" class="btn btn-secondary">عودة للوحة التحكم (Retour Admin)</a>
+    <a href="/admin" class="btn btn-secondary">{{ t('Retour à l’administration', 'العودة إلى لوحة الإدارة') }}</a>
 </div>
 
 <div class="row mb-4">
     <div class="col-md-6">
         <div class="alert alert-primary mb-0">
-            <strong>Nombre d'élèves :</strong> {{ eleves|length }}
+            <strong>{{ t("Nombre d'élèves :", 'عدد التلاميذ:') }}</strong> {{ eleves|length }}
         </div>
     </div>
     <div class="col-md-6">
         <div class="alert alert-{{ 'success' if stats.moyenne_generale >= 10 else 'danger' }} mb-0">
-            <strong>Moyenne Générale :</strong> {{ stats.moyenne_generale }} / 20
+            <strong>{{ t('Moyenne Générale :', 'المعدل العام:') }}</strong> {{ stats.moyenne_generale }} / 20
         </div>
     </div>
 </div>
@@ -28,28 +28,28 @@
         <form method="get">
             <div class="row g-2 align-items-center">
                 <div class="col-md-3">
-                    <label class="small text-muted">Trimestre</label>
+                    <label class="small text-muted">{{ t('Trimestre', 'الفصل') }}</label>
                     <select name="trimestre" class="form-select" onchange="this.form.submit()">
-                        <option value="1" {% if trimestre == '1' %}selected{% endif %}>Trimestre 1</option>
-                        <option value="2" {% if trimestre == '2' %}selected{% endif %}>Trimestre 2</option>
-                        <option value="3" {% if trimestre == '3' %}selected{% endif %}>Trimestre 3</option>
+                        <option value="1" {% if trimestre == '1' %}selected{% endif %}>{{ t('Trimestre 1', 'الفصل الأول') }}</option>
+                        <option value="2" {% if trimestre == '2' %}selected{% endif %}>{{ t('Trimestre 2', 'الفصل الثاني') }}</option>
+                        <option value="3" {% if trimestre == '3' %}selected{% endif %}>{{ t('Trimestre 3', 'الفصل الثالث') }}</option>
                     </select>
                 </div>
                 <div class="col-md-3">
-                    <label class="small text-muted">Classe</label>
+                    <label class="small text-muted">{{ t('Classe', 'القسم') }}</label>
                     <select name="niveau" class="form-select" onchange="this.form.submit()">
-                        <option value="all">Toutes les classes</option>
+                        <option value="all">{{ t('Toutes les classes', 'كل الأقسام') }}</option>
                         {% for classe in liste_classes %}
                             <option value="{{ classe }}" {% if niveau_actuel == classe %}selected{% endif %}>{{ classe }}</option>
                         {% endfor %}
                     </select>
                 </div>
                 <div class="col-md-3">
-                    <label class="small text-muted">Annee</label>
+                    <label class="small text-muted">{{ t('Annee', 'السنة') }}</label>
                     <select name="school_year" class="form-select" onchange="this.form.submit()">
                         {% for sy in school_years %}
                         <option value="{{ sy.label }}" {% if school_year == sy.label %}selected{% endif %}>
-                            {{ sy.label }}{% if sy.is_active %} (active){% endif %}
+                            {{ sy.label }}{% if sy.is_active %} {{ t('(active)', '(نشطة)') }}{% endif %}
                         </option>
                         {% endfor %}
                     </select>
@@ -65,13 +65,13 @@
             <thead class="table-dark">
                 <tr>
                     <th>#</th>
-                    <th>Nom & Prénom</th>
-                    <th>Classe</th>
-                    <th>Remarque (Auto)</th>
-                    <th class="text-center">Dev</th>
-                    <th class="text-center">Act</th>
-                    <th class="text-center">Compo</th>
-                    <th class="text-center">Moyenne</th>
+                    <th>{{ t('Nom & Prénom', 'اللقب والاسم') }}</th>
+                    <th>{{ t('Classe', 'القسم') }}</th>
+                    <th>{{ t('Remarque (Auto)', 'تقدير تلقائي') }}</th>
+                    <th class="text-center">{{ t('Dev', 'الفرض') }}</th>
+                    <th class="text-center">{{ t('Act', 'النشاط') }}</th>
+                    <th class="text-center">{{ t('Compo', 'الاختبار') }}</th>
+                    <th class="text-center">{{ t('Moyenne', 'المعدل') }}</th>
                 </tr>
             </thead>
             <tbody>
@@ -89,7 +89,7 @@
                     </td>
                 </tr>
                 {% else %}
-                <tr><td colspan="8" class="text-center py-5 text-muted">Aucun élève trouvé pour ce professeur.</td></tr>
+                <tr><td colspan="8" class="text-center py-5 text-muted">{{ t('Aucun élève trouvé pour ce professeur.', 'لا يوجد تلاميذ لهذا الأستاذ.') }}</td></tr>
                 {% endfor %}
             </tbody>
         </table>

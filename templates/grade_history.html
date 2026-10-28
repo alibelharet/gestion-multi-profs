@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1 class="h4">{{ t('Historique détaillé des notes', 'السجل التفصيلي للعلامات') }}</h1>
+<p class="text-muted">{{ t('Ancienne valeur → nouvelle valeur. Seule la dernière modification d’une évaluation peut être annulée, si les notes n’ont pas changé depuis.', 'القيمة السابقة ← القيمة الجديدة. يمكن التراجع عن آخر تعديل للتقييم فقط، إذا لم تتغير العلامات بعده.') }}</p>
+<a class="btn btn-outline-primary mb-3" href="{{ url_for('dashboard.history') }}">{{ t('Historique général', 'السجل العام') }}</a>
+{% for r in revisions %}
+<article class="app-card recovery-card">
+  <h2 class="h6">{{ r.student_name }} · <bdi>{{ r.school_year }}</bdi> · {{ t('Trimestre', 'الفصل') }} {{ r.trimestre }}</h2>
+  <time class="small text-muted" dir="ltr">{{ r.time }}</time>
+  <div class="recovery-values my-3">{% for key,fr,ar in [('activite','Activité','النشاط'),('devoir','Devoir','الفرض'),('compo','Composition','الاختبار')] %}
+    <div>{{ t(fr,ar) }}<bdi dir="ltr">{{ r.before.get(key) if r.before.get(key) is not none else '—' }} → {{ r.after.get(key) if r.after.get(key) is not none else '—' }}</bdi></div>
+  {% endfor %}</div>
+  <small>{{ t('État', 'الحالة') }} : {{ t('Absent', 'غائب') if r.after.assessment_status=='absent' else t('Selon les notes', 'حسب العلامات') }}</small>
+  {% if r.undone %}<span class="badge bg-secondary">{{ t('Annulée', 'تم التراجع') }}</span>
+  {% elif can_edit and r.current_version==r.after_version %}<form action="{{ url_for('grades.undo', revision_id=r.id) }}" method="post" class="mt-2">{{ csrf_field() }}<button type="submit" class="btn btn-outline-primary">{{ t('Annuler cette modification', 'التراجع عن هذا التعديل') }}</button></form>
+  {% else %}<p class="small text-muted mb-0">{{ t('Une modification plus récente existe, ou cette évaluation n’est plus disponible.', 'يوجد تعديل أحدث أو لم يعد هذا التقييم متاحاً.') }}</p>{% endif %}
+</article>
+{% else %}<p>{{ t('Aucune modification détaillée pour le moment.', 'لا توجد تعديلات تفصيلية حتى الآن.') }}</p>{% endfor %}
+{% endblock %}

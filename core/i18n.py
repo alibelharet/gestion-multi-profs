@@ -4,20 +4,25 @@ from flask import session
 
 SUPPORTED_LANGS = ("fr", "ar")
 
+
+def t(french, arabic):
+    """Translate interface copy while keeping both languages next to each other."""
+    return arabic if get_lang() == 'ar' else french
+
 TRANSLATIONS = {
     "fr": {
         "menu.dashboard": "Tableau",
         "menu.resources": "Ressources",
-        "menu.settings": "Parametres",
-        "menu.subjects": "Matieres",
+        "menu.settings": "Paramètres",
+        "menu.subjects": "Matières",
         "menu.timetable": "Emploi du temps",
         "menu.history": "Historique",
         "menu.stats": "Statistiques",
         "menu.admin": "Admin",
         "menu.profile": "Profil",
-        "menu.logout": "Logout",
+        "menu.logout": "Déconnexion",
         "menu.homework": "Devoirs",
-        "menu.notifications": "Notif.",
+        "menu.notifications": "Notifications",
         "theme.light": "Mode clair",
         "theme.dark": "Mode sombre",
         "lang.switch": "AR",

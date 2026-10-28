@@ -4,11 +4,11 @@
 <div class="d-flex align-items-center justify-content-center vh-100">
     <div class="text-center">
         <h1 class="display-1 fw-bold">500</h1>
-        <p class="fs-3"> <span class="text-danger">Erreur!</span> Problème interne du serveur.</p>
+        <p class="fs-3"> <span class="text-danger">{{ t('Erreur!', 'خطأ!') }}</span> {{ t('Problème interne du serveur.', 'مشكلة داخلية في الخادم.') }}</p>
         <p class="lead">
-            Une erreur inattendue s'est produite. Veuillez réessayer plus tard.
+            {{ t("Une erreur inattendue s'est produite. Veuillez réessayer plus tard.", 'حدث خطأ غير متوقع. يرجى إعادة المحاولة لاحقاً.') }}
         </p>
-        <a href="/" class="btn btn-primary">Retour à l'accueil</a>
+        <a href="/" class="btn btn-primary">{{ t("Retour à l'accueil", 'العودة إلى الرئيسية') }}</a>
     </div>
 </div>
 {% endblock %}

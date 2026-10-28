@@ -1,1006 +1,110 @@
 {% extends 'base.html' %}
-
 {% block content %}
-
-<style>
-    .stat-card h3 {
-        margin: 0;
-    }
-
-    .table-responsive {
-        overflow-x: auto;
-        background: var(--surface);
-        border-radius: 12px;
-        border: 1px solid var(--border);
-    }
-
-    .input-note {
-        min-width: 55px;
-        font-weight: bold;
-        background-color: var(--bg-soft) !important;
-        border: 1px solid var(--border) !important;
-        color: var(--text) !important;
-        text-align: center;
-        border-radius: 8px;
-        height: 35px;
-    }
-
-    .hero-card {
-        background: linear-gradient(135deg, rgba(47, 123, 255, 0.25), rgba(48, 210, 179, 0.18));
-        border: 1px solid var(--border);
-        border-radius: 16px;
-    }
-
-    .meta-badge {
-        background: var(--surface-2);
-        border: 1px solid var(--border);
-        color: var(--text);
-    }
-
-    .filter-actions .btn {
-        min-width: 36px;
-    }
-
-    .filters-panel .form-label {
-        font-size: 0.8rem;
-        margin-bottom: 0.25rem;
-    }
-
-    .filters-summary {
-        border-top: 1px dashed var(--border);
-        margin-top: 1rem;
-        padding-top: 0.85rem;
-    }
-
-    .summary-pill {
-        background: var(--surface-2);
-        border: 1px solid var(--border);
-        color: var(--muted);
-        border-radius: 999px;
-        padding: 0.4rem 0.8rem;
-        font-size: 0.82rem;
-    }
-
-    .compact-table td,
-    .compact-table th {
-        vertical-align: middle;
-        padding: 0.32rem 0.5rem;
-    }
-
-    .student-name-cell {
-        min-width: 220px;
-    }
-
-    .students-table-container {
-        position: relative;
-    }
-
-    .delete-mode-toolbar {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 0.75rem;
-        padding: 0.7rem 0.9rem;
-        background: rgba(220, 53, 69, 0.1);
-        border: 1px solid rgba(220, 53, 69, 0.18);
-        border-bottom: 0;
-        border-radius: 12px 12px 0 0;
-    }
-
-    .index-header,
-    .row-index-cell {
-        width: 60px;
-        min-width: 60px;
-        padding-left: 0.35rem !important;
-        padding-right: 0.35rem !important;
-    }
-
-    .index-stack {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 0.3rem;
-        min-height: 30px;
-    }
-
-    .index-stack .form-check-input {
-        margin-top: 0;
-    }
-
-    .index-number {
-        min-width: 18px;
-        text-align: center;
-    }
-
-    .row-index-cell {
-        white-space: nowrap;
-    }
-
-    .students-table-container:not(.delete-mode) .index-header,
-    .students-table-container:not(.delete-mode) .row-index-cell {
-        display: none !important;
-    }
-
-    .students-table-container.delete-mode .name-inline-index {
-        display: none;
-    }
-
-    .student-name-inline {
-        display: flex;
-        align-items: center;
-        justify-content: flex-start;
-        gap: 0.35rem;
-        flex-wrap: wrap;
-    }
-
-    .student-identity {
-        display: flex;
-        align-items: center;
-        gap: 0.32rem;
-        min-width: 0;
-        flex: 0 1 auto;
-    }
-
-    .student-name-inline .student-fullname {
-        flex: 0 1 auto;
-        min-width: 0;
-    }
-
-    .student-meta {
-        display: flex;
-        align-items: center;
-        gap: 0.35rem;
-        flex-shrink: 0;
-    }
-
-    .name-inline-index {
-        min-width: 1.35rem;
-        font-size: 0.78rem;
-        color: var(--muted);
-        text-align: center;
-    }
-
-    .student-bulletin-btn {
-        flex-shrink: 0;
-    }
-
-    .activity-input {
-        width: 74px;
-        min-width: 74px !important;
-    }
-
-    .activity-cell-stack {
-        display: inline-flex;
-        flex-direction: row;
-        align-items: center;
-        gap: 0.3rem;
-        flex-wrap: wrap;
-        justify-content: center;
-    }
-
-    .save-toolbar {
-        border-top: 1px solid var(--border);
-        background: color-mix(in srgb, var(--surface-2) 78%, transparent);
-    }
-
-    .save-toolbar-summary {
-        display: flex;
-        flex-direction: column;
-        gap: 0.12rem;
-    }
-
-    .save-status {
-        min-height: 1.15rem;
-        color: var(--muted);
-    }
-
-    .grade-completion-status {
-        min-height: 1.15rem;
-        color: var(--muted);
-    }
-
-    .compact-table tbody tr.grade-row-active {
-        background: color-mix(in srgb, var(--primary) 9%, transparent);
-        box-shadow: inset 3px 0 0 var(--primary);
-    }
-
-    .compact-table tbody tr.grade-row-incomplete .student-name-cell {
-        box-shadow: inset 3px 0 0 var(--warning);
-    }
-
-    .compact-table tbody tr.grade-row-incomplete .student-fullname::after {
-        content: "A verifier";
-        display: inline-block;
-        margin-inline-start: 0.45rem;
-        padding: 0.12rem 0.4rem;
-        border-radius: 999px;
-        color: #7a5200;
-        background: rgba(244, 194, 75, 0.22);
-        font-size: 0.65rem;
-        font-weight: 700;
-        vertical-align: middle;
-    }
-
-    .unsaved-changes-bar {
-        position: fixed;
-        left: 50%;
-        bottom: max(1rem, env(safe-area-inset-bottom));
-        z-index: 1060;
-        width: min(860px, calc(100% - 2rem));
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 1rem;
-        padding: 0.7rem 0.8rem 0.7rem 1rem;
-        color: var(--text);
-        background: var(--surface);
-        border: 1px solid rgba(244, 194, 75, 0.5);
-        border-radius: 8px;
-        box-shadow: 0 16px 38px rgba(0, 0, 0, 0.32);
-        opacity: 0;
-        pointer-events: none;
-        transform: translate(-50%, calc(100% + 2rem));
-        transition: opacity 0.2s ease, transform 0.2s ease;
-    }
-
-    .unsaved-changes-bar.is-visible {
-        opacity: 1;
-        pointer-events: auto;
-        transform: translate(-50%, 0);
-    }
-
-    .unsaved-changes-copy {
-        display: flex;
-        align-items: center;
-        min-width: 0;
-        gap: 0.55rem;
-        font-size: 0.9rem;
-        font-weight: 700;
-    }
-
-    .unsaved-changes-copy span {
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    body.has-unsaved-changes {
-        padding-bottom: 88px;
-    }
-
-    .compact-table .input-note {
-        min-width: 50px;
-        height: 32px;
-        font-size: 0.92rem;
-        padding: 0.2rem 0.35rem;
-    }
-
-    .compact-table .fw-bold {
-        line-height: 1.2;
-    }
-
-    .compact-table .badge {
-        font-size: 0.58rem !important;
-        padding: 0.25rem 0.45rem;
-    }
-
-    @media (max-width: 768px) {
-        .student-name-cell {
-            min-width: 170px;
-        }
-
-        .student-name-inline {
-            align-items: flex-start;
-            gap: 0.35rem;
-        }
-
-        .student-meta {
-            flex-wrap: wrap;
-            justify-content: flex-start;
-        }
-
-        .compact-table th:nth-child(1),
-        .compact-table td:nth-child(1) {
-            display: table-cell !important;
-            min-width: 60px !important;
-            width: 60px !important;
-        }
-
-        .compact-table th:nth-child(2),
-        .compact-table td:nth-child(2) {
-            display: table-cell !important;
-            position: sticky;
-            left: 0;
-            z-index: 5;
-            background-color: var(--surface) !important;
-            border-right: 1px solid var(--border);
-            box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
-            max-width: 180px;
-            white-space: normal;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .compact-table thead th:nth-child(2) {
-            background-color: var(--surface-2) !important;
-            z-index: 10;
-        }
-
-        .compact-table th:nth-child(3),
-        .compact-table td:nth-child(3) {
-            position: static !important;
-            left: auto !important;
-            box-shadow: none !important;
-            background-color: transparent !important;
-            border-right: none !important;
-        }
-
-        .compact-table thead th:nth-child(3) {
-            background-color: var(--surface-2) !important;
-        }
-
-        .summary-pill {
-            width: 100%;
-            justify-content: center;
-        }
-
-        .compact-table td,
-        .compact-table th {
-            padding: 0.3rem 0.38rem;
-        }
-
-        .unsaved-changes-bar {
-            align-items: stretch;
-            flex-direction: column;
-            gap: 0.65rem;
-            padding: 0.75rem;
-        }
-
-        .unsaved-changes-bar .btn {
-            width: 100%;
-        }
-
-        .unsaved-changes-copy {
-            width: 100%;
-        }
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-        .unsaved-changes-bar {
-            transition: none;
-        }
-    }
-</style>
-
-<div class="app-card hero-card dashboard-hero mb-4 p-3 animate-fade-up" style="animation-delay: 0.1s;">
-    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
-        <div>
-            <div class="text-uppercase small text-muted">Dashboard</div>
-            <h2 class="fw-bold mb-1">Bienvenue, {{ nom_prof }}</h2>
-            <div class="text-muted small">Suivi des notes et statistiques par matiere</div>
-        </div>
-        <div class="d-flex flex-wrap gap-2">
-            {% if school_name %}
-            <span class="badge meta-badge px-3 py-2">{{ school_name }}</span>
-            {% endif %}
-            <span class="badge meta-badge px-3 py-2">Annee {{ school_year }}</span>
-            <span class="badge meta-badge px-3 py-2">T{{ trimestre }}</span>
-            <span class="badge meta-badge px-3 py-2">{{ subject_name }}</span>
-        </div>
-    </div>
-</div>
-
-<section class="dashboard-summary animate-fade-up" style="animation-delay: 0.2s;" aria-label="Resume des notes">
-    <article class="dashboard-metric">
-        <span class="dashboard-metric-icon"><i class="bi bi-people-fill" aria-hidden="true"></i></span>
-        <div>
-            <span class="dashboard-metric-label">Eleves affiches</span>
-            <span class="dashboard-metric-value">{{ stats.nb_total }}</span>
-        </div>
-    </article>
-    <article class="dashboard-metric">
-        <span class="dashboard-metric-icon"><i class="bi bi-pencil-square" aria-hidden="true"></i></span>
-        <div>
-            <span class="dashboard-metric-label">Notes saisies</span>
-            <span class="dashboard-metric-value">{{ stats.nb_saisis }}</span>
-        </div>
-    </article>
-    <article class="dashboard-metric">
-        <span class="dashboard-metric-icon"><i class="bi bi-bar-chart-line-fill" aria-hidden="true"></i></span>
-        <div>
-            <span class="dashboard-metric-label">Moyenne generale</span>
-            <span class="dashboard-metric-value">{{ stats.moyenne_generale }} / 20</span>
-        </div>
-    </article>
-    <article class="dashboard-metric">
-        <span class="dashboard-metric-icon"><i class="bi bi-award-fill" aria-hidden="true"></i></span>
-        <div>
-            <span class="dashboard-metric-label">Taux de reussite</span>
-            <span class="dashboard-metric-value">{{ stats.taux_reussite }}%</span>
-        </div>
-    </article>
+<section class="app-card dashboard-welcome p-3 mb-3">
+  <h1 class="h4 mb-2">{{ t('Bienvenue,', 'مرحباً،') }} {{ nom_prof }}</h1>
+  <div class="d-flex flex-wrap gap-2 small text-muted">
+    <span>{{ school_name or '' }}</span><bdi>{{ school_year }}</bdi><span>{{ subject_name }}</span>
+    <span>{{ t('Trimestre', 'الفصل') }} {{ trimestre }}</span>
+  </div>
 </section>
-
-
-
-
-
-{% if not can_edit %}
-<div class="alert alert-warning py-2">
-    Mode lecture seule actif: les modifications (ajout, import, suppression, sauvegarde) sont bloquees.
+<section class="dashboard-summary" aria-label="{{ t('Résumé des notes', 'ملخص العلامات') }}">
+  <article class="dashboard-metric"><div><span class="dashboard-metric-label">{{ t('Élèves', 'التلاميذ') }}</span><strong class="dashboard-metric-value">{{ stats.nb_total }}</strong></div></article>
+  <article class="dashboard-metric"><div><span class="dashboard-metric-label">{{ t('Évaluations complètes', 'التقييمات المكتملة') }}</span><strong class="dashboard-metric-value"><bdi>{{ stats.nb_saisis }} / {{ stats.nb_total }}</bdi></strong><small>{{ stats.taux_saisie }} %</small></div></article>
+  <article class="dashboard-metric"><div><span class="dashboard-metric-label">{{ t('Moyenne des élèves évalués', 'معدل التلاميذ المقيّمين') }}</span><strong class="dashboard-metric-value" dir="ltr">{{ stats.moyenne_generale if stats.moyenne_generale is not none else '—' }} / 20</strong></div></article>
+  <article class="dashboard-metric"><div><span class="dashboard-metric-label">{{ t('Réussite parmi les élèves évalués', 'النجاح بين التلاميذ المقيّمين') }}</span><strong class="dashboard-metric-value" dir="ltr">{{ (stats.taux_reussite|string ~ ' %') if stats.taux_reussite is not none else '—' }}</strong><small>{{ t('Sur', 'من أصل') }} {{ stats.nb_saisis }} {{ t('élèves évalués', 'تلاميذ مقيّمين') }}</small></div></article>
+</section>
+<p class="small text-muted" id="metricsHint">{{ t('Les indicateurs correspondent aux notes enregistrées. Une évaluation incomplète ou une absence est exclue de la moyenne et du taux de réussite.', 'المؤشرات تخص العلامات المحفوظة. يُستثنى التقييم غير المكتمل والغياب من المعدل ونسبة النجاح.') }}</p>
+{% if not can_edit %}<div class="alert alert-info">{{ t('Mode lecture seule.', 'وضع القراءة فقط.') }}</div>{% endif %}
+{% if eleves|selectattr('legacy_zero')|list %}<div class="alert alert-warning small">{{ t('Anciens dossiers à vérifier : les notes entièrement à zéro ont été conservées dans les données. Saisissez explicitement 0 si le zéro est une vraie note.', 'ملفات قديمة تحتاج إلى مراجعة: تم الاحتفاظ بالعلامات الصفرية في البيانات. أدخل 0 صراحةً إذا كان صفراً فعلياً.') }}</div>{% endif %}
+<div class="app-card p-3 mb-3">
+  <form action="/" method="get">
+    <div class="row g-2 align-items-end">
+      <div class="col-6 col-lg-2"><label for="filterTrim" class="form-label">{{ t('Trimestre', 'الفصل') }}</label><select id="filterTrim" name="trimestre" class="form-select" onchange="this.form.requestSubmit()">{% for n in ['1','2','3'] %}<option value="{{ n }}" {{ 'selected' if trimestre==n }}>{{ n }}</option>{% endfor %}</select></div>
+      <div class="col-6 col-lg-2"><label for="filterClass" class="form-label">{{ t('Classe', 'القسم') }}</label><select id="filterClass" name="niveau" class="form-select" onchange="this.form.requestSubmit()"><option value="all">{{ t('Toutes', 'الكل') }}</option>{% for c in liste_classes %}<option value="{{ c }}" {{ 'selected' if niveau_actuel==c }}>{{ c }}</option>{% endfor %}</select></div>
+      <div class="col-12 col-lg-4"><label for="studentSearch" class="form-label">{{ t('Rechercher un élève', 'البحث عن تلميذ') }}</label><input id="studentSearch" type="search" name="recherche" value="{{ recherche_actuelle }}" class="form-control" placeholder="{{ t('Nom de l’élève…', 'اسم التلميذ…') }}"></div>
+      <div class="col-12 col-lg-4 d-flex flex-wrap gap-2"><button class="btn btn-primary" type="submit"><i class="bi bi-search" aria-hidden="true"></i> {{ t('Rechercher', 'بحث') }}</button><button class="btn btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#advancedFilters" aria-controls="advancedFilters">{{ t('Plus de filtres', 'مرشحات إضافية') }}</button><a class="btn btn-outline-secondary" href="{{ url_for('dashboard.index', trimestre=trimestre, subject=subject_id, school_year=school_year) }}">{{ t('Réinitialiser', 'إعادة ضبط') }}</a></div>
+    </div>
+    <div id="advancedFilters" class="collapse mt-3"><div class="row g-2">
+      <div class="col-6 col-lg-3"><label for="filterYear" class="form-label">{{ t('Année scolaire', 'السنة الدراسية') }}</label><select id="filterYear" name="school_year" class="form-select">{% for year in school_years %}<option value="{{ year.label }}" {{ 'selected' if year.label==school_year }}>{{ year.label }}</option>{% endfor %}</select></div>
+      <div class="col-6 col-lg-3"><label for="filterSubject" class="form-label">{{ t('Matière', 'المادة') }}</label><select id="filterSubject" name="subject" class="form-select">{% for subject in subjects %}<option value="{{ subject.id }}" {{ 'selected' if subject.id==subject_id }}>{{ subject.name }}</option>{% endfor %}</select></div>
+      <div class="col-6 col-lg-3"><label for="filterState" class="form-label">{{ t('Résultat', 'النتيجة') }}</label><select id="filterState" name="etat" class="form-select">{% for value,fr,ar in [('all','Tous','الكل'),('admis','Moyenne ≥ 10','المعدل ≥ 10'),('echec','Moyenne < 10','المعدل < 10'),('non_saisi','À compléter / absent','غير مكتمل / غائب')] %}<option value="{{ value }}" {{ 'selected' if etat==value }}>{{ t(fr, ar) }}</option>{% endfor %}</select></div>
+      <div class="col-6 col-lg-3"><label for="filterPage" class="form-label">{{ t('Élèves par page', 'تلاميذ في الصفحة') }}</label><select id="filterPage" name="per_page" class="form-select">{% for n in [25,50,100] %}<option value="{{ n }}" {{ 'selected' if per_page==n }}>{{ n }}</option>{% endfor %}</select></div>
+      <div class="col-6 col-lg-3"><label for="filterSort" class="form-label">{{ t('Trier par', 'ترتيب حسب') }}</label><select id="filterSort" name="sort" class="form-select">{% for value,fr,ar in [('class','Classe','القسم'),('name','Nom','الاسم'),('moy','Moyenne','المعدل'),('id','Ordre d’ajout','ترتيب الإضافة')] %}<option value="{{ value }}" {{ 'selected' if sort==value }}>{{ t(fr, ar) }}</option>{% endfor %}</select></div>
+      <div class="col-6 col-lg-3"><label for="filterOrder" class="form-label">{{ t('Ordre', 'الترتيب') }}</label><select id="filterOrder" name="order" class="form-select"><option value="asc" {{ 'selected' if order=='asc' }}>{{ t('Croissant', 'تصاعدي') }}</option><option value="desc" {{ 'selected' if order=='desc' }}>{{ t('Décroissant', 'تنازلي') }}</option></select></div>
+      {% for name,label,ar,value in [('min_moy','Moyenne minimale','أدنى معدل',min_moy),('max_moy','Moyenne maximale','أعلى معدل',max_moy)] %}<div class="col-6 col-lg-3"><label for="{{ name }}" class="form-label">{{ t(label,ar) }}</label><input id="{{ name }}" type="number" min="0" max="20" step="0.01" name="{{ name }}" value="{{ value if value is not none else '' }}" class="form-control"></div>{% endfor %}
+    </div><button type="submit" class="btn btn-primary mt-2">{{ t('Appliquer les filtres', 'تطبيق المرشحات') }}</button></div>
+  </form>
+  {% if can_edit %}<div class="d-flex flex-wrap gap-2 border-top pt-3 mt-3">
+    <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addStudentModal"><i class="bi bi-person-plus" aria-hidden="true"></i> {{ t('Ajouter un élève', 'إضافة تلميذ') }}</button>
+    <button type="button" class="btn btn-outline-primary" data-bs-toggle="collapse" data-bs-target="#importBox">{{ t('Importer Excel / PDF', 'استيراد Excel / PDF') }}</button>
+    <a class="btn btn-outline-secondary" href="{{ url_for('students.trash') }}">{{ t('Corbeille', 'سلة المحذوفات') }}</a>
+  </div>{% endif %}
+  {% if can_edit %}<div class="collapse mt-3" id="importBox"><div class="row g-3">{% for endpoint,field,accept,fr,ar in [('imports.import_excel','fichier_excel','.xlsx,.xls','Importer Excel','استيراد Excel'),('imports.import_scan_pdf','fichier_pdf_scan','.pdf','Analyser un PDF scanné','تحليل PDF ممسوح')] %}
+    <div class="col-12 col-lg-6"><form action="{{ url_for(endpoint) }}" method="post" enctype="multipart/form-data" class="border rounded p-3">{{ csrf_field() }}<label for="{{ field }}" class="form-label">{{ t(fr,ar) }}</label><input id="{{ field }}" name="{{ field }}" type="file" accept="{{ accept }}" required class="form-control"><input type="hidden" name="{{ 'trimestre_import' if field=='fichier_excel' else 'trimestre_import_scan' }}" value="{{ trimestre }}"><input type="hidden" name="subject" value="{{ subject_id }}"><input type="hidden" name="school_year" value="{{ school_year }}"><button type="submit" class="btn btn-primary mt-2">{{ t(fr,ar) }}</button></form></div>
+  {% endfor %}</div></div>{% endif %}
 </div>
-{% endif %}
-
-{% set advanced_filters_open = recherche_actuelle or sort != 'class' or order != 'asc' or per_page != 50 or etat != 'all' or min_moy is not none or max_moy is not none %}
-
-<div class="app-card mb-4 filters-sticky glass-panel animate-fade-up filters-panel" style="animation-delay: 0.5s;">
-    <div class="card-body py-3 px-3">
-        <form action="/" method="get">
-            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-                <div>
-                    <div class="fw-bold">Filtres rapides</div>
-                    <div class="text-muted small">On garde seulement l essentiel visible en haut.</div>
-                </div>
-                <div class="d-flex flex-wrap gap-2 align-items-center">
-                    <span class="summary-pill d-inline-flex align-items-center gap-2">Total <strong>{{ total }}</strong></span>
-                    <button class="btn btn-sm btn-outline-secondary hover-lift" type="button" data-bs-toggle="collapse"
-                        data-bs-target="#advancedFilters" aria-expanded="{{ 'true' if advanced_filters_open else 'false' }}">
-                        <i class="bi bi-sliders"></i> Filtres avances
-                    </button>
-                </div>
-            </div>
-
-            <div class="row g-2 align-items-end">
-                <div class="col-6 col-lg-3">
-                    <label class="form-label text-muted">Trimestre</label>
-                    <select name="trimestre" class="form-select form-select-sm" onchange="this.form.submit()">
-                        <option value="1" {% if trimestre=='1' %}selected{% endif %}>T1</option>
-                        <option value="2" {% if trimestre=='2' %}selected{% endif %}>T2</option>
-                        <option value="3" {% if trimestre=='3' %}selected{% endif %}>T3</option>
-                    </select>
-                </div>
-                <div class="col-6 col-lg-3">
-                    <label class="form-label text-muted">Classe</label>
-                    <select name="niveau" class="form-select form-select-sm" onchange="this.form.submit()">
-                        <option value="all">Tous</option>
-                        {% for classe in liste_classes %}<option value="{{ classe }}" {% if niveau_actuel==classe
-                            %}selected{% endif %}>{{ classe }}</option>{% endfor %}
-                    </select>
-                </div>
-                <div class="col-6 col-lg-3">
-                    <label class="form-label text-muted">Annee</label>
-                    <select name="school_year" class="form-select form-select-sm" onchange="this.form.submit()">
-                        {% for sy in school_years %}
-                        <option value="{{ sy.label }}" {% if school_year==sy.label %}selected{% endif %}>
-                            {{ sy.label }}{% if sy.is_active %} (active){% endif %}
-                        </option>
-                        {% endfor %}
-                    </select>
-                </div>
-                {% if session.get('lock_subject') %}
-                <input type="hidden" name="subject" value="{{ subject_id }}">
-                {% else %}
-                <div class="col-12 col-lg-3">
-                    <label class="form-label text-muted">Matiere</label>
-                    <select name="subject" class="form-select form-select-sm" onchange="this.form.submit()">
-                        {% for s in subjects %}
-                        <option value="{{ s.id }}" {% if subject_id==s.id %}selected{% endif %}>{{ s.name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                {% endif %}
-                <div class="col-12 col-lg d-flex gap-1 justify-content-end filter-actions">
-                    <button type="submit" class="btn btn-sm btn-outline-info hover-lift"><i
-                            class="bi bi-search"></i></button>
-                    <a href="{{ url_for('dashboard.index', trimestre=trimestre, subject=subject_id, school_year=school_year) }}"
-                        class="btn btn-sm btn-outline-secondary hover-lift" title="Reinitialiser">
-                        <i class="bi bi-arrow-counterclockwise"></i>
-                    </a>
-                    {% if can_edit %}
-                    <button type="button" class="btn btn-sm btn-success hover-lift" data-bs-toggle="modal"
-                        data-bs-target="#addStudentModal"><i class="bi bi-person-plus-fill"></i></button>
-                    <button class="btn btn-sm btn-secondary hover-lift" type="button" data-bs-toggle="collapse"
-                        data-bs-target="#importBox"><i class="bi bi-file-earmark-spreadsheet-fill"></i></button>
-                    {% endif %}
-                </div>
-            </div>
-
-            <div class="collapse {% if advanced_filters_open %}show{% endif %}" id="advancedFilters">
-                <div class="filters-summary">
-                    <div class="row g-2 align-items-end">
-                        <div class="col-12 col-lg-3">
-                            <label class="form-label text-muted">Recherche</label>
-                            <input type="text" name="recherche" value="{{ recherche_actuelle }}"
-                                class="form-control form-control-sm" placeholder="Rechercher..." />
-                        </div>
-                        {% if session.get('lock_subject') %}
-                        <div class="col-6 col-lg-2">
-                            <label class="form-label text-muted">Matiere</label>
-                            <input type="text" class="form-control form-control-sm" value="{{ subject_name }}" readonly>
-                        </div>
-                        {% endif %}
-                        <div class="col-6 col-lg-3">
-                            <label class="form-label text-muted">Etat</label>
-                            <select name="etat" class="form-select form-select-sm" onchange="this.form.submit()">
-                                <option value="all" {% if etat=='all' %}selected{% endif %}>Tous</option>
-                                <option value="admis" {% if etat=='admis' %}selected{% endif %}>Admis (>=10)</option>
-                                <option value="echec" {% if etat=='echec' %}selected{% endif %}>Echec (&lt;10)</option>
-                                <option value="non_saisi" {% if etat=='non_saisi' %}selected{% endif %}>Non saisi</option>
-                            </select>
-                        </div>
-                        <div class="col-6 col-lg-3">
-                            <label class="form-label text-muted">Par page</label>
-                            <select name="per_page" class="form-select form-select-sm" onchange="this.form.submit()">
-                                <option value="25" {% if per_page==25 %}selected{% endif %}>25</option>
-                                <option value="50" {% if per_page==50 %}selected{% endif %}>50</option>
-                                <option value="100" {% if per_page==100 %}selected{% endif %}>100</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div class="row g-2 align-items-end mt-1">
-                        <div class="col-6 col-lg-2">
-                            <label class="form-label text-muted">Tri</label>
-                            <select name="sort" class="form-select form-select-sm" onchange="this.form.submit()">
-                                <option value="class" {% if sort=='class' %}selected{% endif %}>Classe</option>
-                                <option value="name" {% if sort=='name' %}selected{% endif %}>Nom</option>
-                                <option value="moy" {% if sort=='moy' %}selected{% endif %}>Moyenne</option>
-                                <option value="id" {% if sort=='id' %}selected{% endif %}>ID</option>
-                            </select>
-                        </div>
-                        <div class="col-6 col-lg-2">
-                            <label class="form-label text-muted">Ordre</label>
-                            <select name="order" class="form-select form-select-sm" onchange="this.form.submit()">
-                                <option value="asc" {% if order=='asc' %}selected{% endif %}>Asc</option>
-                                <option value="desc" {% if order=='desc' %}selected{% endif %}>Desc</option>
-                            </select>
-                        </div>
-                        <div class="col-6 col-lg-2">
-                            <label class="form-label text-muted">Min moy</label>
-                            <input type="number" step="0.01" name="min_moy" value="{{ min_moy if min_moy is not none else '' }}"
-                                class="form-control form-control-sm" onchange="this.form.submit()">
-                        </div>
-                        <div class="col-6 col-lg-2">
-                            <label class="form-label text-muted">Max moy</label>
-                            <input type="number" step="0.01" name="max_moy" value="{{ max_moy if max_moy is not none else '' }}"
-                                class="form-control form-control-sm" onchange="this.form.submit()">
-                        </div>
-                        <div class="col-12 col-lg-4 d-flex align-items-center justify-content-lg-end">
-                            <div class="text-muted small pt-2">Astuces: utilise surtout `Classe`, `Trimestre` puis `Sauver`.</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </form>
+<form action="{{ url_for('grades.sauvegarder_tout') }}" method="POST" id="formSaveAll" class="no-loader" data-can-edit="{{ 'true' if can_edit else 'false' }}">
+  {{ csrf_field() }}<input type="hidden" name="trimestre_save" value="{{ trimestre }}"><input type="hidden" name="subject" value="{{ subject_id }}"><input type="hidden" name="school_year" value="{{ school_year }}">
+  <div class="app-card grade-editor">
+    <div class="app-card-header p-3 grade-editor-header">
+      <div><h2 class="h5 mb-1">{{ t('Saisie des notes', 'إدخال العلامات') }}</h2><p class="small text-muted mb-0">{{ t('Case vide : non saisi. Le zéro est une vraie note.', 'الخانة الفارغة: غير مُدخل. الصفر علامة فعلية.') }}</p></div>
+      <div class="d-flex flex-wrap gap-2 align-items-center">
+        {% if can_edit %}<button type="submit" class="btn btn-primary" data-save-button>{{ t('Enregistrer', 'حفظ') }}</button><button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#fillOfficialModal">{{ t('Compléter le bulletin officiel', 'ملء الكشف الرسمي') }}</button>{% endif %}
+        <div class="dropdown"><button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">{{ t('Autres actions', 'إجراءات أخرى') }}</button><ul class="dropdown-menu shadow">
+        {% for endpoint,fr,ar in [('reports.export_list_pdf','Exporter la liste PDF','تصدير القائمة PDF'),('reports.export_excel','Exporter Excel','تصدير Excel'),('reports.export_parents','Exporter les contacts des parents','تصدير بيانات الأولياء')] %}<li><a class="dropdown-item" href="{{ url_for(endpoint, trimestre=trimestre, niveau=niveau_actuel, recherche=recherche_actuelle, sort=sort, order=order, min_moy=min_moy, max_moy=max_moy, etat=etat, subject=subject_id, school_year=school_year) }}">{{ t(fr,ar) }}</a></li>{% endfor %}
+        <li><button type="button" class="dropdown-item" onclick="printStudentList()">{{ t('Imprimer cette page sans notes', 'طباعة هذه الصفحة دون علامات') }}</button></li>
+        <li><a class="dropdown-item" href="{{ url_for('grades.revisions') }}">{{ t('Historique détaillé des notes', 'السجل التفصيلي للعلامات') }}</a></li>
+        {% if can_edit %}<li><button type="button" class="dropdown-item text-danger" onclick="enterDeleteMode(event)">{{ t('Mettre des élèves à la corbeille', 'نقل تلاميذ إلى سلة المحذوفات') }}</button></li>{% endif %}
+        </ul></div>
+      </div>
     </div>
-    {% if can_edit %}
-    <div class="collapse" id="importBox">
-        <div class="card-footer app-card-header p-3">
-            <div class="row g-3">
-                <div class="col-12 col-xl-6">
-                    <div class="border rounded-3 p-3 h-100">
-                        <div class="fw-semibold mb-1">Import Excel</div>
-                        <div class="text-muted small mb-3">Fichier structure avec correspondance de colonnes.</div>
-                        <form action="{{ url_for('imports.import_excel') }}" method="post" enctype="multipart/form-data"
-                            class="d-flex flex-wrap gap-2 align-items-center">
-                            {{ csrf_field() }}
-                            <input class="form-control form-control-sm" type="file" name="fichier_excel" accept=".xlsx, .xls"
-                                required>
-                            <input type="hidden" name="trimestre_import" value="{{ trimestre }}">
-                            <input type="hidden" name="subject" value="{{ subject_id }}">
-                            <input type="hidden" name="school_year" value="{{ school_year }}">
-                            <button type="submit" class="btn btn-sm btn-success">Importer Excel</button>
-                        </form>
-                    </div>
-                </div>
-                <div class="col-12 col-xl-6">
-                    <div class="border rounded-3 p-3 h-100">
-                        <div class="fw-semibold mb-1">PDF scanne</div>
-                        <div class="text-muted small mb-3">Lecture automatique des notes puis confirmation avant import.</div>
-                        <form action="{{ url_for('imports.import_scan_pdf') }}" method="post" enctype="multipart/form-data"
-                            class="d-flex flex-wrap gap-2 align-items-center">
-                            {{ csrf_field() }}
-                            <input class="form-control form-control-sm" type="file" name="fichier_pdf_scan" accept=".pdf"
-                                required>
-                            <input type="hidden" name="trimestre_import_scan" value="{{ trimestre }}">
-                            <input type="hidden" name="subject" value="{{ subject_id }}">
-                            <input type="hidden" name="school_year" value="{{ school_year }}">
-                            <button type="submit" class="btn btn-sm btn-warning text-dark">Analyser le scan</button>
-                        </form>
-                    </div>
-                </div>
-            </div>
-        </div>
+    <div class="p-3 grade-feedback"><span id="saveStatus" role="status" aria-live="polite">{{ t('Aucune modification en attente.', 'لا توجد تعديلات معلّقة.') }}</span><span id="gradeCompletionStatus" class="small text-muted"></span><div id="saveError" class="alert alert-danger mt-2 mb-0" role="alert" hidden></div><a id="compareCurrent" target="_blank" rel="noopener" href="{{ request.url }}" hidden>{{ t('Ouvrir la version actuelle pour comparer', 'فتح النسخة الحالية للمقارنة') }}</a></div>
+    <div class="student-pager p-3" hidden><button type="button" class="btn btn-outline-primary" id="previousStudent">{{ t('Précédent', 'السابق') }}</button><label class="visually-hidden" for="studentPicker">{{ t('Élève', 'التلميذ') }}</label><select id="studentPicker" class="form-select">{% for eleve in eleves %}<option value="{{ loop.index0 }}">{{ loop.index }}. {{ eleve.nom_complet }}</option>{% endfor %}</select><button type="button" class="btn btn-outline-primary" id="nextStudent">{{ t('Suivant', 'التالي') }}</button></div>
+    <div class="students-table-container" id="studentsTableContainer">
+      {% if can_edit %}<div id="deleteModeToolbar" class="delete-mode-toolbar d-none p-3"><span id="deleteSelectionCount"></span><button type="button" id="deleteSelectedBtn" class="btn btn-danger" onclick="submitDelete()" disabled>{{ t('Mettre à la corbeille', 'نقل إلى السلة') }}</button><button type="button" class="btn btn-outline-secondary" onclick="setDeleteMode(false)">{{ t('Annuler', 'إلغاء') }}</button></div>{% endif %}
+      <div class="table-responsive"><table class="table align-middle compact-table grade-table mb-0"><thead><tr>
+        <th class="row-index-cell">{% if can_edit %}<input type="checkbox" class="form-check-input select-all-delete" onclick="toggle(this)" aria-label="{{ t('Tout sélectionner', 'تحديد الكل') }}">{% endif %}</th><th>{{ t('Élève', 'التلميذ') }}</th><th>{{ t('Activité', 'النشاط') }}</th><th>{{ t('Devoir', 'الفرض') }}</th><th>{{ t('Composition', 'الاختبار') }}</th><th>{{ t('Évaluation', 'التقييم') }}</th><th>{{ t('Moyenne', 'المعدل') }}</th><th>{{ t('Appréciation', 'التقدير') }}</th>
+      </tr></thead><tbody>
+      {% for eleve in eleves %}<tr data-grade-row data-student-id="{{ eleve.id }}" data-legacy-zero="{{ 'true' if eleve.legacy_zero else 'false' }}">
+        <td class="row-index-cell"><input type="hidden" name="id_eleve" value="{{ eleve.id }}"><input type="hidden" name="version" value="{{ eleve.version }}">{% if can_edit %}<input type="checkbox" class="form-check-input check-delete" value="{{ eleve.id }}" onchange="syncDeleteSelectionState()" aria-label="{{ t('Sélectionner', 'تحديد') }} {{ eleve.nom_complet }}">{% endif %}</td>
+        <td class="student-name-cell"><div class="student-fullname fw-bold">{{ eleve.nom_complet }}</div><small class="text-muted"><bdi>{{ eleve.niveau }}</bdi> · {{ ((page-1)*per_page)+loop.index }}</small>{% if eleve.legacy_zero %}<span class="legacy-note small text-warning d-block">{{ t('Ancien zéro à vérifier', 'صفر قديم يحتاج إلى مراجعة') }}</span>{% endif %}{% if can_edit %}<button type="button" class="btn btn-sm btn-outline-secondary ms-1" data-bs-toggle="modal" data-bs-target="#editNameModal_{{ eleve.id }}" aria-label="{{ t('Modifier le nom', 'تعديل الاسم') }} {{ eleve.nom_complet }}"><i class="bi bi-pencil" aria-hidden="true"></i></button>{% endif %}</td>
+        {% for field,fr,ar in [('activite','Activité','النشاط'),('devoir','Devoir','الفرض'),('compo','Composition','الاختبار')] %}<td data-label="{{ t(fr,ar) }}"><input type="number" inputmode="decimal" step="0.01" min="0" max="20" name="{{ field }}" value="{{ eleve[field] if eleve[field] is not none else '' }}" placeholder="—" class="form-control input-note" data-grade-input aria-label="{{ t(fr,ar) }} — {{ eleve.nom_complet }}" {{ 'readonly' if not can_edit }}></td>{% endfor %}
+        <td data-label="{{ t('Évaluation', 'التقييم') }}"><select name="status" class="form-select assessment-select" aria-label="{{ t('État de l’évaluation', 'حالة التقييم') }} — {{ eleve.nom_complet }}" {{ 'disabled' if not can_edit }}><option value="auto" {{ 'selected' if eleve.status!='absent' }}>{{ t('Selon les notes', 'حسب العلامات') }}</option><option value="absent" {{ 'selected' if eleve.status=='absent' }}>{{ t('Absent', 'غائب') }}</option></select><small data-assessment-label></small></td>
+        <td data-label="{{ t('Moyenne', 'المعدل') }}"><strong data-average dir="ltr">{{ eleve.moyenne if eleve.moyenne is not none else '—' }}</strong></td>
+        <td data-label="{{ t('Appréciation', 'التقدير') }}" class="small" data-remark>{{ eleve.remarques }}</td>
+      </tr>{% else %}<tr><td colspan="8" class="p-4 text-center">{{ t('Aucun élève pour ces filtres.', 'لا يوجد تلميذ بهذه المرشحات.') }}</td></tr>{% endfor %}
+      </tbody></table></div>
     </div>
-    {% endif %}
-</div>
-
-<form action="{{ url_for('grades.sauvegarder_tout') }}" method="POST" id="formSaveAll"
-    data-can-edit="{{ 'true' if can_edit else 'false' }}">
-    {{ csrf_field() }}
-    <input type="hidden" name="trimestre_save" value="{{ trimestre }}">
-    <input type="hidden" name="subject" value="{{ subject_id }}">
-    <input type="hidden" name="school_year" value="{{ school_year }}">
-    <div class="app-card animate-fade-up" style="animation-delay: 0.6s;">
-        <div
-            class="card-header app-card-header d-flex justify-content-between align-items-center py-2 px-3 rounded-top">
-            <div>
-                <h6 class="mb-0 text-body">Tableau simplifie</h6>
-                <div class="small text-muted">Saisie rapide des notes et suivi des moyennes.</div>
-            </div>
-            <div class="d-flex gap-1">
-                {% if can_edit %}
-                <button type="submit" class="btn btn-sm btn-primary px-3 hover-lift" data-save-button>
-                    <i class="bi bi-check2-circle" aria-hidden="true"></i>
-                    <span>Sauver</span>
-                </button>
-                <button type="button" class="btn btn-sm btn-warning text-dark px-3 hover-lift" data-bs-toggle="modal"
-                    data-bs-target="#fillOfficialModal">Remplir officiel</button>
-                {% else %}
-                <span class="badge bg-secondary align-self-center px-3 py-2">Lecture seule</span>
-                {% endif %}
-                <div class="dropdown">
-                    <button class="btn btn-sm btn-secondary dropdown-toggle px-2" type="button"
-                        data-bs-toggle="dropdown">Actions</button>
-                    <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark shadow">
-                        <li><a class="dropdown-item"
-                                href="{{ url_for('reports.export_list_pdf', trimestre=trimestre, niveau=niveau_actuel, recherche=recherche_actuelle, sort=sort, order=order, min_moy=min_moy, max_moy=max_moy, etat=etat, subject=subject_id, school_year=school_year) }}">Exporter
-                                PDF (Liste)</a></li>
-                        <li><a class="dropdown-item"
-                                href="{{ url_for('reports.export_excel', trimestre=trimestre, niveau=niveau_actuel, recherche=recherche_actuelle, sort=sort, order=order, min_moy=min_moy, max_moy=max_moy, etat=etat, subject=subject_id, school_year=school_year) }}">Exporter
-                                Excel</a></li>
-                        <li><a class="dropdown-item"
-                                href="{{ url_for('reports.export_parents', trimestre=trimestre, niveau=niveau_actuel, recherche=recherche_actuelle, sort=sort, order=order, min_moy=min_moy, max_moy=max_moy, etat=etat, subject=subject_id, school_year=school_year) }}">Export
-                                Parents</a></li>
-                        <li><a class="dropdown-item" href="#" onclick="printStudentList(); return false;"><i
-                                    class="bi bi-printer"></i> Imprimer liste (sans notes)</a></li>
-                        {% if can_edit %}
-                        <li>
-                            <hr class="dropdown-divider">
-                        </li>
-                        <li><a class="dropdown-item text-danger" href="#" onclick="return enterDeleteMode(event)">Mode
-                                suppression</a></li>
-                        {% endif %}
-                    </ul>
-                </div>
-            </div>
-        </div>
-
-        <div class="students-table-container" id="studentsTableContainer">
-            {% if can_edit %}
-            <div id="deleteModeToolbar" class="delete-mode-toolbar d-none">
-                <div class="small fw-semibold text-danger">Mode suppression actif</div>
-                <div class="d-flex flex-wrap align-items-center gap-2">
-                    <span class="small text-muted" id="deleteSelectionCount">Aucun eleve selectionne</span>
-                    <button type="button" class="btn btn-sm btn-danger hover-lift" id="deleteSelectedBtn"
-                        onclick="submitDelete()" disabled>Supprimer la selection</button>
-                    <button type="button" class="btn btn-sm btn-outline-secondary hover-lift"
-                        onclick="setDeleteMode(false)">Annuler</button>
-                </div>
-            </div>
-            {% endif %}
-            <div class="table-responsive">
-                <table class="table table-hover mb-0 align-middle table-animated compact-table" style="min-width: 720px;">
-                    <thead>
-                        <tr style="border-bottom: 1px solid var(--border); background-color: var(--surface-2);">
-                            <th class="text-body p-2 row-index-cell index-header text-center">
-                                <div class="index-stack">
-                                    <span>#</span>
-                                    {% if can_edit %}
-                                    <input type="checkbox" class="form-check-input select-all-delete" onclick="toggle(this)"
-                                        title="Tout selectionner">
-                                    {% endif %}
-                                </div>
-                            </th>
-                            <th class="text-body p-2 student-name-cell">Nom</th>
-                            <th class="text-center text-info p-2">Activite</th>
-                            <th class="text-center text-muted p-2">Devoir</th>
-                            <th class="text-center text-muted p-2">Compo</th>
-                            <th class="text-center text-primary p-2">Moyenne</th>
-                            <th class="text-muted p-2 d-none d-lg-table-cell" style="min-width: 150px;">Remarques</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for eleve in eleves %}
-                        {% set row_number = ((page - 1) * per_page) + loop.index %}
-                        <tr data-grade-row style="border-bottom: 1px solid var(--border);">
-                            <td class="text-body fw-bold row-index-cell">
-                                <div class="index-stack">
-                                    <span class="index-number">{{ row_number }}</span>
-                                    {% if can_edit %}
-                                    <input type="checkbox" name="ids_delete" value="{{ eleve.id }}"
-                                        class="form-check-input check-delete" onchange="syncDeleteSelectionState()">
-                                    {% endif %}
-                                    <input type="hidden" name="id_eleve" value="{{ eleve.id }}">
-                                </div>
-                            </td>
-                            <td class="fw-bold text-body student-name-cell">
-                                <div class="student-name-inline">
-                                    <div class="student-identity">
-                                        <span class="name-inline-index">{{ row_number }}</span>
-                                        <span class="student-fullname">{{ eleve.nom_complet }}</span>
-                                    </div>
-                                    <div class="student-meta">
-                                        <span class="badge bg-secondary text-body border border-dark">{{ eleve.niveau }}</span>
-                                        {% if can_edit %}
-                                        <button type="button" class="btn btn-sm btn-outline-warning py-0 px-1 ms-1" 
-                                            title="Modifier le nom" style="height: 24px;"
-                                            data-bs-toggle="modal" data-bs-target="#editNameModal_{{ eleve.id }}">
-                                            <i class="bi bi-pencil-square"></i>
-                                        </button>
-                                        {% endif %}
-                                        {% if session.get('is_admin') %}
-                                        <a href="{{ url_for('reports.bulletin', id=eleve.id, trimestre=trimestre, subject=subject_id, school_year=school_year) }}"
-                                            target="_blank" class="btn btn-sm btn-outline-info py-0 px-1 student-bulletin-btn"
-                                            title="Imprimer Bulletin" style="height: 24px;"><i class="bi bi-file-text"></i></a>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                            </td>
-                            <td class="text-center">
-                                <div class="activity-cell-stack">
-                                    <input type="number" step="0.01" min="0" max="20" id="act_{{eleve.id}}"
-                                        name="activite" value="{{ eleve.activite }}"
-                                        class="form-control input-note activity-input grade-entry" data-grade-input
-                                        aria-label="Activite de {{ eleve.nom_complet }}" oninput="updateActivityTotal({{eleve.id}})"
-                                        {% if not can_edit %}readonly{% endif %}>
-                                    <input type="hidden" id="part_{{eleve.id}}" name="participation" value="{{ eleve.participation }}">
-                                    <input type="hidden" id="comport_{{eleve.id}}" name="comportement" value="{{ eleve.comportement }}">
-                                    <input type="hidden" id="cah_{{eleve.id}}" name="cahier" value="{{ eleve.cahier }}">
-                                    <input type="hidden" id="proj_{{eleve.id}}" name="projet" value="{{ eleve.projet }}">
-                                    <input type="hidden" id="ao_{{eleve.id}}" name="assiduite_outils" value="{{ eleve.assiduite_outils }}">
-                                </div>
-                            </td>
-                            <td class="p-1"><input type="number" step="0.01" min="0" max="20" id="dev_{{eleve.id}}"
-                                    name="devoir" value="{{ eleve.devoir }}" class="form-control input-note grade-entry"
-                                    data-grade-input
-                                    oninput="calculLive({{eleve.id}})" {% if not can_edit %}readonly{% endif %}></td>
-                            <td class="p-1"><input type="number" step="0.01" min="0" max="20" id="comp_{{eleve.id}}"
-                                    name="compo" value="{{ eleve.compo }}" class="form-control input-note grade-entry"
-                                    data-grade-input
-                                    oninput="calculLive({{eleve.id}})" {% if not can_edit %}readonly{% endif %}></td>
-                            <td class="text-center fw-bold fs-5"><span id="moy_{{eleve.id}}"
-                                    class="{% if eleve.moyenne < 10 %}text-danger{% else %}text-success{% endif %}">{{
-                                    eleve.moyenne }}</span></td>
-                            <td class="small text-muted text-truncate d-none d-lg-table-cell" style="max-width: 150px;">{{ eleve.remarques }}</td>
-                        </tr>
-                        {% else %}
-                        <tr>
-                            <td colspan="7" class="text-center py-5 text-body">Aucun resultat.</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <div class="save-toolbar d-flex flex-wrap justify-content-between align-items-center gap-2 py-2 px-3">
-            <div class="save-toolbar-summary small">
-                <span class="text-muted">Classe {{ niveau_actuel if niveau_actuel != 'all' else 'Toutes' }} - {{ total }} eleves</span>
-                <span id="gradeCompletionStatus" class="grade-completion-status" aria-live="polite"></span>
-                {% if can_edit %}
-                <span id="saveStatus" class="save-status" aria-live="polite">Aucune modification en attente.</span>
-                {% endif %}
-            </div>
-            {% if can_edit %}
-            <button type="submit" class="btn btn-sm btn-primary px-3 hover-lift" data-save-button>
-                <i class="bi bi-cloud-arrow-up" aria-hidden="true"></i>
-                <span>Sauver toutes les notes</span>
-            </button>
-            {% endif %}
-        </div>
-
-        {% if can_edit %}
-        <div id="unsavedChangesBar" class="unsaved-changes-bar" aria-hidden="true">
-            <div class="unsaved-changes-copy">
-                <i class="bi bi-exclamation-circle-fill text-warning" aria-hidden="true"></i>
-                <span id="unsavedChangesText" role="status" aria-live="polite">Modifications non enregistrees</span>
-            </div>
-            <button type="submit" class="btn btn-primary px-3" data-save-button>
-                <i class="bi bi-cloud-arrow-up" aria-hidden="true"></i>
-                <span>Sauver</span>
-            </button>
-        </div>
-        {% endif %}
-
-        {% if pages > 1 %}
-        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 py-2 px-2 app-card-header">
-            <div class="text-muted small">Page {{ page }} / {{ pages }} • {{ total }} eleves</div>
-            <nav aria-label="Pagination">
-                <ul class="pagination pagination-sm mb-0">
-                    <li class="page-item {% if page <= 1 %}disabled{% endif %}">
-                        <a class="page-link"
-                            href="{{ url_for('dashboard.index', trimestre=trimestre, niveau=niveau_actuel, recherche=recherche_actuelle, sort=sort, order=order, per_page=per_page, min_moy=min_moy, max_moy=max_moy, etat=etat, subject=subject_id, school_year=school_year, page=page-1) }}">«</a>
-                    </li>
-
-                    {% set start = 1 if page - 2 < 1 else page - 2 %} {% set end=pages if page + 2> pages else page + 2
-                        %}
-                        {% for p in range(start, end + 1) %}
-                        <li class="page-item {% if p == page %}active{% endif %}">
-                            <a class="page-link"
-                                href="{{ url_for('dashboard.index', trimestre=trimestre, niveau=niveau_actuel, recherche=recherche_actuelle, sort=sort, order=order, per_page=per_page, min_moy=min_moy, max_moy=max_moy, etat=etat, subject=subject_id, school_year=school_year, page=p) }}">{{
-                                p }}</a>
-                        </li>
-                        {% endfor %}
-
-                        <li class="page-item {% if page >= pages %}disabled{% endif %}">
-                            <a class="page-link"
-                                href="{{ url_for('dashboard.index', trimestre=trimestre, niveau=niveau_actuel, recherche=recherche_actuelle, sort=sort, order=order, per_page=per_page, min_moy=min_moy, max_moy=max_moy, etat=etat, subject=subject_id, school_year=school_year, page=page+1) }}">»</a>
-                        </li>
-                </ul>
-            </nav>
-        </div>
-        {% endif %}
-    </div>
+    <div class="p-3 d-flex flex-wrap justify-content-between align-items-center gap-2"><span>{{ t('Page', 'الصفحة') }} <bdi>{{ page }} / {{ pages }}</bdi> · {{ total }} {{ t('élèves', 'تلاميذ') }}</span><nav aria-label="{{ t('Pagination', 'التنقل بين الصفحات') }}" class="d-flex gap-2">{% if page>1 %}<a class="btn btn-outline-primary" href="{{ url_for('dashboard.index', **dict(base_args, page=page-1)) }}">{{ t('Page précédente', 'الصفحة السابقة') }}</a>{% endif %}{% if page<pages %}<a class="btn btn-outline-primary" href="{{ url_for('dashboard.index', **dict(base_args, page=page+1)) }}">{{ t('Page suivante', 'الصفحة التالية') }}</a>{% endif %}</nav></div>
+  </div>
+  {% if can_edit %}<div id="unsavedChangesBar" class="unsaved-changes-bar" hidden><span id="unsavedChangesText"></span><button type="submit" class="btn btn-primary" data-save-button>{{ t('Enregistrer / Réessayer', 'حفظ / إعادة المحاولة') }}</button></div>{% endif %}
 </form>
-
 {% if can_edit %}
-<form action="{{ url_for('students.supprimer_multi') }}" method="POST" id="formMultiDelete" style="display:none;">
-    {{ csrf_field() }}
-    <input type="hidden" name="school_year" value="{{ school_year }}">
-</form>
-
-<div class="modal fade" id="fillOfficialModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content" style="background-color: #2d2d2d; color: white;">
-            <div class="modal-header border-secondary bg-warning text-dark">
-                <h5 class="modal-title fw-bold">Remplir bulletin officiel</h5><button type="button" class="btn-close"
-                    data-bs-dismiss="modal"></button>
-            </div>
-            <form action="{{ url_for('imports.remplir_bulletin_officiel') }}" method="POST"
-                enctype="multipart/form-data">
-                {{ csrf_field() }}
-                <div class="modal-body text-center p-4">
-                    <p class="text-muted mb-3">Importer le fichier Excel vide.</p>
-                    <input type="hidden" name="trimestre_fill" value="{{ trimestre }}">
-                    <input type="hidden" name="subject" value="{{ subject_id }}">
-                    <input type="hidden" name="school_year" value="{{ school_year }}">
-                    <input type="file" class="form-control " name="fichier_vide" accept=".xlsx" required>
-                </div>
-                <div class="modal-footer border-secondary justify-content-center"><button type="submit"
-                        class="btn btn-warning w-75 fw-bold">Remplir et telecharger</button></div>
-            </form>
-        </div>
-    </div>
-</div>
+<form action="{{ url_for('students.supprimer_multi') }}" method="post" id="formMultiDelete" hidden>{{ csrf_field() }}<input type="hidden" name="school_year" value="{{ school_year }}"></form>
+<div class="modal fade" id="addStudentModal" tabindex="-1" aria-labelledby="addStudentTitle" aria-hidden="true"><div class="modal-dialog"><div class="modal-content"><form action="{{ url_for('students.ajouter_eleve') }}" method="post">{{ csrf_field() }}<div class="modal-header"><h2 class="modal-title h5" id="addStudentTitle">{{ t('Ajouter un élève', 'إضافة تلميذ') }}</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ t('Fermer', 'إغلاق') }}"></button></div><div class="modal-body">
+  <input type="hidden" name="trimestre_ajout" value="{{ trimestre }}"><input type="hidden" name="subject" value="{{ subject_id }}"><input type="hidden" name="school_year" value="{{ school_year }}">
+  <label for="addName" class="form-label">{{ t('Nom complet', 'الاسم الكامل') }}</label><input id="addName" name="nom_complet" class="form-control mb-2" required>
+  <label for="addClass" class="form-label">{{ t('Classe', 'القسم') }}</label><input id="addClass" name="niveau" class="form-control mb-2" required list="classesList"><datalist id="classesList">{% for c in liste_classes %}<option value="{{ c }}">{% endfor %}</datalist>
+  <label for="addPhone" class="form-label">{{ t('Téléphone du parent (facultatif)', 'هاتف الولي (اختياري)') }}</label><input id="addPhone" name="parent_phone" type="tel" class="form-control mb-2">
+  <label for="addEmail" class="form-label">{{ t('Email du parent (facultatif)', 'بريد الولي (اختياري)') }}</label><input id="addEmail" name="parent_email" type="email" class="form-control">
+  <p class="small text-muted mt-2">{{ t('Vous pourrez saisir les notes après l’ajout.', 'يمكنك إدخال العلامات بعد الإضافة.') }}</p>
+</div><div class="modal-footer"><button type="submit" class="btn btn-success">{{ t('Ajouter', 'إضافة') }}</button></div></form></div></div></div>
+<div class="modal fade" id="fillOfficialModal" tabindex="-1" aria-labelledby="fillTitle" aria-hidden="true"><div class="modal-dialog"><div class="modal-content"><form action="{{ url_for('imports.remplir_bulletin_officiel') }}" method="post" enctype="multipart/form-data">{{ csrf_field() }}<div class="modal-header"><h2 id="fillTitle" class="h5 modal-title">{{ t('Compléter le bulletin officiel', 'ملء الكشف الرسمي') }}</h2><button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="{{ t('Fermer', 'إغلاق') }}"></button></div><div class="modal-body"><label for="officialFile" class="form-label">{{ t('Bulletin Excel vide', 'كشف Excel فارغ') }}</label><input id="officialFile" type="file" name="fichier_vide" accept=".xlsx" class="form-control" required><input type="hidden" name="trimestre_fill" value="{{ trimestre }}"><input type="hidden" name="subject" value="{{ subject_id }}"><input type="hidden" name="school_year" value="{{ school_year }}"></div><div class="modal-footer"><button type="submit" class="btn btn-primary">{{ t('Compléter et télécharger', 'ملء وتنزيل') }}</button></div></form></div></div></div>
+{% for eleve in eleves %}<div class="modal fade" id="editNameModal_{{ eleve.id }}" tabindex="-1" aria-labelledby="editTitle_{{ eleve.id }}" aria-hidden="true"><div class="modal-dialog"><div class="modal-content"><form action="{{ url_for('students.modifier_eleve_nom') }}" method="post">{{ csrf_field() }}<div class="modal-header"><h2 id="editTitle_{{ eleve.id }}" class="h5 modal-title">{{ t('Modifier le nom', 'تعديل الاسم') }}</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ t('Fermer', 'إغلاق') }}"></button></div><div class="modal-body"><input type="hidden" name="eleve_id" value="{{ eleve.id }}"><label for="editName_{{ eleve.id }}" class="form-label">{{ t('Nom complet', 'الاسم الكامل') }}</label><input id="editName_{{ eleve.id }}" name="nouveau_nom" value="{{ eleve.nom_complet }}" class="form-control" required></div><div class="modal-footer"><button type="submit" class="btn btn-primary">{{ t('Enregistrer', 'حفظ') }}</button></div></form></div></div></div>{% endfor %}
 {% endif %}
-
-<div class="modal fade" id="addStudentModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content" style="background-color: #2d2d2d; color: white;">
-            <div class="modal-header border-secondary">
-                <h5 class="modal-title text-success">Ajouter eleve</h5><button type="button"
-                    class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <form action="{{ url_for('students.ajouter_eleve') }}" method="POST">
-                {{ csrf_field() }}
-                <div class="modal-body p-4">
-                    <input type="hidden" name="trimestre_ajout" value="{{ trimestre }}">
-                    <input type="hidden" name="subject" value="{{ subject_id }}">
-                    <input type="hidden" name="school_year" value="{{ school_year }}">
-                    <div class="mb-3"><label class="form-label small text-muted">Nom complet</label><input type="text"
-                            class="form-control " name="nom_complet" placeholder="Ex: Benali Mohamed" required></div>
-                    <div class="mb-3"><label class="form-label small text-muted">Classe</label><input type="text"
-                            class="form-control " name="niveau" placeholder="Ex: 4M2" required
-                            list="classes_list"><datalist id="classes_list">{% for classe in liste_classes %}<option
-                                value="{{ classe }}">{% endfor %}</datalist></div>
-                    <div class="row g-2">
-                        <div class="col-6"><input type="text" class="form-control " name="parent_phone"
-                                placeholder="Tel parent"></div>
-                        <div class="col-6"><input type="email" class="form-control " name="parent_email"
-                                placeholder="Email parent"></div>
-                    </div>
-                    <div class="row g-2 mt-2">
-                        <div class="col-4"><input type="number" step="0.01" min="0" max="3"
-                                class="form-control  text-center activite-part" name="participation"
-                                placeholder="Participation (3)" oninput="calculAddActivite()"></div>
-                        <div class="col-4"><input type="number" step="0.01" min="0" max="6"
-                                class="form-control  text-center activite-part" name="comportement"
-                                placeholder="Comportement (6)" oninput="calculAddActivite()"></div>
-                        <div class="col-4"><input type="number" step="0.01" min="0" max="5"
-                                class="form-control  text-center activite-part" name="cahier" placeholder="Cahier (5)"
-                                oninput="calculAddActivite()"></div>
-                    </div>
-                    <div class="row g-2 mt-2">
-                        <div class="col-4"><input type="number" step="0.01" min="0" max="4"
-                                class="form-control  text-center activite-part" name="projet" placeholder="Projet (4)"
-                                oninput="calculAddActivite()"></div>
-                        <div class="col-4"><input type="number" step="0.01" min="0" max="2"
-                                class="form-control  text-center activite-part" name="assiduite_outils"
-                                placeholder="Abs/Outils (2)" oninput="calculAddActivite()"></div>
-                        <div class="col-4"><input type="text" id="activite_total_add" class="form-control text-center"
-                                value="Activite: 0.00 / 20" readonly></div>
-                        <input type="hidden" id="activite_hidden_add" name="activite" value="0">
-                    </div>
-                    <div class="row g-2 mt-2">
-                        <div class="col-6"><input type="number" step="0.01" class="form-control  text-center"
-                                name="devoir" placeholder="Dev"></div>
-                        <div class="col-6"><input type="number" step="0.01" class="form-control  text-center"
-                                name="compo" placeholder="Ex"></div>
-                    </div>
-                </div>
-                <div class="modal-footer border-secondary justify-content-center"><button type="submit"
-                        class="btn btn-success w-75 fw-bold">Sauver</button></div>
-            </form>
-        </div>
-    </div>
-</div>
-
-
-<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
-
 <script>
-    function printStudentList() {
-        const rows = document.querySelectorAll('#formSaveAll tbody tr');
-        if (!rows.length) { alert('Aucun eleve a imprimer.'); return; }
-        let html = '<tr><th>الرقم</th><th>الاسم و اللقب</th><th>القسم</th><th>النشاط</th><th>الفرض</th><th>الاختبار</th><th>المعدل</th></tr>';
-        let i = 1;
-        rows.forEach(tr => {
-            if (tr.classList.contains('collapse')) return;
-            const cells = tr.querySelectorAll('td');
-            if (cells.length < 2) return;
-            const nameCell = tr.querySelector('.student-name-cell');
-            if (!nameCell) return;
-            const nom = nameCell.querySelector('.student-fullname')?.textContent?.trim() || nameCell.textContent.trim();
-            const classe = nameCell.querySelector('.badge')?.textContent?.trim() || '';
-            html += '<tr><td>' + i + '</td><td>' + nom + '</td><td>' + classe + '</td><td></td><td></td><td></td><td></td></tr>';
-            i++;
-        });
-        const w = window.open('', '_blank');
-        w.document.write('<!DOCTYPE html><html dir="rtl" lang="ar"><head><title>قائمة التلاميذ</title>');
-        w.document.write('<style>');
-        w.document.write('body{font-family:Arial,sans-serif;margin:20px;direction:rtl}');
-        w.document.write('h2{text-align:center;margin-bottom:5px}');
-        w.document.write('.meta{text-align:center;color:#666;margin-bottom:15px;font-size:13px}');
-        w.document.write('table{width:100%;border-collapse:collapse;direction:rtl}');
-        w.document.write('th,td{border:1px solid #333;padding:6px 8px;font-size:12px;text-align:right}');
-        w.document.write('th{background:#eee;font-weight:bold;text-align:center}');
-        w.document.write('td:first-child{text-align:center;width:35px}');
-        w.document.write('td:nth-child(3){text-align:center;width:50px}');
-        w.document.write('td:nth-child(4),td:nth-child(5),td:nth-child(6),td:nth-child(7){text-align:center;width:55px}');
-        w.document.write('@media print{body{margin:10px}}');
-        w.document.write('</style></head><body>');
-        w.document.write('<h2>قائمة التلاميذ</h2>');
-        w.document.write('<div class="meta">{{ subject_name }} — {{ niveau_actuel if niveau_actuel != "all" else "كل الأقسام" }} — الفصل {{ trimestre }} — {{ school_year }}</div>');
-        w.document.write('<table>' + html + '</table>');
-        w.document.write('</body></html>');
-        w.document.close();
-        setTimeout(() => w.print(), 300);
-    }
+window.gradeText = {{ {
+ 'saved':t('Enregistré','تم الحفظ'), 'saving':t('Enregistrement en cours…','جارٍ الحفظ…'),
+ 'pending':t('Modifications à enregistrer','تعديلات تنتظر الحفظ'), 'idle':t('Aucune modification en attente.','لا توجد تعديلات معلّقة.'),
+ 'error':t('Enregistrement impossible. Vos saisies restent dans cette page. Vérifiez la connexion puis réessayez.','تعذّر الحفظ. تبقى إدخالاتك في هذه الصفحة. تحقق من الاتصال ثم أعد المحاولة.'),
+ 'invalid':t('Vérifiez les notes : nombre entre 0 et 20, ou case vide.','تحقق من العلامات: عدد بين 0 و20 أو خانة فارغة.'),
+ 'not_entered':t('Non saisi','غير مُدخل'), 'partial':t('À compléter','غير مكتمل'), 'graded':t('Évalué','مقيّم'), 'absent':t('Absent','غائب'),
+ 'completion':t('Évaluations complètes sur cette page','تقييمات مكتملة في هذه الصفحة'),
+ 'selected':t('élève(s) sélectionné(s)','تلاميذ محددون'), 'trashConfirm':t('Déplacer les élèves sélectionnés vers la corbeille ? Vous pourrez les restaurer.','نقل التلاميذ المحددين إلى السلة؟ يمكنك استرجاعهم.'),
+ 'saveFirst':t('Enregistrez les modifications avant cette action.','احفظ التعديلات قبل هذا الإجراء.'),
+ 'refreshStats':t('Notes enregistrées. Actualisez la page pour mettre à jour les indicateurs.','تم حفظ العلامات. حدّث الصفحة لتحديث المؤشرات.'),
+ 'printTitle':t('Liste des élèves','قائمة التلاميذ'), 'name':t('Nom','الاسم'), 'class':t('Classe','القسم')
+}|tojson }};
 </script>
-
-{% if can_edit %}
-{% for eleve in eleves %}
-<!-- Edit Name Modal -->
-<div class="modal fade" id="editNameModal_{{ eleve.id }}" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content" style="background-color: var(--surface); color: var(--text);">
-            <div class="modal-header border-secondary">
-                <h5 class="modal-title">Modifier le nom de l'élève</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <form action="{{ url_for('students.modifier_eleve_nom') }}" method="POST">
-                {{ csrf_field() }}
-                <div class="modal-body p-4">
-                    <input type="hidden" name="eleve_id" value="{{ eleve.id }}">
-                    <div class="mb-3">
-                        <label class="form-label text-muted">Nom complet actuel</label>
-                        <input type="text" class="form-control bg-dark text-white" value="{{ eleve.nom_complet }}" readonly disabled>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label text-muted">Nouveau nom complet</label>
-                        <input type="text" class="form-control" name="nouveau_nom" value="{{ eleve.nom_complet }}" required autofocus>
-                    </div>
-                </div>
-                <div class="modal-footer border-secondary">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-                    <button type="submit" class="btn btn-warning">Enregistrer</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-{% endfor %}
-{% endif %}
-
+<script src="{{ url_for('static', filename='js/dashboard.js', v='20260914b') }}"></script>
 {% endblock %}

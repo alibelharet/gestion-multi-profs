@@ -4,7 +4,7 @@ from flask import Flask, jsonify, render_template
 
 from core.config import BASE_DIR, MAX_CONTENT_LENGTH, UPLOAD_FOLDER
 from core.db import bootstrap_admin, close_db, get_db, init_db
-from core.i18n import get_lang, get_text_dir, tr
+from core.i18n import get_lang, get_text_dir, tr, t
 from core.security import init_security
 
 
@@ -45,6 +45,7 @@ def create_app() -> Flask:
         lang = get_lang()
         return {
             "tr": tr,
+            "t": t,
             "current_lang": lang,
             "text_dir": get_text_dir(lang),
         }

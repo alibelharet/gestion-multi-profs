@@ -4,10 +4,10 @@
 {% set can_edit = session.get('can_edit', 1) %}
 
 <div class="app-card p-3 p-md-4">
-  <h4 class="mb-3">Regles d'appreciation</h4>
+  <h4 class="mb-3">{{ t("Regles d'appreciation", 'قواعد التقدير') }}</h4>
 
   {% if not can_edit %}
-  <div class="alert alert-warning py-2">Mode lecture seule: modification des appreciations desactivee.</div>
+  <div class="alert alert-warning py-2">{{ t('Mode lecture seule: modification des appreciations desactivee.', 'وضع القراءة فقط: تعديل التقديرات غير متاح.') }}</div>
   {% endif %}
 
   <form method="POST">
@@ -16,10 +16,10 @@
       <table class="table table-sm align-middle mb-0">
         <thead>
           <tr>
-            <th>Min</th>
-            <th>Max</th>
-            <th>Message</th>
-            <th>Action</th>
+            <th>{{ t('Min', 'الأدنى') }}</th>
+            <th>{{ t('Max', 'الأعلى') }}</th>
+            <th>{{ t('Message', 'الرسالة') }}</th>
+            <th>{{ t('Action', 'الإجراء') }}</th>
           </tr>
         </thead>
         <tbody id="rulesTable">
@@ -36,8 +36,8 @@
     </div>
 
     <div class="d-flex gap-2 mt-3">
-      <button type="button" class="btn btn-secondary btn-sm" onclick="addRule()" {% if not can_edit %}disabled{% endif %}>Ajouter</button>
-      <button type="submit" class="btn btn-success btn-sm" {% if not can_edit %}disabled{% endif %}>Enregistrer</button>
+      <button type="button" class="btn btn-secondary btn-sm" onclick="addRule()" {% if not can_edit %}disabled{% endif %}>{{ t('Ajouter', 'إضافة') }}</button>
+      <button type="submit" class="btn btn-success btn-sm" {% if not can_edit %}disabled{% endif %}>{{ t('Enregistrer', 'حفظ') }}</button>
     </div>
   </form>
 </div>

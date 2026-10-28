@@ -1,0 +1,11 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1 class="h4">{{ t('Notes non enregistrées', 'لم تُحفظ العلامات') }}</h1>
+<div class="alert alert-danger">{{ message }}</div>
+<p>{{ t('Vos valeurs sont conservées ci-dessous. Ouvrez la version actuelle dans un autre onglet pour comparer si nécessaire.', 'تم الاحتفاظ بإدخالاتك أدناه. افتح النسخة الحالية في نافذة أخرى للمقارنة عند الحاجة.') }}</p>
+<a class="btn btn-outline-primary mb-3" target="_blank" rel="noopener" href="{{ url_for('dashboard.index', trimestre=trim, subject=subject_id, school_year=year) }}">{{ t('Voir les notes actuelles', 'عرض العلامات الحالية') }}</a>
+<form method="post" action="{{ url_for('grades.sauvegarder_tout') }}">{{ csrf_field() }}
+<input type="hidden" name="trimestre_save" value="{{ trim }}"><input type="hidden" name="subject" value="{{ subject_id }}"><input type="hidden" name="school_year" value="{{ year }}">
+{% for row in rows %}<div class="app-card p-3 mb-2"><p>{{ t('Élève n°', 'التلميذ رقم') }} {{ row.id }}</p><input type="hidden" name="id_eleve" value="{{ row.id }}">{% if 'version' in row %}<input type="hidden" name="version" value="{{ row.version }}">{% endif %}<input type="hidden" name="status" value="{{ row.status|default('auto') }}"><div class="row g-2">{% for key,fr,ar in [('activite','Activité','النشاط'),('devoir','Devoir','الفرض'),('compo','Composition','الاختبار')] %}<div class="col-4"><label for="{{ key }}_{{ loop.index }}_{{ row.id }}">{{ t(fr,ar) }}</label><input id="{{ key }}_{{ loop.index }}_{{ row.id }}" type="number" min="0" max="20" step="0.01" name="{{ key }}" value="{{ row.get(key, '') }}" class="form-control"></div>{% endfor %}</div></div>{% endfor %}
+<button class="btn btn-primary" type="submit">{{ t('Réessayer', 'إعادة المحاولة') }}</button></form>
+{% endblock %}

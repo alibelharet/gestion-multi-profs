@@ -290,7 +290,7 @@ def print_list():
             "activite": r["activite"],
             "devoir": r["devoir"],
             "compo": r["compo"],
-            "moyenne": float(r["moyenne"] or 0),
+            "moyenne": r["moyenne"],
             "remarques": r["remarques"],
         }
         for r in rows
@@ -572,10 +572,12 @@ def export_excel():
 
     data = []
     for r in rows:
-        moy = float(r["moyenne"] or 0)
-        if moy >= 10:
+        moy = r["moyenne"]
+        if moy is None:
+            etat = "Non évalué / incomplet"
+        elif moy >= 10:
             etat = "Admis"
-        elif moy > 0:
+        elif moy is not None:
             etat = "Echec"
         else:
             etat = "Non saisi"
@@ -665,10 +667,12 @@ def export_parents():
 
     data = []
     for r in rows:
-        moy = float(r["moyenne"] or 0)
-        if moy >= 10:
+        moy = r["moyenne"]
+        if moy is None:
+            etat = "Non évalué / incomplet"
+        elif moy >= 10:
             etat = "Admis"
-        elif moy > 0:
+        elif moy is not None:
             etat = "Echec"
         else:
             etat = "Non saisi"
@@ -747,34 +751,35 @@ def export_stats_pdf():
 
     # Fetch stats exactly like in dashboard.stats
     stats_row = db.execute(
-        f"SELECT COUNT(*) AS nb_total, SUM(CASE WHEN {moy_expr} > 0 THEN 1 ELSE 0 END) AS nb_saisis, SUM(CASE WHEN {moy_expr} >= 10 THEN 1 ELSE 0 END) AS nb_admis, AVG(CASE WHEN {moy_expr} > 0 THEN {moy_expr} END) AS moyenne_generale, MAX(CASE WHEN {moy_expr} > 0 THEN {moy_expr} END) AS meilleure_note, MIN(CASE WHEN {moy_expr} > 0 THEN {moy_expr} END) AS pire_note FROM eleves e LEFT JOIN notes n ON n.user_id = e.user_id AND n.eleve_id = e.id AND n.subject_id = ? AND n.trimestre = ? WHERE {where}",
+        f"SELECT COUNT(*) AS nb_total, SUM(CASE WHEN {moy_expr} IS NOT NULL THEN 1 ELSE 0 END) AS nb_saisis, SUM(CASE WHEN {moy_expr} >= 10 THEN 1 ELSE 0 END) AS nb_admis, AVG(CASE WHEN {moy_expr} IS NOT NULL THEN {moy_expr} END) AS moyenne_generale, MAX(CASE WHEN {moy_expr} IS NOT NULL THEN {moy_expr} END) AS meilleure_note, MIN(CASE WHEN {moy_expr} IS NOT NULL THEN {moy_expr} END) AS pire_note FROM eleves e LEFT JOIN notes n ON n.user_id = e.user_id AND n.eleve_id = e.id AND n.subject_id = ? AND n.trimestre = ? WHERE {where}",
         join_params + params,
     ).fetchone()
 
     total = int(stats_row["nb_total"] or 0)
     nb_admis = int(stats_row["nb_admis"] or 0)
-    moyenne_generale = round(float(stats_row["moyenne_generale"] or 0), 2)
-    meilleure_note = round(float(stats_row["meilleure_note"] or 0), 2)
-    pire_note = round(float(stats_row["pire_note"] or 0), 2)
-    taux_reussite = round((nb_admis / total) * 100, 1) if total else 0
+    moyenne_generale = round(float(stats_row["moyenne_generale"]), 2) if stats_row["moyenne_generale"] is not None else "—"
+    meilleure_note = round(float(stats_row["meilleure_note"]), 2) if stats_row["meilleure_note"] is not None else "—"
+    pire_note = round(float(stats_row["pire_note"]), 2) if stats_row["pire_note"] is not None else "—"
+    evaluated = int(stats_row["nb_saisis"] or 0)
+    taux_reussite = round((nb_admis / evaluated) * 100, 1) if evaluated else "—"
 
     class_rows = db.execute(
-        f"SELECT e.niveau, COUNT(*) AS total, AVG(CASE WHEN {moy_expr} > 0 THEN {moy_expr} END) AS avg_moy FROM eleves e LEFT JOIN notes n ON n.user_id = e.user_id AND n.eleve_id = e.id AND n.subject_id = ? AND n.trimestre = ? WHERE {where} GROUP BY e.niveau ORDER BY avg_moy DESC, e.niveau ASC",
+        f"SELECT e.niveau, COUNT(*) AS total, AVG(CASE WHEN {moy_expr} IS NOT NULL THEN {moy_expr} END) AS avg_moy FROM eleves e LEFT JOIN notes n ON n.user_id = e.user_id AND n.eleve_id = e.id AND n.subject_id = ? AND n.trimestre = ? WHERE {where} GROUP BY e.niveau ORDER BY avg_moy DESC, e.niveau ASC",
         join_params + params,
     ).fetchall()
 
     dist_row = db.execute(
-        f"SELECT SUM(CASE WHEN {moy_expr} >= 10 THEN 1 ELSE 0 END) AS admis, SUM(CASE WHEN {moy_expr} > 0 AND {moy_expr} < 10 THEN 1 ELSE 0 END) AS echec, SUM(CASE WHEN {moy_expr} <= 0 THEN 1 ELSE 0 END) AS non_saisi FROM eleves e LEFT JOIN notes n ON n.user_id = e.user_id AND n.eleve_id = e.id AND n.subject_id = ? AND n.trimestre = ? WHERE {where}",
+        f"SELECT SUM(CASE WHEN {moy_expr} >= 10 THEN 1 ELSE 0 END) AS admis, SUM(CASE WHEN {moy_expr} IS NOT NULL AND {moy_expr} < 10 THEN 1 ELSE 0 END) AS echec, SUM(CASE WHEN {moy_expr} IS NULL THEN 1 ELSE 0 END) AS non_saisi FROM eleves e LEFT JOIN notes n ON n.user_id = e.user_id AND n.eleve_id = e.id AND n.subject_id = ? AND n.trimestre = ? WHERE {where}",
         join_params + params,
     ).fetchone()
 
     top_rows = db.execute(
-        f"SELECT e.nom_complet, e.niveau, ROUND({moy_expr}, 2) AS moyenne FROM eleves e LEFT JOIN notes n ON n.user_id = e.user_id AND n.eleve_id = e.id AND n.subject_id = ? AND n.trimestre = ? WHERE {where} ORDER BY moyenne DESC, e.nom_complet ASC LIMIT 10",
+        f"SELECT e.nom_complet, e.niveau, ROUND({moy_expr}, 2) AS moyenne FROM eleves e LEFT JOIN notes n ON n.user_id = e.user_id AND n.eleve_id = e.id AND n.subject_id = ? AND n.trimestre = ? WHERE {where} AND {moy_expr} IS NOT NULL ORDER BY moyenne DESC, e.nom_complet ASC LIMIT 10",
         join_params + params,
     ).fetchall()
     
     risk_rows = db.execute(
-        f"SELECT e.nom_complet, e.niveau, ROUND({moy_expr}, 2) AS moyenne FROM eleves e LEFT JOIN notes n ON n.user_id = e.user_id AND n.eleve_id = e.id AND n.subject_id = ? AND n.trimestre = ? WHERE {where} AND {moy_expr} > 0 AND {moy_expr} < 10 ORDER BY moyenne ASC, e.nom_complet ASC LIMIT 10",
+        f"SELECT e.nom_complet, e.niveau, ROUND({moy_expr}, 2) AS moyenne FROM eleves e LEFT JOIN notes n ON n.user_id = e.user_id AND n.eleve_id = e.id AND n.subject_id = ? AND n.trimestre = ? WHERE {where} AND {moy_expr} IS NOT NULL AND {moy_expr} < 10 ORDER BY moyenne ASC, e.nom_complet ASC LIMIT 10",
         join_params + params,
     ).fetchall()
 
@@ -810,7 +815,7 @@ def export_stats_pdf():
     
     gen_data = [
         [arabize("أعلى / أدنى نقطة"), arabize("ناجح / المجموع"), arabize("نسبة النجاح"), arabize("المعدل العام")],
-        [f"{pire_note} / {meilleure_note}", f"{total} / {nb_admis}", f"{taux_reussite}%", str(moyenne_generale)]
+        [f"{pire_note} / {meilleure_note}", f"{evaluated} / {nb_admis}", f"{taux_reussite}%", str(moyenne_generale)]
     ]
     t_gen = Table(gen_data, colWidths=[130, 130, 130, 130])
     t_gen.setStyle(TableStyle([
@@ -832,7 +837,7 @@ def export_stats_pdf():
     # Classes Stats
     class_data = [[arabize("المعدل"), arabize("العدد"), arabize("القسم")]]
     for r in class_rows:
-        class_data.append([str(round(float(r["avg_moy"] or 0), 2)), str(r["total"]), arabize(str(r["niveau"]))])
+        class_data.append([str(round(float(r["avg_moy"]), 2)) if r["avg_moy"] is not None else "—", str(r["total"]), arabize(str(r["niveau"]))])
     if len(class_data) > 1:
         t_class = Table(class_data, colWidths=[100, 100, 200])
         t_class.setStyle(TableStyle([

@@ -1,3 +1,5 @@
+from edumaster.services.grading import optional_note, note_expr
+from edumaster.services.grade_editor import import_assessment
 import os
 import json
 import uuid
@@ -327,6 +329,7 @@ def import_excel_apply():
             continue
 
         for _, row in prepared.iterrows():
+            savepoint_started = False
             try:
                 if resolved.get("full_name"):
                     full = str(row_value(row, resolved["full_name"]) or "").strip()
@@ -349,8 +352,8 @@ def import_excel_apply():
                 phone = str(row_value(row, resolved.get("phone")) or "").strip()
                 email = str(row_value(row, resolved.get("email")) or "").strip()
 
-                d = clean_note(row_value(row, resolved.get("devoir")))
-                c = clean_note(row_value(row, resolved.get("compo")))
+                d = optional_note(row_value(row, resolved.get("devoir")))
+                c = optional_note(row_value(row, resolved.get("compo")))
 
                 if use_components:
                     p = clean_component(row_value(row, resolved.get("participation")), 3)
@@ -364,8 +367,13 @@ def import_excel_apply():
                     )
                 a = sum_activite_components(p, b, k, pr, ao)
 
-                moy = ((d + a) / 2 + (c * 2)) / 3
-                rem = get_appreciation_dynamique(moy, user_id)
+                if use_components:
+                    raw_components = [row_value(row, resolved.get(k)) for k in ('participation','comportement','cahier','projet','assiduite_outils')]
+                    if all(optional_note(v) is None for v in raw_components):
+                        a = None
+                else:
+                    a = optional_note(row_value(row, resolved.get('activite')))
+                rem = '' 
                 custom_rem = row_value(row, resolved.get("remarques"))
                 if custom_rem is not None and str(custom_rem).strip():
                     rem = str(custom_rem).strip()
@@ -375,64 +383,28 @@ def import_excel_apply():
                     (full, niveau, selected_school_year, user_id),
                 ).fetchone()
 
+                db.execute('SAVEPOINT import_row')
+                savepoint_started = True
                 if ex:
-                    db.execute(
-                        "UPDATE eleves SET parent_phone = COALESCE(?, parent_phone), parent_email = COALESCE(?, parent_email) WHERE id = ?",
-                        (phone or None, email or None, ex["id"]),
-                    )
-                    db.execute(
-                        """
-                        INSERT INTO notes (
-                            user_id, eleve_id, subject_id, trimestre,
-                            participation, comportement, cahier, projet, assiduite_outils,
-                            activite, devoir, compo, remarques
-                        )
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                        ON CONFLICT(user_id, eleve_id, subject_id, trimestre)
-                        DO UPDATE SET
-                            participation=excluded.participation,
-                            comportement=excluded.comportement,
-                            cahier=excluded.cahier,
-                            projet=excluded.projet,
-                            assiduite_outils=excluded.assiduite_outils,
-                            activite=excluded.activite,
-                            devoir=excluded.devoir,
-                            compo=excluded.compo,
-                            remarques=excluded.remarques
-                        """,
-                        (user_id, ex["id"], subject_id, int(trim), p, b, k, pr, ao, a, d, c, rem),
-                    )
+                    eleve_id = ex['id']
+                    db.execute('UPDATE eleves SET parent_phone=COALESCE(?,parent_phone), parent_email=COALESCE(?,parent_email) WHERE id=?',
+                               (phone or None,email or None,eleve_id))
+                else:
+                    cur = db.execute('INSERT INTO eleves(user_id,school_year,nom_complet,niveau,parent_phone,parent_email) VALUES (?,?,?,?,?,?)',
+                                     (user_id,selected_school_year,full,niveau,phone,email))
+                    eleve_id = cur.lastrowid
+                import_assessment(db,user_id,eleve_id,subject_id,trim,dict(activite=a,devoir=d,compo=c),rem,
+                                  components=(p,b,k,pr,ao) if use_components and a is not None else None)
+                db.execute('RELEASE SAVEPOINT import_row')
+                savepoint_started = False
+                if ex:
                     updated += 1
                 else:
-                    cur = db.execute(
-                        f"INSERT INTO eleves (user_id, school_year, nom_complet, niveau, remarques_t{trim}, devoir_t{trim}, activite_t{trim}, compo_t{trim}, parent_phone, parent_email) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                        (user_id, selected_school_year, full, niveau, rem, d, a, c, phone, email),
-                    )
-                    eleve_id = cur.lastrowid
-                    db.execute(
-                        """
-                        INSERT INTO notes (
-                            user_id, eleve_id, subject_id, trimestre,
-                            participation, comportement, cahier, projet, assiduite_outils,
-                            activite, devoir, compo, remarques
-                        )
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                        ON CONFLICT(user_id, eleve_id, subject_id, trimestre)
-                        DO UPDATE SET
-                            participation=excluded.participation,
-                            comportement=excluded.comportement,
-                            cahier=excluded.cahier,
-                            projet=excluded.projet,
-                            assiduite_outils=excluded.assiduite_outils,
-                            activite=excluded.activite,
-                            devoir=excluded.devoir,
-                            compo=excluded.compo,
-                            remarques=excluded.remarques
-                        """,
-                        (user_id, eleve_id, subject_id, int(trim), p, b, k, pr, ao, a, d, c, rem),
-                    )
                     inserted += 1
             except Exception:
+                if savepoint_started:
+                    db.execute('ROLLBACK TO SAVEPOINT import_row')
+                    db.execute('RELEASE SAVEPOINT import_row')
                 skipped_rows += 1
                 continue
 
@@ -658,89 +630,8 @@ def import_scan_apply():
             skipped += 1
             continue
 
-        current_activite = current["n_activite"] if current["n_activite"] is not None else current["e_activite"]
-        current_devoir = current["n_devoir"] if current["n_devoir"] is not None else current["e_devoir"]
-        current_compo = current["n_compo"] if current["n_compo"] is not None else current["e_compo"]
-        current_remarques = current["n_remarques"] if current["n_remarques"] not in (None, "") else current["e_remarques"]
-
-        final_activite = activite if activite is not None else clean_note(current_activite)
-        final_devoir = devoir if devoir is not None else clean_note(current_devoir)
-        final_compo = compo if compo is not None else clean_note(current_compo)
-
-        if activite is not None:
-            participation, comportement, cahier, projet, assiduite_outils = split_activite_components(final_activite)
-        else:
-            components = [
-                current["participation"],
-                current["comportement"],
-                current["cahier"],
-                current["projet"],
-                current["assiduite_outils"],
-            ]
-            if any(value is not None for value in components):
-                participation = clean_component(current["participation"], 3)
-                comportement = clean_component(current["comportement"], 6)
-                cahier = clean_component(current["cahier"], 5)
-                projet = clean_component(current["projet"], 4)
-                assiduite_outils = clean_component(current["assiduite_outils"], 2)
-            else:
-                participation, comportement, cahier, projet, assiduite_outils = split_activite_components(final_activite)
-
-        moyenne = ((final_devoir + final_activite) / 2 + (final_compo * 2)) / 3
-        final_remarques = remarques or current_remarques or get_appreciation_dynamique(moyenne, user_id)
-
-        db.execute(
-            f"""
-            UPDATE eleves
-            SET remarques_t{trim} = ?, devoir_t{trim} = ?, activite_t{trim} = ?, compo_t{trim} = ?
-            WHERE id = ? AND user_id = ? AND school_year = ?
-            """,
-            (
-                final_remarques,
-                final_devoir,
-                final_activite,
-                final_compo,
-                eleve_id,
-                user_id,
-                selected_school_year,
-            ),
-        )
-        db.execute(
-            """
-            INSERT INTO notes (
-                user_id, eleve_id, subject_id, trimestre,
-                participation, comportement, cahier, projet, assiduite_outils,
-                activite, devoir, compo, remarques
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(user_id, eleve_id, subject_id, trimestre)
-            DO UPDATE SET
-                participation=excluded.participation,
-                comportement=excluded.comportement,
-                cahier=excluded.cahier,
-                projet=excluded.projet,
-                assiduite_outils=excluded.assiduite_outils,
-                activite=excluded.activite,
-                devoir=excluded.devoir,
-                compo=excluded.compo,
-                remarques=excluded.remarques
-            """,
-            (
-                user_id,
-                eleve_id,
-                subject_id,
-                int(trim),
-                participation,
-                comportement,
-                cahier,
-                projet,
-                assiduite_outils,
-                final_activite,
-                final_devoir,
-                final_compo,
-                final_remarques,
-            ),
-        )
+        import_assessment(db,user_id,eleve_id,subject_id,trim,
+                          dict(activite=activite,devoir=devoir,compo=compo),remarques)
         updated += 1
 
     db.commit()
@@ -872,26 +763,12 @@ def remplir_bulletin_officiel():
                             (subject_id, int(trim), full, user_id, selected_school_year),
                         ).fetchone()
                         if el:
-                            activite_val = (
-                                el["n_activite"]
-                                if el["n_activite"] is not None
-                                else el[f"activite_t{trim}"]
-                            )
-                            devoir_val = (
-                                el["n_devoir"]
-                                if el["n_devoir"] is not None
-                                else el[f"devoir_t{trim}"]
-                            )
-                            compo_val = (
-                                el["n_compo"]
-                                if el["n_compo"] is not None
-                                else el[f"compo_t{trim}"]
-                            )
-                            rem_val = (
-                                el["n_remarques"]
-                                if el["n_remarques"] not in (None, "")
-                                else el[f"remarques_t{trim}"]
-                            )
+                            expressions = note_expr(trim)
+                            scores = db.execute(f"""SELECT {expressions[0]} AS devoir,{expressions[1]} AS activite,
+                                {expressions[2]} AS compo,{expressions[3]} AS remarques FROM eleves e
+                                LEFT JOIN notes n ON n.eleve_id=e.id AND n.user_id=e.user_id AND n.subject_id=? AND n.trimestre=?
+                                WHERE e.id=? AND e.user_id=?""", (subject_id,int(trim),el['id'],user_id)).fetchone()
+                            activite_val, devoir_val, compo_val, rem_val = (scores[k] for k in ('activite','devoir','compo','remarques'))
                             if "act" in col_map:
                                 sheet.cell(row=r, column=col_map["act"]).value = activite_val
                             if "dev" in col_map:

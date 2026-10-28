@@ -64,10 +64,44 @@ def _migrate_to_v2(db):
     db.execute("CREATE INDEX IF NOT EXISTS idx_homework_user_year ON homework(user_id, school_year)")
 
 
+def _migrate_to_v3(db):
+    """Preserve legacy scores; add explicit assessment state and recovery data."""
+    columns = {r['name'] for r in db.execute('PRAGMA table_info(notes)')}
+    if 'assessment_status' not in columns:
+        db.execute("ALTER TABLE notes ADD COLUMN assessment_status TEXT NOT NULL DEFAULT 'legacy'")
+    if 'version' not in columns:
+        db.execute('ALTER TABLE notes ADD COLUMN version INTEGER NOT NULL DEFAULT 0')
+    db.execute('''CREATE TABLE IF NOT EXISTS grade_revisions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL, eleve_id INTEGER NOT NULL,
+        subject_id INTEGER NOT NULL, trimestre INTEGER NOT NULL,
+        school_year TEXT NOT NULL, student_name TEXT NOT NULL,
+        before_json TEXT, after_json TEXT NOT NULL,
+        after_version INTEGER NOT NULL, created_at INTEGER NOT NULL,
+        undone INTEGER NOT NULL DEFAULT 0,
+        FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+    )''')
+    db.execute('CREATE INDEX IF NOT EXISTS idx_grade_revisions_user ON grade_revisions(user_id, id)')
+    db.execute('''CREATE TABLE IF NOT EXISTS student_trash (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL,
+        student_id INTEGER NOT NULL, student_name TEXT NOT NULL,
+        school_year TEXT NOT NULL, niveau TEXT NOT NULL,
+        payload TEXT NOT NULL, created_at INTEGER NOT NULL,
+        FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+    )''')
+    # Imports and older clients also invalidate an open grade editor.
+    db.execute('''CREATE TRIGGER IF NOT EXISTS notes_bump_version
+        AFTER UPDATE OF activite, devoir, compo, remarques, assessment_status,
+                        participation, comportement, cahier, projet, assiduite_outils ON notes
+        WHEN NEW.version = OLD.version
+        BEGIN UPDATE notes SET version = OLD.version + 1 WHERE id = NEW.id; END''')
+
+
 # Ordered list of migrations
 _MIGRATIONS = [
     (1, _migrate_to_v1),
     (2, _migrate_to_v2),
+    (3, _migrate_to_v3),
 ]
 
 
