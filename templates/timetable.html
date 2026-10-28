@@ -10,7 +10,6 @@
     <form method="get" class="row g-2 align-items-end">
       <div class="col-12 col-md-4">
         <label class="small text-muted">Annee scolaire</label>
-        {% if session.get('is_admin') %}
         <select name="school_year" class="form-select form-select-sm" onchange="this.form.submit()">
           {% for sy in school_years %}
           <option value="{{ sy.label }}" {% if school_year == sy.label %}selected{% endif %}>
@@ -18,10 +17,6 @@
           </option>
           {% endfor %}
         </select>
-        {% else %}
-        <input type="text" class="form-control form-control-sm" value="{{ school_year }}" readonly>
-        <input type="hidden" name="school_year" value="{{ school_year }}">
-        {% endif %}
       </div>
       <div class="col-12 col-md-4">
         <label class="small text-muted">Classe</label>

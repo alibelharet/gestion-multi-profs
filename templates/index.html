@@ -467,7 +467,6 @@
                             %}selected{% endif %}>{{ classe }}</option>{% endfor %}
                     </select>
                 </div>
-                {% if session.get('is_admin') %}
                 <div class="col-6 col-lg-3">
                     <label class="form-label text-muted">Annee</label>
                     <select name="school_year" class="form-select form-select-sm" onchange="this.form.submit()">
@@ -478,9 +477,6 @@
                         {% endfor %}
                     </select>
                 </div>
-                {% else %}
-                <input type="hidden" name="school_year" value="{{ school_year }}">
-                {% endif %}
                 {% if session.get('lock_subject') %}
                 <input type="hidden" name="subject" value="{{ subject_id }}">
                 {% else %}

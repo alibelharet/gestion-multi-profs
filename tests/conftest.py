@@ -1,5 +1,6 @@
 """Pytest fixtures for EduMaster Pro tests."""
 import os
+import shutil
 import sys
 import tempfile
 
@@ -15,7 +16,27 @@ def app():
     db_fd, db_path = tempfile.mkstemp(suffix=".db")
     os.environ["DATABASE_PATH"] = db_path
     os.environ["SECRET_KEY"] = "test-secret-key"
+    os.environ["SECRET_LICENCE"] = "test-license-secret"
     os.environ["STRICT_LICENSE_MACHINE_CHECK"] = "0"
+
+    # Modules may already have been imported during test collection; point all
+    # module-level settings at disposable test files rather than user data.
+    from core import config as config_module
+    import core.db as db_module
+    import core.security as security_module
+
+    isolation_dir = tempfile.mkdtemp(prefix="edumaster_test_runtime_")
+    license_path = os.path.join(isolation_dir, "license.key")
+    cache_path = os.path.join(isolation_dir, ".sys_check")
+    config_module.DATABASE = db_path
+    config_module.LICENSE_FILE = license_path
+    config_module.CACHE_FILE = cache_path
+    config_module.SECRET_LICENCE = os.environ["SECRET_LICENCE"]
+    db_module.DATABASE = db_path
+    security_module.DATABASE = db_path
+    security_module.LICENSE_FILE = license_path
+    security_module.CACHE_FILE = cache_path
+    security_module.SECRET_LICENCE = os.environ["SECRET_LICENCE"]
 
     # Create a minimal license key so the app doesn't block
     import base64
@@ -23,18 +44,11 @@ def app():
     import json
     from datetime import datetime, timedelta
 
-    secret = os.environ.get("SECRET_LICENCE", "ALGERIE_ECOLE_PRO_2026_SUPER_SECRET")
+    secret = os.environ["SECRET_LICENCE"]
     future_date = (datetime.now() + timedelta(days=365)).strftime("%Y-%m-%d")
     sig = hashlib.sha256(f"{future_date}|{secret}".encode()).hexdigest()[:16].upper()
     payload = base64.b64encode(json.dumps({"date": future_date, "sig": sig}).encode()).decode()
     key_val = f"EDUPRO-{payload}"
-
-    from core.config import BASE_DIR
-    license_path = os.path.join(BASE_DIR, "license.key")
-    original_license = None
-    if os.path.exists(license_path):
-        with open(license_path, "r") as f:
-            original_license = f.read()
 
     from core.security import get_machine_id
     mid = get_machine_id()
@@ -46,15 +60,16 @@ def app():
     test_app.config["TESTING"] = True
     test_app.config["WTF_CSRF_ENABLED"] = False
     test_app.config["SESSION_COOKIE_SECURE"] = False
+    uploads_dir = tempfile.mkdtemp(prefix="edumaster_test_uploads_")
+    test_app.config["UPLOAD_FOLDER"] = uploads_dir
 
     yield test_app
 
     # Cleanup
     os.close(db_fd)
     os.unlink(db_path)
-    if original_license is not None:
-        with open(license_path, "w") as f:
-            f.write(original_license)
+    shutil.rmtree(uploads_dir, ignore_errors=True)
+    shutil.rmtree(isolation_dir, ignore_errors=True)
 
 
 @pytest.fixture()

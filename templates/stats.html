@@ -15,7 +15,6 @@
                 <i class="bi bi-file-pdf-fill me-1"></i> Télécharger PDF
             </a>
             <form action="{{ url_for('dashboard.stats') }}" method="get" class="d-flex gap-2">
-                {% if session.get('is_admin') %}
                 <select name="school_year" class="form-select form-select-sm" onchange="this.form.submit()">
                     {% for sy in school_years %}
                     <option value="{{ sy.label }}" {% if school_year==sy.label %}selected{% endif %}>
@@ -23,9 +22,6 @@
                     </option>
                     {% endfor %}
                 </select>
-                {% else %}
-                <input type="hidden" name="school_year" value="{{ school_year }}">
-                {% endif %}
                 <select name="trimestre" class="form-select form-select-sm" onchange="this.form.submit()">
                     <option value="1" {% if trimestre=='1' %}selected{% endif %}>T1</option>
                     <option value="2" {% if trimestre=='2' %}selected{% endif %}>T2</option>

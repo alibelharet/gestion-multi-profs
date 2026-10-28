@@ -1,4 +1,5 @@
 from datetime import datetime
+from flask import has_request_context, session
 
 def school_year(now):
     if now.month >= 9:
@@ -71,28 +72,55 @@ def ensure_school_years(db):
 
 def list_school_years(db):
     ensure_school_years(db)
-    return db.execute(
+    rows = db.execute(
         "SELECT id, label, is_active FROM school_years ORDER BY label DESC, id DESC"
     ).fetchall()
+    if has_request_context() and session.get("user_id") and not session.get("is_admin"):
+        own_years = _user_school_years(db, session["user_id"])
+        return [row for row in rows if row["label"] in own_years] or [
+            row for row in rows if row["is_active"]
+        ]
+    return rows
+
+
+def _user_school_years(db, user_id):
+    return [
+        row["label"]
+        for row in db.execute(
+            """
+            SELECT label FROM school_years
+            WHERE label IN (
+                SELECT school_year FROM eleves WHERE user_id = ?
+                UNION
+                SELECT school_year FROM teacher_assignments WHERE user_id = ?
+            )
+            ORDER BY label DESC, id DESC
+            """,
+            (user_id, user_id),
+        ).fetchall()
+    ]
 
 def get_active_school_year(db):
     return ensure_school_years(db)
 
-def resolve_school_year(db, requested=None, *, is_admin=False):
+def resolve_school_year(db, requested=None, *, is_admin=False, user_id=None):
     active = get_active_school_year(db)
     req = (requested or "").strip()
-    if not req:
-        return active
-    row = db.execute(
-        "SELECT label, is_active FROM school_years WHERE label = ?",
-        (req,),
-    ).fetchone()
-    if not row:
-        return active
     if is_admin:
-        return row["label"]
-    # Non-admin users are pinned to the active year.
-    return active
+        row = db.execute(
+            "SELECT label FROM school_years WHERE label = ?", (req,)
+        ).fetchone()
+        return row["label"] if row else active
+    if user_id is None and has_request_context():
+        user_id = session.get("user_id")
+    if user_id is None:
+        return active
+    own_years = _user_school_years(db, user_id)
+    if req in own_years:
+        return req
+    if active in own_years:
+        return active
+    return own_years[0] if own_years else active
 
 def get_user_assignment_scope(db, user_id: int, school_year_label: str):
     rows = db.execute(

@@ -90,3 +90,44 @@ Si vous avez une erreur ("Something went wrong") :
 - Regardez le fichier **Error log** (lien dans l'onglet Web).
 - Vérifiez que le chemin dans `pa_wsgi.py` est correct (`project_home`).
 - Vérifiez que vous avez bien installé les dépendances (`pip install`).
+
+## Mise à jour GitHub et import d'un enseignant
+
+Le code est mis à jour depuis une console Bash PythonAnywhere :
+
+```bash
+cd /home/alibelharet/gestion-multi-profs
+git pull --ff-only origin main
+```
+
+Activez le virtualenv indiqué dans l'onglet Web (par exemple `workon edumaster-venv`).
+Les comptes et les élèves sont conservés dans la base SQLite du serveur : un `git pull`
+ne transfère pas la base du PC. Pour ajouter une liste, déposez le fichier Excel dans
+votre dossier personnel avec PythonAnywhere > Files, puis lancez un aperçu :
+
+```bash
+python scripts/import_class_roster.py \
+  --excel ~/Notes_controle_continu_classes.xlsx \
+  --username profmath --display-name "Nom Prénom" \
+  --school "Mon école" --subject "Mathématiques" --school-year 2026/2027
+```
+
+Ce format de classeur utilise un onglet par classe (`1M1`, `2M2`, etc.), les noms en
+colonne Q et les numéros en colonne R, à partir de la ligne 8. Les numéros doivent
+être continus. Seuls les noms et les classes sont importés ; aucune note n'est créée.
+L'année scolaire est obligatoire pour ce format. Le chemin de la base est lu depuis
+le `.env` du serveur ; `--database` permet de le préciser si nécessaire.
+
+Si l'aperçu correspond à la liste attendue, relancez la même commande avec `--apply`.
+Le script sauvegarde la base avant l'import, crée un compte professeur et ses
+classes, puis affiche le chemin d'un fichier privé contenant son mot de passe
+initial. Ce fichier reste dans `backups/`, hors du dépôt. Un compte existant n'est
+réutilisé que si ses paramètres correspondent et son mot de passe est conservé.
+Une seconde exécution ne duplique pas les élèves.
+
+Chaque professeur accède à ses propres années scolaires. L'année active des autres
+comptes reste en place. Après la mise à jour, cliquez **Web > Reload**, puis vérifiez
+`/health` et connectez-vous avec le compte de l'enseignant.
+
+Les fichiers Excel, les listes JSON, les bases et les identifiants restent dans
+votre compte privé ; ne les ajoutez pas au dépôt GitHub public.
